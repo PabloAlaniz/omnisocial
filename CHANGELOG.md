@@ -18,5 +18,3 @@
 ### Documentation
 
 * lo aprendido de YouTube, X y LinkedIn ([2573fe7](https://github.com/PabloAlaniz/omnisocial/commit/2573fe74cef3f8d9d40742f3536fc4ac7826765e))
-
-## Changelog
