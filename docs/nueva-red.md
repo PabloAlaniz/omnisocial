@@ -1,0 +1,64 @@
+# Sumar una red
+
+Una red es un `Provider` con las capacidades que implementa. No hace falta implementar todas.
+
+## 1. Las capacidades
+
+Cada una es un `Protocol` de `omnisocial.application.ports`:
+
+| Puerto | Para qué |
+|--------|----------|
+| `OAuthClient` | URL de autorización, canje del código, identidad, renovación y revocación. |
+| `AssetDirectory` | Qué activos administra un token. |
+| `ContentReader` | Publicaciones de un activo en una ventana. |
+| `CommentGateway` | Leer, responder y ocultar comentarios. |
+| `MessagingGateway` | Conversaciones, mensajes, enviar y la ventana para responder. |
+| `InsightsReader` | Métricas por nombre propio, con su catálogo de nombres comunes. |
+| `WebhookParser` | Saludo de suscripción, firma y traducción de los avisos. |
+
+Reglas que el núcleo espera:
+
+- `exchange_code` devuelve el mejor token que la red permita (el de mayor duración).
+- Si la red rechaza un token, se lanza `TokenRejected`: la conexión queda inválida y no se reintenta.
+- Cualquier otro error de la red es `ProviderError`.
+- `can_refresh` dice la verdad: si la red no renueva, devuelve `False` y la conexión vence sola.
+- `verify_signature` sin secreto configurado devuelve `False`, nunca `True`.
+- Los tipos de activo son texto libre, propio de la red (`tiktok_account`, por ejemplo).
+
+## 2. El proveedor
+
+```python
+from omnisocial import Provider, ProviderId
+
+
+def tiktok_provider(config, transport) -> Provider:
+    return Provider(
+        id=ProviderId("tiktok"),
+        oauth=TikTokOAuth(config, transport),
+        assets=TikTokAccounts(transport),
+        content=TikTokVideos(transport),
+        insights=TikTokInsights(transport),
+    )
+```
+
+## 3. Publicarla aparte (opcional)
+
+Una red se puede distribuir como paquete propio y registrarse por entry point:
+
+```toml
+[project.entry-points."omnisocial.providers"]
+tiktok = "omnisocial_tiktok:tiktok_provider"
+```
+
+```python
+from omnisocial.application.registry import load_entry_point
+
+factory = load_entry_point("tiktok")
+```
+
+## 4. Probarla
+
+Los casos de uso no cambian. Lo que hay que probar es la traducción entre la red y el dominio, con
+respuestas grabadas y sin red de verdad: ver `tests/adapters/meta/` y el transporte falso de
+`tests/adapters/meta/conftest.py`. La prueba de que la red encaja es que pase el mismo flujo de punta a
+punta que `tests/adapters/meta/test_end_to_end.py`.

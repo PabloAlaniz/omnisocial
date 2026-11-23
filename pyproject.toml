@@ -63,7 +63,7 @@ testpaths = ["tests"]
 addopts = "--cov --cov-report=term-missing:skip-covered -m 'not integration and not live'"
 asyncio_mode = "auto"
 asyncio_default_fixture_loop_scope = "function"
-filterwarnings = ["error"]
+filterwarnings = ["error", "ignore:Using `httpx` with `starlette.testclient`"]
 markers = [
     "integration: necesita un servicio externo (PostgreSQL)",
     "live: llama a la API real de una red con credenciales de verdad",

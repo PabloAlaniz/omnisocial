@@ -1,0 +1,368 @@
+"""Repositorios en PostgreSQL con psycopg 3.
+
+Los tokens se guardan cifrados con un `TokenCipher`. El resto de los datos va en claro para poder
+consultarlos: dueño, red, activo, vencimiento.
+"""
+
+from __future__ import annotations
+
+import json
+from collections.abc import Sequence
+from datetime import datetime
+from typing import Any
+
+from psycopg.rows import dict_row
+from psycopg.types.json import Jsonb
+from psycopg_pool import AsyncConnectionPool
+
+from omnisocial.application.ports import Clock, TokenCipher
+from omnisocial.domain.asset import Asset
+from omnisocial.domain.authorization import AuthorizationRequest, Purpose
+from omnisocial.domain.connection import Connection, ConnectionStatus
+from omnisocial.domain.identity import Identity
+from omnisocial.domain.provider import Capability, ProviderId
+from omnisocial.domain.token import Token, TokenKind
+
+SCHEMA = """
+CREATE TABLE IF NOT EXISTS omnisocial_connections (
+    id               text PRIMARY KEY,
+    provider         text NOT NULL,
+    owner            text NOT NULL,
+    subject_id       text NOT NULL,
+    subject_name     text,
+    subject_email    text,
+    subject_avatar   text,
+    token_kind       text NOT NULL,
+    token_secret     text NOT NULL,
+    token_expires_at timestamptz,
+    token_scopes     text[] NOT NULL DEFAULT '{}',
+    status           text NOT NULL,
+    status_reason    text,
+    version          integer NOT NULL,
+    created_at       timestamptz NOT NULL,
+    updated_at       timestamptz NOT NULL,
+    UNIQUE (owner, provider, subject_id)
+);
+
+CREATE TABLE IF NOT EXISTS omnisocial_assets (
+    id                 text PRIMARY KEY,
+    connection_id      text NOT NULL REFERENCES omnisocial_connections (id) ON DELETE CASCADE,
+    provider           text NOT NULL,
+    owner              text NOT NULL,
+    kind               text NOT NULL,
+    external_id        text NOT NULL,
+    name               text,
+    parent_external_id text,
+    token_kind         text,
+    token_secret       text,
+    token_expires_at   timestamptz,
+    capabilities       text[] NOT NULL DEFAULT '{}',
+    metadata           jsonb NOT NULL DEFAULT '{}',
+    UNIQUE (connection_id, kind, external_id)
+);
+CREATE INDEX IF NOT EXISTS omnisocial_assets_external ON omnisocial_assets (provider, external_id);
+CREATE INDEX IF NOT EXISTS omnisocial_assets_owner ON omnisocial_assets (owner, provider);
+
+CREATE TABLE IF NOT EXISTS omnisocial_authorization_states (
+    state      text PRIMARY KEY,
+    request    text NOT NULL,
+    expires_at timestamptz NOT NULL
+);
+CREATE INDEX IF NOT EXISTS omnisocial_states_expiry ON omnisocial_authorization_states (expires_at);
+"""
+
+
+async def create_schema(pool: AsyncConnectionPool[Any]) -> None:
+    async with pool.connection() as conn:
+        await conn.execute(SCHEMA)
+
+
+def _seal(cipher: TokenCipher, token: Token, context: str) -> str:
+    secret = {"access_token": token.access_token, "refresh_token": token.refresh_token}
+    return cipher.encrypt(json.dumps(secret), context=context)
+
+
+def _open(cipher: TokenCipher, row: dict[str, Any], context: str) -> Token:
+    secret = json.loads(cipher.decrypt(row["token_secret"], context=context))
+    return Token(
+        kind=TokenKind(row["token_kind"]),
+        access_token=secret["access_token"],
+        refresh_token=secret.get("refresh_token"),
+        expires_at=row["token_expires_at"],
+        scopes=frozenset(row.get("token_scopes") or ()),
+    )
+
+
+class PostgresConnectionRepository:
+    def __init__(self, pool: AsyncConnectionPool[Any], cipher: TokenCipher) -> None:
+        self._pool = pool
+        self._cipher = cipher
+
+    @staticmethod
+    def _context(connection_id: str) -> str:
+        return f"omnisocial|connection|{connection_id}"
+
+    def _row_to_connection(self, row: dict[str, Any]) -> Connection:
+        provider = ProviderId(row["provider"])
+        return Connection(
+            id=row["id"],
+            provider=provider,
+            owner=row["owner"],
+            subject=Identity(
+                provider,
+                row["subject_id"],
+                name=row["subject_name"],
+                email=row["subject_email"],
+                avatar_url=row["subject_avatar"],
+            ),
+            token=_open(self._cipher, row, self._context(row["id"])),
+            status=ConnectionStatus(row["status"]),
+            status_reason=row["status_reason"],
+            version=row["version"],
+            created_at=row["created_at"],
+            updated_at=row["updated_at"],
+        )
+
+    async def _fetch(self, sql: str, params: Sequence[object]) -> list[Connection]:
+        async with self._pool.connection() as conn, conn.cursor(row_factory=dict_row) as cur:
+            await cur.execute(sql, params)
+            return [self._row_to_connection(row) for row in await cur.fetchall()]
+
+    async def get(self, connection_id: str) -> Connection | None:
+        rows = await self._fetch("SELECT * FROM omnisocial_connections WHERE id = %s", [connection_id])
+        return rows[0] if rows else None
+
+    async def find(self, *, owner: str, provider: ProviderId, subject_id: str) -> Connection | None:
+        rows = await self._fetch(
+            "SELECT * FROM omnisocial_connections WHERE owner = %s AND provider = %s AND subject_id = %s",
+            [owner, provider, subject_id],
+        )
+        return rows[0] if rows else None
+
+    async def list_by_owner(self, owner: str) -> Sequence[Connection]:
+        return await self._fetch(
+            "SELECT * FROM omnisocial_connections WHERE owner = %s ORDER BY created_at, id", [owner]
+        )
+
+    def _values(self, c: Connection) -> dict[str, object]:
+        return {
+            "id": c.id,
+            "provider": c.provider,
+            "owner": c.owner,
+            "subject_id": c.subject.external_id,
+            "subject_name": c.subject.name,
+            "subject_email": c.subject.email,
+            "subject_avatar": c.subject.avatar_url,
+            "token_kind": c.token.kind.value,
+            "token_secret": _seal(self._cipher, c.token, self._context(c.id)),
+            "token_expires_at": c.token.expires_at,
+            "token_scopes": sorted(c.token.scopes),
+            "status": c.status.value,
+            "status_reason": c.status_reason,
+            "version": c.version,
+            "created_at": c.created_at,
+            "updated_at": c.updated_at,
+        }
+
+    async def add(self, connection: Connection) -> None:
+        values = self._values(connection)
+        columns = ", ".join(values)
+        placeholders = ", ".join(f"%({k})s" for k in values)
+        async with self._pool.connection() as conn:
+            await conn.execute(
+                f"INSERT INTO omnisocial_connections ({columns}) VALUES ({placeholders})",  # noqa: S608
+                values,
+            )
+
+    async def save(self, connection: Connection, *, expected_version: int) -> bool:
+        values = self._values(connection)
+        assignments = ", ".join(f"{k} = %({k})s" for k in values if k not in {"id", "created_at"})
+        async with self._pool.connection() as conn:
+            cur = await conn.execute(
+                f"UPDATE omnisocial_connections SET {assignments} "  # noqa: S608
+                "WHERE id = %(id)s AND version = %(expected_version)s",
+                {**values, "expected_version": expected_version},
+            )
+            return bool(cur.rowcount == 1)
+
+
+class PostgresAssetRepository:
+    def __init__(self, pool: AsyncConnectionPool[Any], cipher: TokenCipher) -> None:
+        self._pool = pool
+        self._cipher = cipher
+
+    @staticmethod
+    def _context(asset_id: str) -> str:
+        return f"omnisocial|asset|{asset_id}"
+
+    def _row_to_asset(self, row: dict[str, Any]) -> Asset:
+        token = _open(self._cipher, row, self._context(row["id"])) if row["token_secret"] else None
+        return Asset(
+            id=row["id"],
+            connection_id=row["connection_id"],
+            provider=ProviderId(row["provider"]),
+            owner=row["owner"],
+            kind=row["kind"],
+            external_id=row["external_id"],
+            name=row["name"],
+            parent_external_id=row["parent_external_id"],
+            token=token,
+            capabilities=frozenset(Capability(c) for c in row["capabilities"] if c in Capability),
+            metadata=dict(row["metadata"] or {}),
+        )
+
+    async def _fetch(self, sql: str, params: Sequence[object]) -> list[Asset]:
+        async with self._pool.connection() as conn, conn.cursor(row_factory=dict_row) as cur:
+            await cur.execute(sql, params)
+            return [self._row_to_asset(row) for row in await cur.fetchall()]
+
+    async def get(self, asset_id: str) -> Asset | None:
+        rows = await self._fetch("SELECT * FROM omnisocial_assets WHERE id = %s", [asset_id])
+        return rows[0] if rows else None
+
+    async def list_by_owner(self, owner: str, *, provider: ProviderId | None = None) -> Sequence[Asset]:
+        if provider is None:
+            return await self._fetch("SELECT * FROM omnisocial_assets WHERE owner = %s ORDER BY id", [owner])
+        return await self._fetch(
+            "SELECT * FROM omnisocial_assets WHERE owner = %s AND provider = %s ORDER BY id",
+            [owner, provider],
+        )
+
+    async def list_by_connection(self, connection_id: str) -> Sequence[Asset]:
+        return await self._fetch(
+            "SELECT * FROM omnisocial_assets WHERE connection_id = %s ORDER BY id", [connection_id]
+        )
+
+    async def find_by_external_id(self, provider: ProviderId, external_id: str) -> Sequence[Asset]:
+        return await self._fetch(
+            "SELECT * FROM omnisocial_assets WHERE provider = %s AND external_id = %s ORDER BY id",
+            [provider, external_id],
+        )
+
+    async def replace_for_connection(self, connection_id: str, assets: Sequence[Asset]) -> None:
+        async with (
+            self._pool.connection() as conn,
+            conn.transaction(),
+            conn.cursor(row_factory=dict_row) as cur,
+        ):
+            await cur.execute(
+                "SELECT id, kind, external_id FROM omnisocial_assets WHERE connection_id = %s FOR UPDATE",
+                [connection_id],
+            )
+            known = {(row["kind"], row["external_id"]): row["id"] for row in await cur.fetchall()}
+            keep: list[str] = []
+            for asset in assets:
+                asset_id = known.get((asset.kind, asset.external_id), asset.id)
+                keep.append(asset_id)
+                token = asset.token
+                await cur.execute(
+                    """
+                    INSERT INTO omnisocial_assets (
+                        id, connection_id, provider, owner, kind, external_id, name, parent_external_id,
+                        token_kind, token_secret, token_expires_at, capabilities, metadata
+                    ) VALUES (
+                        %(id)s, %(connection_id)s, %(provider)s, %(owner)s, %(kind)s, %(external_id)s,
+                        %(name)s, %(parent)s, %(token_kind)s, %(token_secret)s, %(token_expires_at)s,
+                        %(capabilities)s,
+                        %(metadata)s
+                    )
+                    ON CONFLICT (connection_id, kind, external_id) DO UPDATE SET
+                        name = EXCLUDED.name,
+                        owner = EXCLUDED.owner,
+                        parent_external_id = EXCLUDED.parent_external_id,
+                        token_kind = EXCLUDED.token_kind,
+                        token_secret = EXCLUDED.token_secret,
+                        token_expires_at = EXCLUDED.token_expires_at,
+                        capabilities = EXCLUDED.capabilities,
+                        metadata = EXCLUDED.metadata
+                    """,
+                    {
+                        "id": asset_id,
+                        "connection_id": connection_id,
+                        "provider": asset.provider,
+                        "owner": asset.owner,
+                        "kind": asset.kind,
+                        "external_id": asset.external_id,
+                        "name": asset.name,
+                        "parent": asset.parent_external_id,
+                        "token_kind": token.kind.value if token else None,
+                        "token_secret": _seal(self._cipher, token, self._context(asset_id))
+                        if token
+                        else None,
+                        "token_expires_at": token.expires_at if token else None,
+                        "capabilities": sorted(c.value for c in asset.capabilities),
+                        "metadata": Jsonb(dict(asset.metadata)),
+                    },
+                )
+            await cur.execute(
+                "DELETE FROM omnisocial_assets WHERE connection_id = %s AND NOT (id = ANY(%s))",
+                [connection_id, keep],
+            )
+
+
+def _request_to_json(request: AuthorizationRequest) -> str:
+    return json.dumps(
+        {
+            "state": request.state,
+            "provider": request.provider,
+            "purpose": request.purpose.value,
+            "redirect_uri": request.redirect_uri,
+            "created_at": request.created_at.isoformat(),
+            "expires_at": request.expires_at.isoformat(),
+            "scopes": list(request.scopes),
+            "owner": request.owner,
+            "return_url": request.return_url,
+            "code_verifier": request.code_verifier,
+        }
+    )
+
+
+def _request_from_json(raw: str) -> AuthorizationRequest:
+    data = json.loads(raw)
+    return AuthorizationRequest(
+        state=data["state"],
+        provider=ProviderId(data["provider"]),
+        purpose=Purpose(data["purpose"]),
+        redirect_uri=data["redirect_uri"],
+        created_at=datetime.fromisoformat(data["created_at"]),
+        expires_at=datetime.fromisoformat(data["expires_at"]),
+        scopes=tuple(data["scopes"]),
+        owner=data["owner"],
+        return_url=data["return_url"],
+        code_verifier=data["code_verifier"],
+    )
+
+
+class PostgresAuthorizationStateStore:
+    """El pedido entero va cifrado: lleva el `code_verifier` de PKCE."""
+
+    def __init__(self, pool: AsyncConnectionPool[Any], cipher: TokenCipher, clock: Clock) -> None:
+        self._pool = pool
+        self._cipher = cipher
+        self._clock = clock
+
+    @staticmethod
+    def _context(state: str) -> str:
+        return f"omnisocial|state|{state}"
+
+    async def put(self, request: AuthorizationRequest) -> None:
+        sealed = self._cipher.encrypt(_request_to_json(request), context=self._context(request.state))
+        async with self._pool.connection() as conn, conn.transaction():
+            await conn.execute(
+                "DELETE FROM omnisocial_authorization_states WHERE expires_at < %s", [self._clock.now()]
+            )
+            await conn.execute(
+                "INSERT INTO omnisocial_authorization_states (state, request, expires_at) "
+                "VALUES (%s, %s, %s)",
+                [request.state, sealed, request.expires_at],
+            )
+
+    async def take(self, state: str) -> AuthorizationRequest | None:
+        async with self._pool.connection() as conn:
+            cur = await conn.execute(
+                "DELETE FROM omnisocial_authorization_states WHERE state = %s RETURNING request", [state]
+            )
+            row = await cur.fetchone()
+        if row is None:
+            return None
+        return _request_from_json(self._cipher.decrypt(row[0], context=self._context(state)))

@@ -36,6 +36,9 @@ class MetaWebhookParser:
     def __init__(self, config: MetaConfig) -> None:
         self._config = config
 
+    def handshake(self, query: Mapping[str, str]) -> str | None:
+        return verify_subscription(query, self._config.webhook_verify_token)
+
     def verify_signature(self, body: bytes, headers: Mapping[str, str]) -> bool:
         """`X-Hub-Signature-256: sha256=<hex>`: HMAC-SHA256 del cuerpo crudo con el secreto de la app."""
         header = headers.get(SIGNATURE_HEADER, "")

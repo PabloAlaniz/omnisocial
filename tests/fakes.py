@@ -198,6 +198,9 @@ class FakeInsights:
 class FakeWebhooks:
     secret_ok: bool = True
 
+    def handshake(self, query: Mapping[str, str]) -> str | None:
+        return query.get("desafio") if query.get("clave") == "ok" else None
+
     def verify_signature(self, body: bytes, headers: Mapping[str, str]) -> bool:
         return self.secret_ok and headers.get("x-firma") == "valida"
 

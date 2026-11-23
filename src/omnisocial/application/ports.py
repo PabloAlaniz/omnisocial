@@ -104,6 +104,10 @@ class InsightsReader(Protocol):
 
 
 class WebhookParser(Protocol):
+    def handshake(self, query: Mapping[str, str]) -> str | None:
+        """La respuesta al pedido con que la red confirma la URL del webhook, o `None` si no es válido."""
+        ...
+
     def verify_signature(self, body: bytes, headers: Mapping[str, str]) -> bool:
         """El aviso viene de la red. Sin secreto configurado devuelve `False`, nunca `True`."""
         ...
@@ -164,3 +168,15 @@ class SecretGenerator(Protocol):
     def token(self, nbytes: int) -> str:
         """Un valor aleatorio seguro y apto para URL."""
         ...
+
+
+class TokenCipher(Protocol):
+    """Cifra los tokens antes de guardarlos.
+
+    `context` va como dato autenticado: un token cifrado para una conexión no se puede pegar en otra fila
+    y descifrar ahí.
+    """
+
+    def encrypt(self, plaintext: str, *, context: str) -> str: ...
+
+    def decrypt(self, ciphertext: str, *, context: str) -> str: ...
