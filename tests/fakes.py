@@ -13,7 +13,7 @@ from omniwebhook import IncomingRequest, Verifier, hmac_body_scheme
 from omnisocial.application.registry import Provider
 from omnisocial.domain.asset import Asset, DiscoveredAsset
 from omnisocial.domain.authorization import Purpose
-from omnisocial.domain.content import Comment, Post
+from omnisocial.domain.content import Comment, CommentAction, Post
 from omnisocial.domain.errors import TokenRejected
 from omnisocial.domain.identity import Identity
 from omnisocial.domain.messaging import Conversation, Message, ReplyWindow
@@ -145,9 +145,25 @@ class FakeContent:
 class FakeComments:
     replies: list[tuple[str, str]] = field(default_factory=list)
     hidden: dict[str, bool] = field(default_factory=dict)
+    deleted: list[str] = field(default_factory=list)
+    liked: list[str] = field(default_factory=list)
+    not_offered: set[CommentAction] = field(default_factory=set)
+    fail_with: Exception | None = None
+    """Si está, `list_comments` la lanza: así se prueba qué hace el caso de uso con los errores de la red."""
 
     async def list_comments(self, asset: Asset, token: Token, *, object_id: str) -> Sequence[Comment]:
+        if self.fail_with is not None:
+            raise self.fail_with
         return [Comment("com-1", object_id, NOW, text="buenísimo")]
+
+    def supports(self, asset: Asset, action: CommentAction) -> bool:
+        return action not in self.not_offered
+
+    async def delete(self, asset: Asset, token: Token, *, comment_id: str) -> None:
+        self.deleted.append(comment_id)
+
+    async def like(self, asset: Asset, token: Token, *, comment_id: str) -> None:
+        self.liked.append(comment_id)
 
     async def reply(self, asset: Asset, token: Token, *, comment_id: str, text: str) -> str:
         self.replies.append((comment_id, text))

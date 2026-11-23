@@ -1,4 +1,4 @@
-"""Rutas para Starlette y FastAPI: el callback de OAuth y los webhooks.
+"""Rutas para Starlette y FastAPI: el callback de OAuth, los webhooks y el borrado de datos de Meta.
 
 El inicio de la autorización no va acá a propósito: el dueño de la conexión sale de la sesión de la app,
 y eso lo resuelve la app antes de llamar a `social.start_authorization`.
@@ -7,19 +7,26 @@ y eso lo resuelve la app antes de llamar a `social.start_authorization`.
 from __future__ import annotations
 
 from collections.abc import Awaitable, Callable
-from urllib.parse import urlencode, urlsplit, urlunsplit
+from urllib.parse import parse_qs, urlencode, urlsplit, urlunsplit
 
 from omniwebhook.starlette import to_incoming_request
 from starlette.requests import Request
 from starlette.responses import JSONResponse, PlainTextResponse, RedirectResponse, Response
 from starlette.routing import Route
 
+from omnisocial.adapters.providers.meta.deletion import (
+    DeletionReceipt,
+    DeletionRequest,
+    InvalidSignedRequest,
+    MetaDeletionRequests,
+)
 from omnisocial.application.results import Connected, LoggedIn, Refused
 from omnisocial.application.use_cases.webhooks import OnEvents
 from omnisocial.domain.errors import CapabilityNotSupported, UnknownProvider
 from omnisocial.entrypoints.hub import Omnisocial
 
 OnLoggedIn = Callable[[Request, LoggedIn], Awaitable[Response]]
+OnDeletionRequest = Callable[[DeletionRequest], Awaitable[DeletionReceipt]]
 
 
 def _with_query(url: str, **params: str) -> str:
@@ -109,3 +116,28 @@ def webhook_routes(
         return Response(status_code=result.status)
 
     return [Route(path, handshake, methods=["GET"]), Route(path, receive, methods=["POST"])]
+
+
+def meta_data_deletion_routes(
+    requests: MetaDeletionRequests,
+    *,
+    on_request: OnDeletionRequest,
+    path: str = "/meta/data-deletion",
+) -> list[Route]:
+    """`POST` del callback de borrado de datos que Meta exige para publicar la app.
+
+    Verifica el `signed_request` y llama a `on_request`, que agenda el borrado y devuelve dónde consultar el
+    estado. Una firma inválida responde 400 sin llamar a `on_request`.
+    """
+
+    async def receive(request: Request) -> Response:
+        # Meta lo manda como formulario urlencoded. Se lee a mano para no sumar python-multipart.
+        form = parse_qs((await request.body()).decode("utf-8", "replace"))
+        try:
+            deletion = requests.parse(form.get("signed_request", [""])[0])
+        except InvalidSignedRequest:
+            return JSONResponse({"error": "invalid_signed_request"}, status_code=400)
+        receipt = await on_request(deletion)
+        return JSONResponse({"url": receipt.status_url, "confirmation_code": receipt.confirmation_code})
+
+    return [Route(path, receive, methods=["POST"])]

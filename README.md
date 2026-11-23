@@ -49,7 +49,7 @@ from psycopg_pool import AsyncConnectionPool
 
 from omnisocial import Omnisocial, ReturnUrlPolicy, SystemClock
 from omnisocial.crypto import AesGcmTokenCipher
-from omnisocial.httpx import HttpxTransport
+from omnisocial.httpx import HttpxTransport, RetryingTransport
 from omnisocial.meta import MetaConfig, meta_provider
 from omniwebhook.postgres import AsyncPostgresIdempotencyStore, AsyncPsycopgClient
 from omnisocial.postgres import (
@@ -71,7 +71,7 @@ social = Omnisocial.build(
                 api_version="v24.0",
                 webhook_verify_token=os.environ["META_WEBHOOK_VERIFY_TOKEN"],
             ),
-            HttpxTransport(),
+            RetryingTransport(HttpxTransport()),
         )
     ],
     connections=PostgresConnectionRepository(pool, cipher),
@@ -172,6 +172,9 @@ posts = await social.list_posts.execute(page.id, window=TimeWindow(since, until)
 comments = await social.list_comments.execute(page.id, object_id=post_id)
 await social.reply_to_comment.execute(page.id, comment_id=comment_id, text="¡Gracias!")
 await social.set_comment_hidden.execute(page.id, comment_id=comment_id, hidden=True)
+await social.delete_comment.execute(page.id, comment_id=comment_id)
+await social.like_comment.execute(page.id, comment_id=comment_id)
+# Refused(ACTION_NOT_OFFERED) si la red no ofrece la acción para ese activo (like en Instagram).
 
 conversations = await social.list_conversations.execute(instagram.id)
 sent = await social.send_message.execute(instagram.id, conversation_id=conv_id, text="Hola")
@@ -180,7 +183,8 @@ sent = await social.send_message.execute(instagram.id, conversation_id=conv_id, 
 
 Los tokens se renuevan solos cuando la red lo permite. Si la red rechaza un token, la conexión queda
 marcada como inválida y todas las operaciones devuelven `Refused(CONNECTION_INVALID)` hasta que alguien
-vuelva a conectar.
+vuelva a conectar. Si al token le falta un permiso, la operación devuelve `Refused(MISSING_PERMISSION)` y la
+conexión sigue sana.
 
 ## Usuario de sistema
 

@@ -1,4 +1,4 @@
-"""Comentarios: leer, responder y ocultar, en páginas y en Instagram."""
+"""Comentarios: leer, responder, ocultar, borrar y dar like, en páginas y en Instagram."""
 
 from __future__ import annotations
 
@@ -17,7 +17,7 @@ from omnisocial.adapters.providers.meta.graph import (
 )
 from omnisocial.application.ports import CommentGateway
 from omnisocial.domain.asset import Asset
-from omnisocial.domain.content import Comment
+from omnisocial.domain.content import Comment, CommentAction
 from omnisocial.domain.errors import ProviderError
 from omnisocial.domain.token import Token
 
@@ -93,6 +93,19 @@ class MetaCommentGateway(CommentGateway):
         if not new_id:
             raise ProviderError(META, "Meta no devolvió el id de la respuesta.")
         return new_id
+
+    @override
+    def supports(self, asset: Asset, action: CommentAction) -> bool:
+        # La API de Instagram no tiene forma de dar like a un comentario. No es un permiso que falte.
+        return not (asset.kind == INSTAGRAM_ACCOUNT and action is CommentAction.LIKE)
+
+    @override
+    async def delete(self, asset: Asset, token: Token, *, comment_id: str) -> None:
+        await self._graph.delete(comment_id, token.access_token)
+
+    @override
+    async def like(self, asset: Asset, token: Token, *, comment_id: str) -> None:
+        await self._graph.post(f"{comment_id}/likes", token.access_token)
 
     @override
     async def set_hidden(self, asset: Asset, token: Token, *, comment_id: str, hidden: bool) -> None:

@@ -12,9 +12,11 @@ from omnisocial.application.results import (
 )
 from omnisocial.domain.asset import DiscoveredAsset
 from omnisocial.domain.authorization import Purpose
+from omnisocial.domain.content import CommentAction
+from omnisocial.domain.errors import PermissionMissing, TokenRejected
 from omnisocial.domain.messaging import Message
 from omnisocial.domain.metrics import CanonicalMetric, Period
-from omnisocial.domain.provider import Capability
+from omnisocial.domain.provider import Capability, ProviderId
 from omnisocial.domain.window import TimeWindow
 from tests.application.conftest import World, build_world
 from tests.fakes import NOW, FakeAssets, FakeNetwork
@@ -150,3 +152,53 @@ async def test_todas_las_operaciones_propagan_el_rechazo_de_acceso(world: World)
         await social.read_insights.execute("nada", metrics=["x"], period=Period.DAY, window=TimeWindow())
         == missing
     )
+
+
+async def test_borrar_y_dar_like_a_un_comentario(world: World) -> None:
+    page = await _page_id(world)
+    assert await world.social.delete_comment.execute(page, comment_id="com-1") == Done(None)
+    assert await world.social.like_comment.execute(page, comment_id="com-2") == Done(None)
+    assert world.network.comments.deleted == ["com-1"]
+    assert world.network.comments.liked == ["com-2"]
+
+
+async def test_una_accion_que_la_red_no_ofrece_se_niega_sin_llamarla(world: World) -> None:
+    page = await _page_id(world)
+    world.network.comments.not_offered = {CommentAction.LIKE}
+    result = await world.social.like_comment.execute(page, comment_id="com-1")
+    assert isinstance(result, Refused)
+    assert (result.reason, result.detail) == (Refusal.ACTION_NOT_OFFERED, "like")
+    assert world.network.comments.liked == []
+
+
+async def test_un_permiso_faltante_vuelve_como_negativa(world: World) -> None:
+    page = await _page_id(world)
+    world.network.comments.fail_with = PermissionMissing(ProviderId("falsa"), "falta leer comentarios")
+    result = await world.social.list_comments.execute(page, object_id="post-1")
+    assert isinstance(result, Refused)
+    assert result.reason is Refusal.MISSING_PERMISSION
+    assert result.detail == "falta leer comentarios"
+    # La conexión sigue sana: falta un permiso, el token sirve.
+    again = await world.social.list_posts.execute(page)
+    assert isinstance(again, Done)
+
+
+async def test_un_token_rechazado_en_una_operacion_invalida_la_conexion(world: World) -> None:
+    page = await _page_id(world)
+    world.network.comments.fail_with = TokenRejected(ProviderId("falsa"), "la red revocó el token")
+    result = await world.social.list_comments.execute(page, object_id="post-1")
+    assert isinstance(result, Refused)
+    assert (result.reason, result.detail) == (Refusal.CONNECTION_INVALID, "la red revocó el token")
+    # Las demás operaciones ya no llaman a la red hasta que alguien reconecte.
+    posts = await world.social.list_posts.execute(page)
+    assert isinstance(posts, Refused)
+    assert posts.reason is Refusal.CONNECTION_INVALID
+    # Si ya estaba marcada, se informa el estado guardado sin volver a marcar.
+    again = await world.social.list_comments.execute(page, object_id="post-1")
+    assert isinstance(again, Refused)
+    assert again.reason is Refusal.CONNECTION_INVALID
+
+
+async def test_invalidar_una_conexion_que_no_existe(world: World) -> None:
+    result = await world.social.get_valid_token.invalidate("no-existe", "x")
+    assert result == Refused(Refusal.NOT_FOUND)

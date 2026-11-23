@@ -61,7 +61,39 @@ Si solo hace falta una parte, conviene pedir menos permisos: `MetaConfig(connect
   `CanonicalMetric.FOLLOWERS`.
 - **Ventana de métricas:** no más de ~93 días por llamada. La librería parte en tramos de 90
   (`MetaConfig.insights_max_span`).
-- **Error 2500** también aparece en pedidos mal armados. Solo 190 y 102 se toman como token muerto.
+- **Error 2500** también aparece en pedidos mal armados. Solo 190 y 102 se toman como token muerto: la
+  conexión queda inválida y no se vuelve a llamar con ese token (`Refused(CONNECTION_INVALID)`).
+- **Error 10 y 200–299 son permisos faltantes**, no tokens muertos. Vuelven como
+  `Refused(MISSING_PERMISSION)` y la conexión sigue sana: se arregla reconectando con el permiso.
+- **El autor de un comentario es `from.id`**, no el nombre de usuario, que puede cambiar.
+- **No hay like de comentarios en Instagram.** `like_comment` devuelve `Refused(ACTION_NOT_OFFERED)` sin
+  llamar a la red: no es un permiso que falte.
+- **Una escritura que responde 200 sin `id` no se publicó.** Se trata como error.
+- **El token viaja en la query.** Por eso las fallas de red (`TransportError`) dicen solo el host, y conviene
+  no loguear las URLs de la Graph API.
+- **Paginación:** las URLs de `paging.next` ya traen cursor, token y firma; se piden sin agregar parámetros.
+- **Reintentos:** `RetryingTransport(HttpxTransport())` repite lecturas ante 429, 5xx y fallas de red, con
+  backoff y jitter. Las escrituras no se repiten solas.
+
+## Borrado de datos
+
+Para publicar la app, Meta exige un callback de borrado de datos: cuando alguien quita la app, Meta manda un
+`signed_request` (firmado con el secreto de la app) y espera una URL de estado y un código de confirmación.
+
+```python
+from omnisocial.meta import DeletionReceipt, MetaDeletionRequests
+from omnisocial.starlette import meta_data_deletion_routes
+
+
+async def borrar(request) -> DeletionReceipt:
+    codigo = await agendar_borrado(request.user_id)  # el id de la persona para esta app
+    return DeletionReceipt(f"https://app.ejemplo.com/borrado/{codigo}", codigo)
+
+
+app.router.routes.extend(meta_data_deletion_routes(MetaDeletionRequests(config), on_request=borrar))
+```
+
+Una firma inválida responde 400 sin llamar a `on_request`. Acepta también `previous_app_secrets`, para rotar.
 
 ## El catálogo de métricas
 

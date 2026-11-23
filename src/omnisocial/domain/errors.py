@@ -57,3 +57,10 @@ class ProviderError(OmnisocialError):
         self.provider = provider
         self.status = status
         self.code = code
+
+
+class PermissionMissing(ProviderError):
+    """Al token le falta un permiso para esto. Se resuelve volviendo a conectar con los permisos que faltan.
+
+    Es distinto de que la red no ofrezca la acción: eso no se arregla pidiendo nada.
+    """

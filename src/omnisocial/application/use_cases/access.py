@@ -51,6 +51,22 @@ class GetValidToken:
             # Otro proceso la cambió primero: se relee y se decide de nuevo.
         return Refused(Refusal.NOT_FOUND, detail="la conexión cambia demasiado rápido")  # pragma: no cover
 
+    async def invalidate(self, connection_id: str, reason: str) -> Refused:
+        """Marca la conexión como inválida porque la red rechazó su token en una operación.
+
+        No se vuelve a intentar con ese token: la respuesta va a ser la misma hasta que alguien reconecte.
+        """
+        for _ in range(_MAX_ATTEMPTS):
+            connection = await self._connections.get(connection_id)
+            if connection is None:
+                return Refused(Refusal.NOT_FOUND)
+            if not connection.is_usable:
+                return _refused(connection)
+            marked = connection.mark(ConnectionStatus.INVALID, reason, self._clock.now())
+            if await self._connections.save(marked, expected_version=connection.version):
+                return _refused(marked)
+        return Refused(Refusal.CONNECTION_INVALID, detail=reason)  # pragma: no cover
+
     async def _renewed(self, connection: Connection) -> Connection | None:
         """La conexión con el token renovado, o marcada si ya no sirve. `None` si el token actual sirve."""
         now = self._clock.now()
@@ -90,3 +106,7 @@ class ResolveAssetAccess:
         if own is not None and not own.is_expired(self._clock.now()):
             return AssetAccess(asset, own)
         return AssetAccess(asset, valid.token)
+
+    async def reject(self, access: AssetAccess, error: TokenRejected) -> Refused:
+        """La red rechazó el token del activo: la conexión de la que sale queda inválida."""
+        return await self._tokens.invalidate(access.asset.connection_id, str(error))

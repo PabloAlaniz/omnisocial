@@ -29,6 +29,8 @@ from omnisocial.application.use_cases.authorization import (
     StartAuthorization,
 )
 from omnisocial.application.use_cases.operations import (
+    DeleteComment,
+    LikeComment,
     ListComments,
     ListConversations,
     ListMessages,
@@ -70,6 +72,8 @@ class Omnisocial:
     list_comments: ListComments
     reply_to_comment: ReplyToComment
     set_comment_hidden: SetCommentHidden
+    delete_comment: DeleteComment
+    like_comment: LikeComment
     list_conversations: ListConversations
     list_messages: ListMessages
     send_message: SendMessage
@@ -120,6 +124,8 @@ class Omnisocial:
             list_comments=ListComments(registry=registry, access=access),
             reply_to_comment=ReplyToComment(registry=registry, access=access),
             set_comment_hidden=SetCommentHidden(registry=registry, access=access),
+            delete_comment=DeleteComment(registry=registry, access=access),
+            like_comment=LikeComment(registry=registry, access=access),
             list_conversations=ListConversations(registry=registry, access=access),
             list_messages=ListMessages(registry=registry, access=access),
             send_message=SendMessage(registry=registry, access=access, clock=clock),

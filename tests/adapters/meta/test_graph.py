@@ -9,7 +9,7 @@ import pytest
 from omnisocial.adapters.http.transport import HttpResponse
 from omnisocial.adapters.providers.meta.config import MetaConfig
 from omnisocial.adapters.providers.meta.graph import GraphClient, parse_time, summary_count
-from omnisocial.domain.errors import ProviderError, TokenRejected
+from omnisocial.domain.errors import PermissionMissing, ProviderError, TokenRejected
 from omnisocial.domain.window import TimeWindow
 from tests.adapters.meta.conftest import FakeGraph, config
 
@@ -62,11 +62,20 @@ async def test_token_muerto(fake: FakeGraph, graph: GraphClient, code: int) -> N
     assert error.value.code == str(code)
 
 
-async def test_otros_errores(fake: FakeGraph, graph: GraphClient) -> None:
-    fake.on("GET", "me", {"error": {"message": "Falta permiso", "code": 10}}, status=403)
-    with pytest.raises(ProviderError, match="Falta permiso") as error:
+@pytest.mark.parametrize("code", [10, 200, 230, 299])
+async def test_permisos_faltantes(fake: FakeGraph, graph: GraphClient, code: int) -> None:
+    fake.on("GET", "me", {"error": {"message": "Falta permiso", "code": code}}, status=403)
+    with pytest.raises(PermissionMissing, match="Falta permiso") as error:
         await graph.get("me", "tok")
-    assert (error.value.status, error.value.code) == (403, "10")
+    assert (error.value.status, error.value.code) == (403, str(code))
+
+
+async def test_otros_errores(fake: FakeGraph, graph: GraphClient) -> None:
+    fake.on("GET", "me", {"error": {"message": "Pedido inválido", "code": 100}}, status=400)
+    with pytest.raises(ProviderError, match="Pedido inválido") as error:
+        await graph.get("me", "tok")
+    assert not isinstance(error.value, PermissionMissing)
+    assert (error.value.status, error.value.code) == (400, "100")
 
 
 async def test_errores_sin_json(fake: FakeGraph, graph: GraphClient) -> None:

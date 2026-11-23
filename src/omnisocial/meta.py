@@ -9,6 +9,13 @@ from omnisocial.adapters.providers.meta.config import (
     META,
     MetaConfig,
 )
+from omnisocial.adapters.providers.meta.deletion import (
+    DeletionReceipt,
+    DeletionRequest,
+    InvalidSignedRequest,
+    MetaDeletionRequests,
+    parse_signed_request,
+)
 from omnisocial.adapters.providers.meta.graph import GraphClient
 from omnisocial.adapters.providers.meta.oauth import MetaOAuth, TokenInfo
 from omnisocial.adapters.providers.meta.provider import meta_provider
@@ -22,10 +29,15 @@ __all__ = [
     "INSTAGRAM_TOTAL_VALUE_METRICS",
     "LOGIN_SCOPES",
     "META",
+    "DeletionReceipt",
+    "DeletionRequest",
     "GraphClient",
+    "InvalidSignedRequest",
     "MetaConfig",
+    "MetaDeletionRequests",
     "MetaOAuth",
     "TokenInfo",
     "meta_provider",
+    "parse_signed_request",
     "verify_subscription",
 ]

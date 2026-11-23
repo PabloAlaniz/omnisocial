@@ -32,6 +32,10 @@ class Refusal(StrEnum):
     CONNECTION_INVALID = "connection_invalid"
     CONNECTION_REVOKED = "connection_revoked"
     NOT_SUPPORTED = "not_supported"
+    ACTION_NOT_OFFERED = "action_not_offered"
+    """La red no ofrece esa acción para ese activo (dar like a un comentario de Instagram, por ejemplo)."""
+    MISSING_PERMISSION = "missing_permission"
+    """Al token le falta un permiso: se resuelve volviendo a conectar la cuenta."""
     OUTSIDE_REPLY_WINDOW = "outside_reply_window"
     NO_RECIPIENT = "no_recipient"
 

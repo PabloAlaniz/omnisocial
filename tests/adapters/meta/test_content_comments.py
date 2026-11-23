@@ -9,6 +9,7 @@ from omnisocial.adapters.providers.meta.config import FACEBOOK_PAGE, INSTAGRAM_A
 from omnisocial.adapters.providers.meta.content import PAGE_POST_BASIC_FIELDS, MetaContentReader
 from omnisocial.adapters.providers.meta.graph import GraphClient
 from omnisocial.domain.asset import Asset
+from omnisocial.domain.content import CommentAction
 from omnisocial.domain.errors import ProviderError
 from omnisocial.domain.token import Token, TokenKind
 from omnisocial.domain.window import TimeWindow
@@ -178,6 +179,22 @@ async def test_responder_y_ocultar_segun_la_red(fake: FakeGraph, graph: GraphCli
     assert fake.calls[0].params["message"] == "Gracias"
     assert fake.calls[2].params["is_hidden"] == "true"
     assert fake.calls[3].params["hide"] == "false"
+
+
+async def test_borrar_y_dar_like(fake: FakeGraph, graph: GraphClient) -> None:
+    gateway = MetaCommentGateway(graph)
+    fake.on("DELETE", "c1", {"success": True})
+    fake.on("POST", "c1/likes", {"success": True})
+    await gateway.delete(INSTAGRAM, TOKEN, comment_id="c1")
+    await gateway.like(PAGE, TOKEN, comment_id="c1")
+    assert [(c.method, c.path) for c in fake.calls] == [("DELETE", "c1"), ("POST", "c1/likes")]
+
+
+def test_instagram_no_ofrece_like_de_comentarios(graph: GraphClient) -> None:
+    gateway = MetaCommentGateway(graph)
+    assert not gateway.supports(INSTAGRAM, CommentAction.LIKE)
+    assert gateway.supports(INSTAGRAM, CommentAction.DELETE)
+    assert gateway.supports(PAGE, CommentAction.LIKE)
 
 
 async def test_responder_sin_id_es_error(fake: FakeGraph, graph: GraphClient) -> None:

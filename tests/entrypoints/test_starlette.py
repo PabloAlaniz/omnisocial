@@ -8,11 +8,14 @@ from starlette.requests import Request
 from starlette.responses import JSONResponse, Response
 from starlette.testclient import TestClient
 
+from omnisocial.adapters.providers.meta.deletion import DeletionReceipt, DeletionRequest, MetaDeletionRequests
 from omnisocial.application.results import AuthorizationStarted, LoggedIn
 from omnisocial.application.use_cases.webhooks import RoutedEvent
 from omnisocial.domain.authorization import Purpose
 from omnisocial.domain.provider import Capability
-from omnisocial.entrypoints.starlette import oauth_routes, webhook_routes
+from omnisocial.entrypoints.starlette import meta_data_deletion_routes, oauth_routes, webhook_routes
+from tests.adapters.meta.conftest import config
+from tests.adapters.meta.test_deletion import VALID, signed
 from tests.application.conftest import World, build_world
 from tests.fakes import sign
 
@@ -110,3 +113,20 @@ def test_una_red_sin_webhooks_responde_404() -> None:
     client, _ = _app(build_world(only=frozenset({Capability.LOGIN})))
     assert client.get("/webhooks/falsa").status_code == 404
     assert client.post("/webhooks/falsa", content=b"").status_code == 404
+
+
+def test_borrado_de_datos_de_meta() -> None:
+    pedidos: list[str] = []
+
+    async def on_request(request: DeletionRequest) -> DeletionReceipt:
+        pedidos.append(request.user_id)
+        return DeletionReceipt("https://app.ejemplo.com/borrado/abc", "abc")
+
+    app = Starlette(routes=meta_data_deletion_routes(MetaDeletionRequests(config()), on_request=on_request))
+    client = TestClient(app)
+    ok = client.post("/meta/data-deletion", data={"signed_request": signed(VALID)})
+    assert ok.json() == {"url": "https://app.ejemplo.com/borrado/abc", "confirmation_code": "abc"}
+    bad = client.post("/meta/data-deletion", data={"signed_request": signed(VALID, "otro")})
+    missing = client.post("/meta/data-deletion")
+    assert (bad.status_code, missing.status_code) == (400, 400)
+    assert pedidos == ["123"]

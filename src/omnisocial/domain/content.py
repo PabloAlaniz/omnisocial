@@ -5,6 +5,16 @@ from __future__ import annotations
 from collections.abc import Mapping
 from dataclasses import dataclass, field
 from datetime import datetime
+from enum import StrEnum
+
+
+class CommentAction(StrEnum):
+    """Lo que se puede hacer sobre un comentario. No todas las redes ofrecen todas para todos los activos."""
+
+    REPLY = "reply"
+    HIDE = "hide"
+    DELETE = "delete"
+    LIKE = "like"
 
 
 @dataclass(frozen=True, slots=True)

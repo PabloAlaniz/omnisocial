@@ -19,7 +19,7 @@ from omniwebhook import Verifier
 from omnisocial.domain.asset import Asset, DiscoveredAsset
 from omnisocial.domain.authorization import AuthorizationRequest, Purpose
 from omnisocial.domain.connection import Connection
-from omnisocial.domain.content import Comment, Post
+from omnisocial.domain.content import Comment, CommentAction, Post
 from omnisocial.domain.identity import Identity
 from omnisocial.domain.messaging import Conversation, Message, ReplyWindow
 from omnisocial.domain.metrics import MetricCatalog, MetricSeries, Period
@@ -74,6 +74,14 @@ class CommentGateway(Protocol):
         ...
 
     async def set_hidden(self, asset: Asset, token: Token, *, comment_id: str, hidden: bool) -> None: ...
+
+    async def delete(self, asset: Asset, token: Token, *, comment_id: str) -> None: ...
+
+    async def like(self, asset: Asset, token: Token, *, comment_id: str) -> None: ...
+
+    def supports(self, asset: Asset, action: CommentAction) -> bool:
+        """Si la red ofrece esa acción para ese tipo de activo. No consulta nada: lo define la API."""
+        ...
 
 
 class MessagingGateway(Protocol):
