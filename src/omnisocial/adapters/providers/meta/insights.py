@@ -5,6 +5,8 @@ from __future__ import annotations
 from collections.abc import Sequence
 from datetime import timedelta
 
+from typing_extensions import override
+
 from omnisocial.adapters.providers.meta.catalog import DEFAULT_CATALOG, INSTAGRAM_TOTAL_VALUE_METRICS
 from omnisocial.adapters.providers.meta.config import INSTAGRAM_ACCOUNT
 from omnisocial.adapters.providers.meta.graph import (
@@ -15,7 +17,7 @@ from omnisocial.adapters.providers.meta.graph import (
     parse_time,
     unix,
 )
-from omnisocial.application.ports import Clock
+from omnisocial.application.ports import Clock, InsightsReader
 from omnisocial.domain.asset import Asset
 from omnisocial.domain.metrics import MetricCatalog, MetricPoint, MetricSeries, Period
 from omnisocial.domain.token import Token
@@ -36,13 +38,19 @@ def _number(value: object) -> float | None:
     return None
 
 
-class MetaInsightsReader:
+class MetaInsightsReader(InsightsReader):
     def __init__(self, graph: GraphClient, clock: Clock, catalog: MetricCatalog = DEFAULT_CATALOG) -> None:
         self._graph = graph
         self._clock = clock
-        self.catalog = catalog
+        self._catalog = catalog
 
     @property
+    @override
+    def catalog(self) -> MetricCatalog:
+        return self._catalog
+
+    @property
+    @override
     def api_version(self) -> str:
         return self._graph.config.api_version
 
@@ -51,6 +59,7 @@ class MetaInsightsReader:
         since = window.since or until - DEFAULT_SPAN
         return TimeWindow(since, until)
 
+    @override
     async def read(
         self, asset: Asset, token: Token, *, metrics: Sequence[str], period: Period, window: TimeWindow
     ) -> Sequence[MetricSeries]:
@@ -69,7 +78,9 @@ class MetaInsightsReader:
             if not names:
                 continue
             for chunk in chunks:
-                for name, chunk_points in await self._fetch(asset, token, names, period, chunk, metric_type):
+                for name, chunk_points in await self._fetch(
+                    asset, token, names=names, period=period, window=chunk, metric_type=metric_type
+                ):
                     points.setdefault(name, []).extend(chunk_points)
         return [
             MetricSeries(name=name, period=period, points=tuple(values))
@@ -81,6 +92,7 @@ class MetaInsightsReader:
         self,
         asset: Asset,
         token: Token,
+        *,
         names: tuple[str, ...],
         period: Period,
         window: TimeWindow,

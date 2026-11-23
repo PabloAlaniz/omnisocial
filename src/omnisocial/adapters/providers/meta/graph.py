@@ -18,6 +18,8 @@ from omnisocial.domain.window import TimeWindow
 # El 2500 queda afuera a propósito: Meta también lo devuelve ante pedidos mal armados.
 TOKEN_DEAD_CODES = frozenset({190, 102})
 
+_SUCCESS = range(200, 300)
+
 PERMISSION_CODE = "10"
 """Falta un permiso para un campo. A veces conviene reintentar sin ese campo."""
 
@@ -138,7 +140,7 @@ class GraphClient:
         params: Params | None,
         *,
         time_field: str | None = None,
-        window: TimeWindow = TimeWindow(),  # noqa: B008 - inmutable
+        window: TimeWindow = TimeWindow(),
         limit: int | None = None,
     ) -> list[dict[str, object]]:
         """Junta items aplicando la ventana y el tope por código.
@@ -167,7 +169,7 @@ class GraphClient:
     @staticmethod
     def _unwrap(response: HttpResponse) -> dict[str, object]:
         body = as_dict(response.data)
-        if 200 <= response.status < 300 and "error" not in body:
+        if response.status in _SUCCESS and "error" not in body:
             if isinstance(response.data, dict):
                 return body
             if response.data is True or response.text.strip() in {"", "true"}:

@@ -43,29 +43,32 @@ class GetValidToken:
                 return Refused(Refusal.NOT_FOUND)
             if not connection.is_usable:
                 return _refused(connection)
-
-            now = self._clock.now()
-            token = connection.token
-            if not token.needs_refresh(now):
-                return ValidToken(connection, token)
-
-            oauth = self._registry.get(connection.provider).oauth
-            if oauth is None or not oauth.can_refresh(token):
-                if not token.is_expired(now):
-                    return ValidToken(connection, token)
-                updated = connection.mark(ConnectionStatus.EXPIRED, "el token venció", now)
-            else:
-                try:
-                    fresh = await oauth.refresh(token)
-                except TokenRejected as error:
-                    updated = connection.mark(ConnectionStatus.INVALID, str(error), now)
-                else:
-                    updated = connection.with_token(fresh, now)
-
+            updated = await self._renewed(connection)
+            if updated is None:
+                return ValidToken(connection, connection.token)
             if await self._connections.save(updated, expected_version=connection.version):
                 return ValidToken(updated, updated.token) if updated.is_usable else _refused(updated)
             # Otro proceso la cambió primero: se relee y se decide de nuevo.
         return Refused(Refusal.NOT_FOUND, detail="la conexión cambia demasiado rápido")  # pragma: no cover
+
+    async def _renewed(self, connection: Connection) -> Connection | None:
+        """La conexión con el token renovado, o marcada si ya no sirve. `None` si el token actual sirve."""
+        now = self._clock.now()
+        token = connection.token
+        if not token.needs_refresh(now):
+            return None
+        oauth = self._registry.get(connection.provider).oauth
+        if oauth is None or not oauth.can_refresh(token):
+            return (
+                connection.mark(ConnectionStatus.EXPIRED, "el token venció", now)
+                if token.is_expired(now)
+                else None
+            )
+        try:
+            fresh = await oauth.refresh(token)
+        except TokenRejected as error:
+            return connection.mark(ConnectionStatus.INVALID, str(error), now)
+        return connection.with_token(fresh, now)
 
 
 class ResolveAssetAccess:

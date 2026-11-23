@@ -7,6 +7,8 @@ from dataclasses import dataclass
 from datetime import datetime, timedelta
 from urllib.parse import urlencode
 
+from typing_extensions import override
+
 from omnisocial.adapters.providers.meta.config import META
 from omnisocial.adapters.providers.meta.graph import (
     GraphClient,
@@ -16,7 +18,7 @@ from omnisocial.adapters.providers.meta.graph import (
     as_str,
     parse_time,
 )
-from omnisocial.application.ports import Clock
+from omnisocial.application.ports import Clock, OAuthClient
 from omnisocial.domain.authorization import Purpose
 from omnisocial.domain.errors import ProviderError
 from omnisocial.domain.identity import Identity
@@ -41,7 +43,7 @@ def _expiry(value: object) -> datetime | None:
     return parse_time(value) if as_int(value) else None
 
 
-class MetaOAuth:
+class MetaOAuth(OAuthClient):
     supports_pkce = False
     """El canje del código va del servidor con el secreto de la app."""
 
@@ -49,10 +51,12 @@ class MetaOAuth:
         self._graph = graph
         self._clock = clock
 
+    @override
     def default_scopes(self, purpose: Purpose) -> tuple[str, ...]:
         config = self._graph.config
         return config.login_scopes if purpose is Purpose.LOGIN else config.connect_scopes
 
+    @override
     def authorization_url(
         self, *, state: str, redirect_uri: str, scopes: Sequence[str], code_challenge: str | None
     ) -> str:
@@ -68,6 +72,7 @@ class MetaOAuth:
         )
         return f"{config.dialog_url.rstrip('/')}/{config.api_version}/dialog/oauth?{query}"
 
+    @override
     async def exchange_code(self, *, code: str, redirect_uri: str, code_verifier: str | None) -> Token:
         """Canjea el código y estira el token de usuario al de larga duración (unos 60 días).
 
@@ -111,6 +116,7 @@ class MetaOAuth:
             if (name := as_str(item.get("permission"))) and item.get("status") == "granted"
         )
 
+    @override
     async def identity(self, token: Token) -> Identity:
         body = await self._graph.get(
             "me", token.access_token, {"fields": "id,name,email,picture.type(large)"}
@@ -126,13 +132,16 @@ class MetaOAuth:
             avatar_url=as_str(as_dict(as_dict(body.get("picture")).get("data")).get("url")),
         )
 
+    @override
     def can_refresh(self, token: Token) -> bool:
         # Meta no renueva tokens de usuario sin la persona: al vencer, hay que volver a conectar.
         return False
 
+    @override
     async def refresh(self, token: Token) -> Token:
         raise ProviderError(META, "Meta no permite renovar tokens sin que la persona vuelva a autorizar.")
 
+    @override
     async def revoke(self, token: Token) -> None:
         await self._graph.delete("me/permissions", token.access_token)
 

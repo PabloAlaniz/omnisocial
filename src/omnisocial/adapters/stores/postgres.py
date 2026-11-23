@@ -15,8 +15,15 @@ from omniwebhook.postgres import postgres_store_schema
 from psycopg.rows import dict_row
 from psycopg.types.json import Jsonb
 from psycopg_pool import AsyncConnectionPool
+from typing_extensions import override
 
-from omnisocial.application.ports import Clock, TokenCipher
+from omnisocial.application.ports import (
+    AssetRepository,
+    AuthorizationStateStore,
+    Clock,
+    ConnectionRepository,
+    TokenCipher,
+)
 from omnisocial.domain.asset import Asset
 from omnisocial.domain.authorization import AuthorizationRequest, Purpose
 from omnisocial.domain.connection import Connection, ConnectionStatus
@@ -96,7 +103,7 @@ def _open(cipher: TokenCipher, row: dict[str, Any], context: str) -> Token:
     )
 
 
-class PostgresConnectionRepository:
+class PostgresConnectionRepository(ConnectionRepository):
     def __init__(self, pool: AsyncConnectionPool[Any], cipher: TokenCipher) -> None:
         self._pool = pool
         self._cipher = cipher
@@ -131,10 +138,12 @@ class PostgresConnectionRepository:
             await cur.execute(sql, params)
             return [self._row_to_connection(row) for row in await cur.fetchall()]
 
+    @override
     async def get(self, connection_id: str) -> Connection | None:
         rows = await self._fetch("SELECT * FROM omnisocial_connections WHERE id = %s", [connection_id])
         return rows[0] if rows else None
 
+    @override
     async def find(self, *, owner: str, provider: ProviderId, subject_id: str) -> Connection | None:
         rows = await self._fetch(
             "SELECT * FROM omnisocial_connections WHERE owner = %s AND provider = %s AND subject_id = %s",
@@ -142,6 +151,7 @@ class PostgresConnectionRepository:
         )
         return rows[0] if rows else None
 
+    @override
     async def list_by_owner(self, owner: str) -> Sequence[Connection]:
         return await self._fetch(
             "SELECT * FROM omnisocial_connections WHERE owner = %s ORDER BY created_at, id", [owner]
@@ -167,6 +177,7 @@ class PostgresConnectionRepository:
             "updated_at": c.updated_at,
         }
 
+    @override
     async def add(self, connection: Connection) -> None:
         values = self._values(connection)
         columns = ", ".join(values)
@@ -177,6 +188,7 @@ class PostgresConnectionRepository:
                 values,
             )
 
+    @override
     async def save(self, connection: Connection, *, expected_version: int) -> bool:
         values = self._values(connection)
         assignments = ", ".join(f"{k} = %({k})s" for k in values if k not in {"id", "created_at"})
@@ -189,7 +201,7 @@ class PostgresConnectionRepository:
             return bool(cur.rowcount == 1)
 
 
-class PostgresAssetRepository:
+class PostgresAssetRepository(AssetRepository):
     def __init__(self, pool: AsyncConnectionPool[Any], cipher: TokenCipher) -> None:
         self._pool = pool
         self._cipher = cipher
@@ -219,10 +231,12 @@ class PostgresAssetRepository:
             await cur.execute(sql, params)
             return [self._row_to_asset(row) for row in await cur.fetchall()]
 
+    @override
     async def get(self, asset_id: str) -> Asset | None:
         rows = await self._fetch("SELECT * FROM omnisocial_assets WHERE id = %s", [asset_id])
         return rows[0] if rows else None
 
+    @override
     async def list_by_owner(self, owner: str, *, provider: ProviderId | None = None) -> Sequence[Asset]:
         if provider is None:
             return await self._fetch("SELECT * FROM omnisocial_assets WHERE owner = %s ORDER BY id", [owner])
@@ -231,17 +245,20 @@ class PostgresAssetRepository:
             [owner, provider],
         )
 
+    @override
     async def list_by_connection(self, connection_id: str) -> Sequence[Asset]:
         return await self._fetch(
             "SELECT * FROM omnisocial_assets WHERE connection_id = %s ORDER BY id", [connection_id]
         )
 
+    @override
     async def find_by_external_id(self, provider: ProviderId, external_id: str) -> Sequence[Asset]:
         return await self._fetch(
             "SELECT * FROM omnisocial_assets WHERE provider = %s AND external_id = %s ORDER BY id",
             [provider, external_id],
         )
 
+    @override
     async def replace_for_connection(self, connection_id: str, assets: Sequence[Asset]) -> None:
         async with (
             self._pool.connection() as conn,
@@ -336,7 +353,7 @@ def _request_from_json(raw: str) -> AuthorizationRequest:
     )
 
 
-class PostgresAuthorizationStateStore:
+class PostgresAuthorizationStateStore(AuthorizationStateStore):
     """El pedido entero va cifrado: lleva el `code_verifier` de PKCE."""
 
     def __init__(self, pool: AsyncConnectionPool[Any], cipher: TokenCipher, clock: Clock) -> None:
@@ -348,6 +365,7 @@ class PostgresAuthorizationStateStore:
     def _context(state: str) -> str:
         return f"omnisocial|state|{state}"
 
+    @override
     async def put(self, request: AuthorizationRequest) -> None:
         sealed = self._cipher.encrypt(_request_to_json(request), context=self._context(request.state))
         async with self._pool.connection() as conn, conn.transaction():
@@ -360,6 +378,7 @@ class PostgresAuthorizationStateStore:
                 [request.state, sealed, request.expires_at],
             )
 
+    @override
     async def take(self, state: str) -> AuthorizationRequest | None:
         async with self._pool.connection() as conn:
             cur = await conn.execute(

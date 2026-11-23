@@ -16,6 +16,23 @@ Cada una es un `Protocol` de `omnisocial.application.ports`:
 | `InsightsReader` | Métricas por nombre propio, con su catálogo de nombres comunes. |
 | `WebhookParser` | Saludo de suscripción, esquema de firma (omniwebhook) y traducción de los avisos. |
 
+Cada adaptador **hereda del puerto** y marca sus métodos con `@override`. Mypy lo exige
+(`explicit-override`) y así un cambio en el puerto se detecta en la definición de la clase:
+
+```python
+from typing_extensions import override
+
+from omnisocial.application.ports import ContentReader
+
+
+class TikTokVideos(ContentReader):
+    @override
+    async def list_posts(self, asset, token, *, window, limit): ...
+```
+
+Además, ruff no deja leer el reloj, generar ids o leer variables de entorno fuera de los adaptadores de
+sistema: si la red necesita la hora, recibe un `Clock`. Ver [ADR 0004](adr/0004-reglas-estaticas-de-diseno.md).
+
 Reglas que el núcleo espera:
 
 - `exchange_code` devuelve el mejor token que la red permita (el de mayor duración).

@@ -786,6 +786,7 @@ version = "0.0.0"
 source = { editable = "." }
 dependencies = [
     { name = "omniwebhook" },
+    { name = "typing-extensions" },
 ]
 
 [package.optional-dependencies]
@@ -823,6 +824,7 @@ requires-dist = [
     { name = "omniwebhook", specifier = ">=0.1.1,<0.2" },
     { name = "psycopg", extras = ["pool"], marker = "extra == 'postgres'", specifier = ">=3.2" },
     { name = "starlette", marker = "extra == 'starlette'", specifier = ">=0.37" },
+    { name = "typing-extensions", specifier = ">=4.5" },
 ]
 provides-extras = ["httpx", "crypto", "postgres", "starlette"]
 

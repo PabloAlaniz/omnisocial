@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from collections.abc import Callable, Sequence
 from contextlib import suppress
+from dataclasses import dataclass
 from datetime import timedelta
 
 from omnisocial.application.ports import (
@@ -34,6 +35,15 @@ RedirectUriFor = Callable[[str], str]
 """Devuelve la URL de callback registrada en la red para ese proveedor."""
 
 
+@dataclass(frozen=True, slots=True)
+class AuthorizationSettings:
+    """Cómo se autoriza: a dónde vuelve la red, a dónde se deja volver y cuánto dura el pedido."""
+
+    return_urls: ReturnUrlPolicy
+    redirect_uri_for: RedirectUriFor
+    state_ttl: timedelta = DEFAULT_STATE_TTL
+
+
 class StartAuthorization:
     def __init__(
         self,
@@ -42,17 +52,13 @@ class StartAuthorization:
         states: AuthorizationStateStore,
         secrets: SecretGenerator,
         clock: Clock,
-        return_urls: ReturnUrlPolicy,
-        redirect_uri_for: RedirectUriFor,
-        state_ttl: timedelta = DEFAULT_STATE_TTL,
+        settings: AuthorizationSettings,
     ) -> None:
         self._registry = registry
         self._states = states
         self._secrets = secrets
         self._clock = clock
-        self._return_urls = return_urls
-        self._redirect_uri_for = redirect_uri_for
-        self._state_ttl = state_ttl
+        self._settings = settings
 
     async def execute(
         self,
@@ -67,7 +73,7 @@ class StartAuthorization:
         oauth = provider.require_oauth()
         if purpose is Purpose.CONNECT and not owner:
             return Refused(Refusal.OWNER_REQUIRED)
-        if return_url is not None and not self._return_urls.allows(return_url):
+        if return_url is not None and not self._settings.return_urls.allows(return_url):
             return Refused(Refusal.RETURN_URL_NOT_ALLOWED)
 
         now = self._clock.now()
@@ -75,9 +81,9 @@ class StartAuthorization:
             state=self._secrets.token(32),
             provider=provider.id,
             purpose=purpose,
-            redirect_uri=self._redirect_uri_for(provider.id),
+            redirect_uri=self._settings.redirect_uri_for(provider.id),
             created_at=now,
-            expires_at=now + self._state_ttl,
+            expires_at=now + self._settings.state_ttl,
             scopes=tuple(scopes) if scopes is not None else oauth.default_scopes(purpose),
             owner=owner,
             return_url=return_url,
@@ -160,7 +166,7 @@ class AssetSync:
         assets = [
             Asset.from_discovered(
                 item,
-                id=known.get((item.kind, item.external_id)) or self._ids.new_id(),
+                asset_id=known.get((item.kind, item.external_id)) or self._ids.new_id(),
                 connection_id=connection.id,
                 provider=provider.id,
                 owner=connection.owner,
@@ -190,23 +196,18 @@ class CompleteAuthorization:
     async def execute(
         self, *, state: str, code: str | None, error: str | None = None
     ) -> LoggedIn | Connected | Refused:
-        request = await self._states.take(state)
-        if request is None:
-            return Refused(Refusal.UNKNOWN_STATE)
-        if request.is_expired(self._clock.now()):
-            return Refused(Refusal.EXPIRED_STATE, return_url=request.return_url)
-        if error is not None or not code:
-            return Refused(Refusal.PROVIDER_DENIED, detail=error, return_url=request.return_url)
+        checked = self._check(await self._states.take(state), code=code, error=error)
+        if isinstance(checked, Refused):
+            return checked
+        request, valid_code = checked
 
         provider = self._registry.get(request.provider)
         oauth = provider.require_oauth()
         token = await oauth.exchange_code(
-            code=code, redirect_uri=request.redirect_uri, code_verifier=request.code_verifier
+            code=valid_code, redirect_uri=request.redirect_uri, code_verifier=request.code_verifier
         )
         if request.purpose is Purpose.LOGIN:
-            identity = await oauth.identity(token)
-            return LoggedIn(identity=identity, token=token, return_url=request.return_url)
-
+            return LoggedIn(identity=await oauth.identity(token), token=token, return_url=request.return_url)
         if request.owner is None:  # pragma: no cover - StartAuthorization lo exige para CONNECT
             return Refused(Refusal.OWNER_REQUIRED, return_url=request.return_url)
         connected = await self._store.store(provider, owner=request.owner, token=token)
@@ -216,6 +217,18 @@ class CompleteAuthorization:
             return_url=request.return_url,
             reconnected=connected.reconnected,
         )
+
+    def _check(
+        self, request: AuthorizationRequest | None, *, code: str | None, error: str | None
+    ) -> tuple[AuthorizationRequest, str] | Refused:
+        """El pedido existe, no venció y la persona autorizó."""
+        if request is None:
+            return Refused(Refusal.UNKNOWN_STATE)
+        if request.is_expired(self._clock.now()):
+            return Refused(Refusal.EXPIRED_STATE, return_url=request.return_url)
+        if error is not None or not code:
+            return Refused(Refusal.PROVIDER_DENIED, detail=error, return_url=request.return_url)
+        return request, code
 
 
 class RegisterSystemConnection:

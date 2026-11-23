@@ -49,7 +49,7 @@ async def test_los_tokens_quedan_cifrados_en_la_base(pool: Pool, cipher: AesGcmT
     async with pool.connection() as conn:
         dump = []
         for table in ("omnisocial_connections", "omnisocial_assets", "omnisocial_authorization_states"):
-            cur = await conn.execute(f"SELECT * FROM {table}")  # noqa: S608
+            cur = await conn.execute(f"SELECT * FROM {table}")
             dump.append(repr(await cur.fetchall()))
     text = "\n".join(dump)
     for secret in ("acceso", "renovar", "tok-p1", "verificador"):

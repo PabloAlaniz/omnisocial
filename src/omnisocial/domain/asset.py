@@ -40,10 +40,16 @@ class Asset:
 
     @classmethod
     def from_discovered(
-        cls, discovered: DiscoveredAsset, *, id: str, connection_id: str, provider: ProviderId, owner: str
+        cls,
+        discovered: DiscoveredAsset,
+        *,
+        asset_id: str,
+        connection_id: str,
+        provider: ProviderId,
+        owner: str,
     ) -> Asset:
         return cls(
-            id=id,
+            id=asset_id,
             connection_id=connection_id,
             provider=provider,
             owner=owner,

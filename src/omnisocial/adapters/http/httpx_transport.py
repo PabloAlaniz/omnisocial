@@ -6,18 +6,20 @@ from collections.abc import Mapping
 from typing import Any
 
 import httpx
+from typing_extensions import override
 
-from omnisocial.adapters.http.transport import HttpResponse, Params
+from omnisocial.adapters.http.transport import HttpResponse, HttpTransport, Params
 
 DEFAULT_TIMEOUT = httpx.Timeout(30.0, connect=10.0)
 
 
-class HttpxTransport:
+class HttpxTransport(HttpTransport):
     """Usa un `httpx.AsyncClient` propio o el que se le pase (para compartir el pool)."""
 
     def __init__(self, client: httpx.AsyncClient | None = None) -> None:
         self._client = client or httpx.AsyncClient(timeout=DEFAULT_TIMEOUT)
 
+    @override
     async def request(
         self,
         method: str,

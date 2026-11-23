@@ -4,8 +4,11 @@ from __future__ import annotations
 
 from collections.abc import Sequence
 
+from typing_extensions import override
+
 from omnisocial.adapters.providers.meta.config import FACEBOOK_PAGE, INSTAGRAM_ACCOUNT
 from omnisocial.adapters.providers.meta.graph import GraphClient, as_dict, as_str
+from omnisocial.application.ports import AssetDirectory
 from omnisocial.domain.asset import DiscoveredAsset
 from omnisocial.domain.provider import Capability
 from omnisocial.domain.token import Token, TokenKind
@@ -20,7 +23,7 @@ _FIELDS = (
 )
 
 
-class MetaAssetDirectory:
+class MetaAssetDirectory(AssetDirectory):
     """Con un token de usuario o de usuario de sistema, `me/accounts` devuelve las páginas y su token.
 
     La cuenta de Instagram usa el token de su página: la Graph API no tiene tokens propios de Instagram en
@@ -30,6 +33,7 @@ class MetaAssetDirectory:
     def __init__(self, graph: GraphClient) -> None:
         self._graph = graph
 
+    @override
     async def discover(self, token: Token) -> Sequence[DiscoveredAsset]:
         found: list[DiscoveredAsset] = []
         async for page in self._graph.paginate(

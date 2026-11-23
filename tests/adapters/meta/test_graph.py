@@ -90,9 +90,9 @@ async def test_paginacion_sigue_next(fake: FakeGraph, graph: GraphClient) -> Non
     assert pages == [[{"id": "1"}], [{"id": "2"}]]
 
 
-def _item(id: str, days_ago: int) -> dict[str, object]:
+def _item(item_id: str, days_ago: int) -> dict[str, object]:
     moment = datetime(2026, 11, 23, tzinfo=UTC) - timedelta(days=days_ago)
-    return {"id": id, "t": moment.strftime("%Y-%m-%dT%H:%M:%S+0000")}
+    return {"id": item_id, "t": moment.strftime("%Y-%m-%dT%H:%M:%S+0000")}
 
 
 async def test_collect_aplica_ventana_y_corta_cuando_todo_es_viejo(

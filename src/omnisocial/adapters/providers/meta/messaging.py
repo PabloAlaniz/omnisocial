@@ -5,6 +5,8 @@ from __future__ import annotations
 from collections.abc import Sequence
 from datetime import timedelta
 
+from typing_extensions import override
+
 from omnisocial.adapters.providers.meta.config import INSTAGRAM_ACCOUNT, META
 from omnisocial.adapters.providers.meta.graph import (
     GraphClient,
@@ -13,6 +15,7 @@ from omnisocial.adapters.providers.meta.graph import (
     as_str,
     parse_time,
 )
+from omnisocial.application.ports import MessagingGateway
 from omnisocial.domain.asset import Asset
 from omnisocial.domain.errors import ProviderError
 from omnisocial.domain.messaging import Conversation, Message, ReplyWindow
@@ -35,12 +38,13 @@ def _platform(asset: Asset) -> str:
     return "instagram" if asset.kind == INSTAGRAM_ACCOUNT else "messenger"
 
 
-class MetaMessagingGateway:
+class MetaMessagingGateway(MessagingGateway):
     reply_window = STANDARD_REPLY_WINDOW
 
     def __init__(self, graph: GraphClient) -> None:
         self._graph = graph
 
+    @override
     async def list_conversations(
         self, asset: Asset, token: Token, *, limit: int | None
     ) -> Sequence[Conversation]:
@@ -68,6 +72,7 @@ class MetaMessagingGateway:
             )
         return conversations
 
+    @override
     async def list_messages(
         self, asset: Asset, token: Token, *, conversation_id: str, limit: int | None
     ) -> Sequence[Message]:
@@ -97,6 +102,7 @@ class MetaMessagingGateway:
             )
         return messages
 
+    @override
     async def send(self, asset: Asset, token: Token, *, recipient_id: str, text: str) -> str:
         body = await self._graph.post(
             f"{_page_id(asset)}/messages",

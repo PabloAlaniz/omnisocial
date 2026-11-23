@@ -14,7 +14,7 @@ from starlette.requests import Request
 from starlette.responses import JSONResponse, PlainTextResponse, RedirectResponse, Response
 from starlette.routing import Route
 
-from omnisocial.application.results import LoggedIn, Refused
+from omnisocial.application.results import Connected, LoggedIn, Refused
 from omnisocial.application.use_cases.webhooks import OnEvents
 from omnisocial.domain.errors import CapabilityNotSupported, UnknownProvider
 from omnisocial.entrypoints.hub import Omnisocial
@@ -30,6 +30,21 @@ def _with_query(url: str, **params: str) -> str:
 
 def _not_found() -> Response:
     return JSONResponse({"error": "unknown_provider"}, status_code=404)
+
+
+def _finish(result: Connected | Refused) -> Response:
+    """Vuelve a la app con el resultado, o responde JSON si no hay a dónde volver."""
+    if isinstance(result, Refused):
+        params = {"status": "error", "reason": result.reason.value}
+        payload: dict[str, str] = {"error": result.reason.value}
+        status = 400
+    else:
+        params = {"status": "connected", "connection_id": result.connection.id}
+        payload = params
+        status = 200
+    if result.return_url:
+        return RedirectResponse(_with_query(result.return_url, **params), 303)
+    return JSONResponse(payload, status_code=status)
 
 
 def oauth_routes(
@@ -52,20 +67,11 @@ def oauth_routes(
         result = await social.complete_authorization.execute(
             state=query.get("state", ""), code=query.get("code"), error=query.get("error")
         )
-        if isinstance(result, Refused):
-            if result.return_url:
-                return RedirectResponse(
-                    _with_query(result.return_url, status="error", reason=result.reason.value), 303
-                )
-            return JSONResponse({"error": result.reason.value}, status_code=400)
         if isinstance(result, LoggedIn):
             if on_logged_in is None:
                 return JSONResponse({"error": "login_not_configured"}, status_code=500)
             return await on_logged_in(request, result)
-        if result.return_url:
-            target = _with_query(result.return_url, status="connected", connection_id=result.connection.id)
-            return RedirectResponse(target, 303)
-        return JSONResponse({"status": "connected", "connection_id": result.connection.id})
+        return _finish(result)
 
     return [Route(path, callback, methods=["GET"])]
 

@@ -6,17 +6,24 @@ import secrets
 import uuid
 from datetime import UTC, datetime
 
+from typing_extensions import override
 
-class SystemClock:
+from omnisocial.application.ports import Clock, IdGenerator, SecretGenerator
+
+
+class SystemClock(Clock):
+    @override
     def now(self) -> datetime:
         return datetime.now(UTC)
 
 
-class UuidGenerator:
+class UuidGenerator(IdGenerator):
+    @override
     def new_id(self) -> str:
         return str(uuid.uuid4())
 
 
-class SystemSecrets:
+class SystemSecrets(SecretGenerator):
+    @override
     def token(self, nbytes: int) -> str:
         return secrets.token_urlsafe(nbytes)

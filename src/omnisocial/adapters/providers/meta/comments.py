@@ -4,6 +4,8 @@ from __future__ import annotations
 
 from collections.abc import Sequence
 
+from typing_extensions import override
+
 from omnisocial.adapters.providers.meta.config import INSTAGRAM_ACCOUNT, META
 from omnisocial.adapters.providers.meta.graph import (
     GraphClient,
@@ -13,6 +15,7 @@ from omnisocial.adapters.providers.meta.graph import (
     as_str,
     parse_time,
 )
+from omnisocial.application.ports import CommentGateway
 from omnisocial.domain.asset import Asset
 from omnisocial.domain.content import Comment
 from omnisocial.domain.errors import ProviderError
@@ -64,10 +67,11 @@ def _instagram_comment(item: dict[str, object], object_id: str) -> Comment:
     )
 
 
-class MetaCommentGateway:
+class MetaCommentGateway(CommentGateway):
     def __init__(self, graph: GraphClient) -> None:
         self._graph = graph
 
+    @override
     async def list_comments(self, asset: Asset, token: Token, *, object_id: str) -> Sequence[Comment]:
         if asset.kind == INSTAGRAM_ACCOUNT:
             items = await self._graph.collect(
@@ -81,6 +85,7 @@ class MetaCommentGateway:
         )
         return [_page_comment(item, object_id) for item in items if as_str(item.get("id"))]
 
+    @override
     async def reply(self, asset: Asset, token: Token, *, comment_id: str, text: str) -> str:
         edge = "replies" if asset.kind == INSTAGRAM_ACCOUNT else "comments"
         body = await self._graph.post(f"{comment_id}/{edge}", token.access_token, params={"message": text})
@@ -89,6 +94,7 @@ class MetaCommentGateway:
             raise ProviderError(META, "Meta no devolvió el id de la respuesta.")
         return new_id
 
+    @override
     async def set_hidden(self, asset: Asset, token: Token, *, comment_id: str, hidden: bool) -> None:
         key = "hide" if asset.kind == INSTAGRAM_ACCOUNT else "is_hidden"
         await self._graph.post(comment_id, token.access_token, params={key: "true" if hidden else "false"})

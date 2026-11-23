@@ -7,9 +7,11 @@ import json
 from collections.abc import Mapping, Sequence
 
 from omniwebhook import Verifier, hmac_body_scheme
+from typing_extensions import override
 
 from omnisocial.adapters.providers.meta.config import META, MetaConfig
 from omnisocial.adapters.providers.meta.graph import as_dict, as_list, as_str, parse_time
+from omnisocial.application.ports import WebhookParser
 from omnisocial.domain.webhooks import EventAction, EventKind, SocialEvent
 
 SIGNATURE_HEADER = "x-hub-signature-256"
@@ -33,7 +35,7 @@ def verify_subscription(query: Mapping[str, str], expected_token: str | None) ->
     return query.get("hub.challenge")
 
 
-class MetaWebhookParser:
+class MetaWebhookParser(WebhookParser):
     def __init__(self, config: MetaConfig) -> None:
         self._config = config
         self._verifier = hmac_body_scheme(
@@ -43,10 +45,12 @@ class MetaWebhookParser:
             name="meta",
         )
 
+    @override
     def handshake(self, query: Mapping[str, str]) -> str | None:
         return verify_subscription(query, self._config.webhook_verify_token)
 
     @property
+    @override
     def verifier(self) -> Verifier:
         """`X-Hub-Signature-256: sha256=<hex>`: HMAC-SHA256 del cuerpo crudo con el secreto de la app.
 
@@ -55,6 +59,7 @@ class MetaWebhookParser:
         """
         return self._verifier
 
+    @override
     def parse(self, body: bytes) -> Sequence[SocialEvent]:
         try:
             payload = as_dict(json.loads(body))
@@ -66,12 +71,11 @@ class MetaWebhookParser:
             if not asset_id:
                 continue
             occurred = parse_time(entry.get("time"))
-            for change in as_list(entry.get("changes")):
-                events.append(self._change(asset_id, change, occurred))
-            for messaging in as_list(entry.get("messaging")):
-                event = self._message(asset_id, messaging)
-                if event is not None:
-                    events.append(event)
+            events.extend(
+                self._change(asset_id, change, occurred) for change in as_list(entry.get("changes"))
+            )
+            messages = (self._message(asset_id, item) for item in as_list(entry.get("messaging")))
+            events.extend(event for event in messages if event is not None)
         return events
 
     @staticmethod

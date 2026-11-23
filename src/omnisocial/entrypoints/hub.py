@@ -20,6 +20,7 @@ from omnisocial.application.registry import Provider, ProviderRegistry
 from omnisocial.application.use_cases.access import GetValidToken, ResolveAssetAccess
 from omnisocial.application.use_cases.assets import ListAssets, SyncAssets
 from omnisocial.application.use_cases.authorization import (
+    AuthorizationSettings,
     CompleteAuthorization,
     ConnectionStore,
     Disconnect,
@@ -104,8 +105,7 @@ class Omnisocial:
                 states=states,
                 secrets=secrets,
                 clock=clock,
-                return_urls=return_urls,
-                redirect_uri_for=redirect_uri_for,
+                settings=AuthorizationSettings(return_urls=return_urls, redirect_uri_for=redirect_uri_for),
             ),
             complete_authorization=CompleteAuthorization(
                 registry=registry, states=states, clock=clock, store=store

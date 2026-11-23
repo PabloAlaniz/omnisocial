@@ -4,6 +4,8 @@ from __future__ import annotations
 
 from collections.abc import Sequence
 
+from typing_extensions import override
+
 from omnisocial.adapters.providers.meta.config import INSTAGRAM_ACCOUNT
 from omnisocial.adapters.providers.meta.graph import (
     PERMISSION_CODE,
@@ -14,6 +16,7 @@ from omnisocial.adapters.providers.meta.graph import (
     summary_count,
     unix,
 )
+from omnisocial.application.ports import ContentReader
 from omnisocial.domain.asset import Asset
 from omnisocial.domain.content import Post
 from omnisocial.domain.errors import ProviderError
@@ -31,10 +34,11 @@ MEDIA_FIELDS = (
 )
 
 
-class MetaContentReader:
+class MetaContentReader(ContentReader):
     def __init__(self, graph: GraphClient) -> None:
         self._graph = graph
 
+    @override
     async def list_posts(
         self, asset: Asset, token: Token, *, window: TimeWindow, limit: int | None
     ) -> Sequence[Post]:

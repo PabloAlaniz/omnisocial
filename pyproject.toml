@@ -23,7 +23,7 @@ classifiers = [
     "Topic :: Internet :: WWW/HTTP",
     "Typing :: Typed",
 ]
-dependencies = ["omniwebhook>=0.1.1,<0.2"]
+dependencies = ["omniwebhook>=0.1.1,<0.2", "typing_extensions>=4.5"]
 
 [project.optional-dependencies]
 # El cliente HTTP de `omnisocial.httpx`.
@@ -81,6 +81,7 @@ exclude_also = ["if TYPE_CHECKING:", "@overload", "raise NotImplementedError", "
 
 [tool.mypy]
 strict = true
+enable_error_code = ["explicit-override", "ignore-without-code", "redundant-expr", "truthy-bool", "possibly-undefined"]
 files = ["src", "tests"]
 
 [tool.ruff]
@@ -88,12 +89,82 @@ line-length = 110
 target-version = "py311"
 
 [tool.ruff.lint]
-select = ["E", "F", "W", "I", "B", "UP", "SIM", "RUF", "S", "PT", "C4", "TID"]
-# El texto es español: las tildes y la ñ en docstrings y mensajes son a propósito.
-ignore = ["RUF001", "RUF002", "RUF003"]
+select = [
+    # Base: errores, estilo, imports y modernización.
+    "E", "F", "W", "I", "UP", "B", "SIM", "RUF", "C4", "PIE", "RET", "PERF", "FURB", "ISC", "FLY", "ICN",
+    "PTH", "T20", "PGH", "ASYNC", "LOG", "G", "INP", "S", "PT", "N", "A",
+    # Responsabilidad única: funciones chicas, pocas ramas, pocos argumentos.
+    "C90", "PL",
+    # Contratos claros: nada de argumentos sin usar, booleanos posicionales ni acceso a privados ajenos.
+    "ARG", "FBT", "SLF",
+    # Errores: nada de atrapar todo, mensajes y re-lanzamientos explícitos.
+    "BLE", "TRY",
+    # Tiempo: siempre con zona horaria.
+    "DTZ",
+    # Tipos: nada de `Any` en las firmas.
+    "ANN401",
+    # Imports: sin relativos, y efectos laterales sólo por sus puertos (ver banned-api).
+    "TID",
+    # Sin código comentado.
+    "ERA",
+]
+ignore = [
+    # El texto es español: las tildes y la ñ en docstrings, mensajes y nombres son a propósito.
+    "RUF001", "RUF002", "RUF003", "PLC2401", "PLC2403",
+    # Los mensajes de error explican el problema en el lugar donde se detecta.
+    "TRY003",
+    # Las excepciones del dominio se nombran por lo que pasó (`TokenRejected`), no con sufijo `Error`.
+    "N818",
+]
+
+[tool.ruff.lint.mccabe]
+max-complexity = 8
+
+[tool.ruff.lint.pylint]
+max-args = 6
+max-positional-args = 4
+max-branches = 8
+max-returns = 5
+max-statements = 30
+max-bool-expr = 3
+
+[tool.ruff.lint.flake8-bugbear]
+extend-immutable-calls = ["omnisocial.domain.window.TimeWindow"]
+
+[tool.ruff.lint.flake8-tidy-imports]
+ban-relative-imports = "all"
+
+# Clean architecture a nivel de llamada: el tiempo, los ids, el azar y la configuración entran por puertos o
+# por parámetros, nunca se toman del entorno. Sólo los adaptadores de sistema los tocan.
+[tool.ruff.lint.flake8-tidy-imports.banned-api]
+"datetime.datetime.now".msg = "Usá el puerto Clock: el núcleo no lee el reloj."
+"datetime.datetime.utcnow".msg = "Usá el puerto Clock: el núcleo no lee el reloj."
+"datetime.datetime.today".msg = "Usá el puerto Clock: el núcleo no lee el reloj."
+"datetime.date.today".msg = "Usá el puerto Clock: el núcleo no lee el reloj."
+"time.time".msg = "Usá el puerto Clock: el núcleo no lee el reloj."
+"uuid.uuid4".msg = "Usá el puerto IdGenerator."
+"secrets".msg = "Usá el puerto SecretGenerator."
+"random".msg = "Usá el puerto SecretGenerator: el azar no criptográfico no sirve para esto."
+"os.urandom".msg = "Usá el puerto SecretGenerator (o el adaptador de cifrado)."
+"os.environ".msg = "Una librería no lee variables de entorno: la configuración se inyecta."
+"os.getenv".msg = "Una librería no lee variables de entorno: la configuración se inyecta."
 
 [tool.ruff.lint.per-file-ignores]
-"tests/**" = ["S101", "S105", "S106"]
+# Los únicos lugares que tocan el reloj, el azar y los ids del sistema.
+"src/omnisocial/adapters/system.py" = ["TID251"]
+"src/omnisocial/adapters/crypto/aes_gcm.py" = ["TID251"]
+# La raíz de composición recibe todas las dependencias a propósito.
+"src/omnisocial/entrypoints/hub.py" = ["PLR0913"]
+"tests/**" = [
+    "S101", "S105", "S106",
+    # Los dobles implementan puertos y no usan todos los argumentos.
+    "ARG",
+    # Valores esperados literales y tablas de casos.
+    "PLR2004", "PLR0913", "PLR0917", "FBT",
+    # Los tests miran adentro de los dobles.
+    "SLF001",
+]
+"tests/integration/**" = ["S101", "TID251", "S608"]
 
 # Reglas de arquitectura. Las dependencias apuntan hacia adentro:
 #   entrypoints → adapters → application → domain

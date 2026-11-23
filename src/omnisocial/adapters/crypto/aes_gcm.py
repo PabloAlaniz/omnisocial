@@ -12,11 +12,17 @@ from collections.abc import Mapping
 
 from cryptography.exceptions import InvalidTag
 from cryptography.hazmat.primitives.ciphers.aead import AESGCM
+from typing_extensions import override
 
+from omnisocial.application.ports import TokenCipher
 from omnisocial.domain.errors import OmnisocialError
 
 VERSION = "v1"
 _NONCE_BYTES = 12
+_KEY_BYTES = 32
+"""AES-256."""
+_ENVELOPE_PARTS = 3
+"""Versión, id de clave y datos."""
 
 
 class DecryptionFailed(OmnisocialError):
@@ -25,7 +31,7 @@ class DecryptionFailed(OmnisocialError):
 
 def generate_key() -> str:
     """Una clave nueva de 32 bytes en base64url, para guardar en el gestor de secretos."""
-    return base64.urlsafe_b64encode(os.urandom(32)).decode("ascii")
+    return base64.urlsafe_b64encode(os.urandom(_KEY_BYTES)).decode("ascii")
 
 
 def _decode_key(value: str | bytes) -> bytes:
@@ -33,12 +39,12 @@ def _decode_key(value: str | bytes) -> bytes:
         raw = value if isinstance(value, bytes) else base64.urlsafe_b64decode(value + "=" * (-len(value) % 4))
     except ValueError:
         raw = b""
-    if len(raw) != 32:
+    if len(raw) != _KEY_BYTES:
         raise ValueError("Cada clave tiene que tener 32 bytes (AES-256).")
     return raw
 
 
-class AesGcmTokenCipher:
+class AesGcmTokenCipher(TokenCipher):
     def __init__(self, keys: Mapping[str, str | bytes], *, active: str) -> None:
         if active not in keys:
             raise ValueError(f"La clave activa '{active}' no está entre las claves.")
@@ -48,15 +54,17 @@ class AesGcmTokenCipher:
         self._keys = {key_id: AESGCM(_decode_key(key)) for key_id, key in keys.items()}
         self._active = active
 
+    @override
     def encrypt(self, plaintext: str, *, context: str) -> str:
         nonce = os.urandom(_NONCE_BYTES)
         sealed = self._keys[self._active].encrypt(nonce, plaintext.encode(), context.encode())
         payload = base64.urlsafe_b64encode(nonce + sealed).decode("ascii").rstrip("=")
         return f"{VERSION}.{self._active}.{payload}"
 
+    @override
     def decrypt(self, ciphertext: str, *, context: str) -> str:
         try:
-            version, key_id, payload = ciphertext.split(".", 2)
+            version, key_id, payload = ciphertext.split(".", _ENVELOPE_PARTS - 1)
         except ValueError:
             raise DecryptionFailed("El sobre cifrado no tiene el formato esperado.") from None
         if version != VERSION:
@@ -72,5 +80,5 @@ class AesGcmTokenCipher:
 
     def needs_rotation(self, ciphertext: str) -> bool:
         """Lo cifró una clave que ya no es la activa."""
-        parts = ciphertext.split(".", 2)
-        return len(parts) != 3 or parts[1] != self._active
+        parts = ciphertext.split(".", _ENVELOPE_PARTS - 1)
+        return len(parts) != _ENVELOPE_PARTS or parts[1] != self._active

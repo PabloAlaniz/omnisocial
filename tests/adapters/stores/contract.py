@@ -17,9 +17,9 @@ from tests.fakes import NOW
 P = ProviderId("red")
 
 
-def connection(id: str = "c1", owner: str = "dueño", subject: str = "u1") -> Connection:
+def connection(connection_id: str = "c1", owner: str = "dueño", subject: str = "u1") -> Connection:
     return Connection(
-        id=id,
+        id=connection_id,
         provider=P,
         owner=owner,
         subject=Identity(P, subject, name="Ana", email="ana@ejemplo.com", avatar_url="https://img"),
@@ -37,9 +37,9 @@ def connection(id: str = "c1", owner: str = "dueño", subject: str = "u1") -> Co
     )
 
 
-def asset(id: str, external_id: str, connection_id: str = "c1", *, token: bool = True) -> Asset:
+def asset(asset_id: str, external_id: str, connection_id: str = "c1", *, token: bool = True) -> Asset:
     return Asset(
-        id=id,
+        id=asset_id,
         connection_id=connection_id,
         provider=P,
         owner="dueño",

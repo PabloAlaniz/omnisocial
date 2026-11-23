@@ -198,6 +198,7 @@ await social.register_system_connection.execute(
 - [Arquitectura en capas](docs/adr/0001-arquitectura-en-capas.md)
 - [Capacidades por red](docs/adr/0002-capacidades-por-red.md)
 - [Webhooks con omniwebhook](docs/adr/0003-webhooks-con-omniwebhook.md)
+- [Reglas estáticas de diseño](docs/adr/0004-reglas-estaticas-de-diseno.md)
 - [Meta: permisos, revisión de la app y lo que conviene saber](docs/meta.md)
 - [Sumar una red](docs/nueva-red.md)
 
