@@ -188,7 +188,11 @@ layers = [
 [[tool.importlinter.contracts]]
 name = "Las redes no se conocen entre sí ni las conoce el núcleo"
 type = "independence"
-modules = ["omnisocial.adapters.providers.meta", "omnisocial.adapters.stores"]
+modules = [
+    "omnisocial.adapters.providers.meta",
+    "omnisocial.adapters.providers.tiktok",
+    "omnisocial.adapters.stores",
+]
 
 [[tool.importlinter.contracts]]
 name = "El núcleo no depende de paquetes opcionales"

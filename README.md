@@ -46,6 +46,9 @@ pip install "omnisocial[httpx,postgres,crypto,starlette]"
 | `crypto`    | Cifrar los tokens con AES-256-GCM antes de guardarlos.     |
 | `starlette` | Las rutas del callback y de los webhooks (sirve en FastAPI).|
 
+Cada red se carga recién cuando se importa su módulo (`omnisocial.meta`, `omnisocial.tiktok`): quien usa una
+sola no ejecuta el código de las otras, y ninguna suma dependencias obligatorias.
+
 ## Armado
 
 ```python
@@ -228,6 +231,7 @@ await social.register_system_connection.execute(
 - [Webhooks con omniwebhook](docs/adr/0003-webhooks-con-omniwebhook.md)
 - [Reglas estáticas de diseño](docs/adr/0004-reglas-estaticas-de-diseno.md)
 - [Perfiles públicos y mirador](docs/adr/0005-perfiles-publicos-y-mirador.md)
+- [Cada red paga lo suyo](docs/adr/0006-cada-red-paga-lo-suyo.md)
 - [Meta: permisos, revisión de la app y lo que conviene saber](docs/meta.md)
 - [TikTok: Login Kit, Display API y lo que conviene saber](docs/tiktok.md)
 - [Redes pendientes: YouTube, X y LinkedIn](docs/redes-pendientes.md)

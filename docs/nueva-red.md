@@ -66,6 +66,12 @@ class MiFuente(ProfileLookup):
 Provider(id=ProviderId("mi-fuente"), profiles=MiFuente(cliente))
 ```
 
+### Lo que una red no puede hacer
+
+Una red no suma dependencias obligatorias ni la importa el paquete raíz (ADR 0006). Si necesita una
+biblioteca, va en un extra con su nombre (`omnisocial[mi-red]`); si es pesada, en un paquete aparte por entry
+point. `tests/architecture/test_peso.py` falla si `import omnisocial` empieza a cargar una red.
+
 ## 2. El proveedor
 
 ```python
