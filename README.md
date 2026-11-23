@@ -236,6 +236,7 @@ await social.register_system_connection.execute(
 - [TikTok: Login Kit, Display API y lo que conviene saber](docs/tiktok.md)
 - [Redes pendientes: YouTube, X y LinkedIn](docs/redes-pendientes.md)
 - [Sumar una red](docs/nueva-red.md)
+- [Cómo se publica una versión](docs/publicar.md)
 
 ## Desarrollo
 
