@@ -5,7 +5,7 @@ import pytest
 import omnisocial
 
 
-@pytest.mark.parametrize("module", ["meta", "httpx", "crypto", "starlette", "postgres"])
+@pytest.mark.parametrize("module", ["meta", "tiktok", "httpx", "crypto", "starlette", "postgres"])
 def test_los_modulos_publicos_exportan_lo_que_declaran(module: str) -> None:
     loaded = importlib.import_module(f"omnisocial.{module}")
     for name in loaded.__all__:

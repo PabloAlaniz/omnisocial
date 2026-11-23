@@ -51,8 +51,10 @@ class GetValidToken:
             # Otro proceso la cambió primero: se relee y se decide de nuevo.
         return Refused(Refusal.NOT_FOUND, detail="la conexión cambia demasiado rápido")  # pragma: no cover
 
-    async def invalidate(self, connection_id: str, reason: str) -> Refused:
-        """Marca la conexión como inválida porque la red rechazó su token en una operación.
+    async def invalidate(
+        self, connection_id: str, reason: str, *, status: ConnectionStatus = ConnectionStatus.INVALID
+    ) -> Refused:
+        """Marca la conexión como inválida (la red rechazó su token) o revocada (la persona quitó el acceso).
 
         No se vuelve a intentar con ese token: la respuesta va a ser la misma hasta que alguien reconecte.
         """
@@ -62,7 +64,7 @@ class GetValidToken:
                 return Refused(Refusal.NOT_FOUND)
             if not connection.is_usable:
                 return _refused(connection)
-            marked = connection.mark(ConnectionStatus.INVALID, reason, self._clock.now())
+            marked = connection.mark(status, reason, self._clock.now())
             if await self._connections.save(marked, expected_version=connection.version):
                 return _refused(marked)
         return Refused(Refusal.CONNECTION_INVALID, detail=reason)  # pragma: no cover

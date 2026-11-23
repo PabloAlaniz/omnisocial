@@ -24,8 +24,14 @@ esas reglas de cada red:
 - **Cualquier base, cualquier cliente HTTP.** Son puertos: hay adaptadores en memoria y para PostgreSQL, y
   un transporte con httpx.
 
-Redes disponibles: **Meta** (páginas de Facebook y cuentas profesionales de Instagram). La arquitectura
-está pensada para sumar otras sin tocar el núcleo: ver [Sumar una red](docs/nueva-red.md).
+Redes disponibles:
+
+- **Meta**: páginas de Facebook y cuentas profesionales de Instagram. Todas las capacidades.
+- **TikTok**: login, la cuenta, videos, contadores y webhooks. Sin comentarios ni mensajes, porque su API no
+  los ofrece.
+
+La arquitectura está pensada para sumar otras sin tocar el núcleo: ver [Sumar una red](docs/nueva-red.md) y
+lo que ya se sabe de [YouTube, X y LinkedIn](docs/redes-pendientes.md).
 
 ## Instalación
 
@@ -223,6 +229,8 @@ await social.register_system_connection.execute(
 - [Reglas estáticas de diseño](docs/adr/0004-reglas-estaticas-de-diseno.md)
 - [Perfiles públicos y mirador](docs/adr/0005-perfiles-publicos-y-mirador.md)
 - [Meta: permisos, revisión de la app y lo que conviene saber](docs/meta.md)
+- [TikTok: Login Kit, Display API y lo que conviene saber](docs/tiktok.md)
+- [Redes pendientes: YouTube, X y LinkedIn](docs/redes-pendientes.md)
 - [Sumar una red](docs/nueva-red.md)
 
 ## Desarrollo

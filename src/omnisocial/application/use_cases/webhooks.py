@@ -22,9 +22,11 @@ from omniwebhook import (
 
 from omnisocial.application.ports import AssetRepository
 from omnisocial.application.registry import Provider, ProviderRegistry
+from omnisocial.application.use_cases.access import GetValidToken
 from omnisocial.domain.asset import Asset
+from omnisocial.domain.connection import ConnectionStatus
 from omnisocial.domain.provider import ProviderId
-from omnisocial.domain.webhooks import SocialEvent
+from omnisocial.domain.webhooks import EventAction, EventKind, SocialEvent
 
 
 @dataclass(frozen=True, slots=True)
@@ -49,12 +51,20 @@ class WebhookReceived:
 
 
 class HandleWebhook:
+    """Entrega los avisos, y revoca la conexión cuando la red avisa que la persona quitó el acceso."""
+
     def __init__(
-        self, *, registry: ProviderRegistry, assets: AssetRepository, store: AsyncIdempotencyStore
+        self,
+        *,
+        registry: ProviderRegistry,
+        assets: AssetRepository,
+        store: AsyncIdempotencyStore,
+        tokens: GetValidToken,
     ) -> None:
         self._registry = registry
         self._assets = assets
         self._store = store
+        self._tokens = tokens
         self._receivers: dict[ProviderId, AsyncReceiveWebhook] = {}
 
     def _receiver(self, provider: Provider) -> AsyncReceiveWebhook:
@@ -78,6 +88,7 @@ class HandleWebhook:
                 RoutedEvent(item, await self._assets.find_by_external_id(provider.id, item.asset_external_id))
                 for item in parser.parse(event.request.body)
             ]
+            await self._revoke(routed)
             await on_events(routed)
             delivered.extend(routed)
 
@@ -88,3 +99,12 @@ class HandleWebhook:
             events=tuple(delivered) if reception.outcome == "ok" else (),
             error=reception.error,
         )
+
+    async def _revoke(self, routed: Sequence[RoutedEvent]) -> None:
+        for item in routed:
+            if (item.event.kind, item.event.action) != (EventKind.AUTHORIZATION, EventAction.DELETED):
+                continue
+            for connection_id in {asset.connection_id for asset in item.assets}:
+                await self._tokens.invalidate(
+                    connection_id, "la persona quitó el acceso desde la red", status=ConnectionStatus.REVOKED
+                )

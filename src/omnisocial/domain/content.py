@@ -29,6 +29,8 @@ class Post:
     like_count: int | None = None
     """`None` quiere decir que la red no lo informó, no que sea cero."""
     comment_count: int | None = None
+    share_count: int | None = None
+    view_count: int | None = None
     raw: Mapping[str, object] = field(default_factory=dict, repr=False)
 
 

@@ -15,6 +15,8 @@ class EventKind(StrEnum):
     POST = "post"
     MESSAGE = "message"
     MENTION = "mention"
+    AUTHORIZATION = "authorization"
+    """La persona quitó el acceso de la app desde la red. `DELETED` deja la conexión revocada."""
     OTHER = "other"
 
 

@@ -133,5 +133,7 @@ class Omnisocial:
             list_messages=ListMessages(registry=registry, access=access),
             send_message=SendMessage(registry=registry, access=access, clock=clock),
             read_insights=ReadInsights(registry=registry, access=access),
-            handle_webhook=HandleWebhook(registry=registry, assets=assets, store=webhook_events),
+            handle_webhook=HandleWebhook(
+                registry=registry, assets=assets, store=webhook_events, tokens=tokens
+            ),
         )
