@@ -1,5 +1,21 @@
 # Changelog
 
+## [0.2.0](https://github.com/PabloAlaniz/omnisocial/compare/v0.1.0...v0.2.0) (2026-11-23)
+
+
+### ⚠ BREAKING CHANGES
+
+* **meta:** MetaConfig se construye solo por nombre y register_system_connection puede devolver Refused.
+
+### Features
+
+* **meta:** modo token, Meta sin app con un usuario de sistema ([#5](https://github.com/PabloAlaniz/omnisocial/issues/5)) ([2d5ce29](https://github.com/PabloAlaniz/omnisocial/commit/2d5ce2990f250def30269f36d12da78af214c22f))
+
+
+### Documentation
+
+* el README ya no dice que no hay versión publicada ([63ccbcc](https://github.com/PabloAlaniz/omnisocial/commit/63ccbcc552d8868890e602f3723591a07bd36cc3))
+
 ## 0.1.0 (2026-11-23)
 
 
