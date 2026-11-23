@@ -1,0 +1,235 @@
+"""Una red falsa con todas las capacidades, y reloj, ids y secretos controlables."""
+
+from __future__ import annotations
+
+from collections.abc import Mapping, Sequence
+from dataclasses import dataclass, field
+from datetime import UTC, datetime, timedelta
+
+from omnisocial.application.registry import Provider
+from omnisocial.domain.asset import Asset, DiscoveredAsset
+from omnisocial.domain.authorization import Purpose
+from omnisocial.domain.content import Comment, Post
+from omnisocial.domain.errors import TokenRejected
+from omnisocial.domain.identity import Identity
+from omnisocial.domain.messaging import Conversation, Message, ReplyWindow
+from omnisocial.domain.metrics import (
+    CanonicalMetric,
+    CatalogEntry,
+    MetricCatalog,
+    MetricPoint,
+    MetricSeries,
+    Period,
+)
+from omnisocial.domain.provider import Capability, ProviderId
+from omnisocial.domain.token import Token, TokenKind
+from omnisocial.domain.webhooks import EventAction, EventKind, SocialEvent
+from omnisocial.domain.window import TimeWindow
+
+FAKE = ProviderId("falsa")
+NOW = datetime(2026, 11, 23, 12, tzinfo=UTC)
+
+
+class FakeClock:
+    def __init__(self, now: datetime = NOW) -> None:
+        self.current = now
+
+    def now(self) -> datetime:
+        return self.current
+
+    def advance(self, delta: timedelta) -> None:
+        self.current += delta
+
+
+class SequentialIds:
+    def __init__(self, prefix: str = "id") -> None:
+        self._prefix = prefix
+        self._n = 0
+
+    def new_id(self) -> str:
+        self._n += 1
+        return f"{self._prefix}{self._n}"
+
+
+class FakeSecrets:
+    def __init__(self) -> None:
+        self._n = 0
+
+    def token(self, nbytes: int) -> str:
+        self._n += 1
+        return f"secreto{self._n}-{nbytes}"
+
+
+@dataclass
+class FakeOAuth:
+    supports_pkce: bool = True
+    refreshable: bool = True
+    reject_refresh: bool = False
+    reject_revoke: bool = False
+    token_ttl: timedelta | None = timedelta(hours=1)
+    subject: Identity = field(default_factory=lambda: Identity(FAKE, "persona-1", name="Persona"))
+    clock: FakeClock = field(default_factory=FakeClock)
+    exchanged: list[tuple[str, str, str | None]] = field(default_factory=list)
+    refreshed: int = 0
+    revoked: list[str] = field(default_factory=list)
+
+    def default_scopes(self, purpose: Purpose) -> tuple[str, ...]:
+        return ("perfil",) if purpose is Purpose.LOGIN else ("perfil", "paginas")
+
+    def authorization_url(
+        self, *, state: str, redirect_uri: str, scopes: Sequence[str], code_challenge: str | None
+    ) -> str:
+        return f"https://falsa/auth?state={state}&scopes={','.join(scopes)}&challenge={code_challenge}"
+
+    def _token(self, value: str) -> Token:
+        expires = self.clock.now() + self.token_ttl if self.token_ttl else None
+        return Token(TokenKind.USER, value, refresh_token="r-" + value, expires_at=expires)
+
+    async def exchange_code(self, *, code: str, redirect_uri: str, code_verifier: str | None) -> Token:
+        self.exchanged.append((code, redirect_uri, code_verifier))
+        return self._token("tok-" + code)
+
+    async def identity(self, token: Token) -> Identity:
+        return self.subject
+
+    def can_refresh(self, token: Token) -> bool:
+        return self.refreshable and token.refresh_token is not None
+
+    async def refresh(self, token: Token) -> Token:
+        self.refreshed += 1
+        if self.reject_refresh:
+            raise TokenRejected(FAKE, "revocado por la persona", code="190")
+        return self._token(f"renovado{self.refreshed}")
+
+    async def revoke(self, token: Token) -> None:
+        if self.reject_revoke:
+            raise TokenRejected(FAKE, "ya no servía")
+        self.revoked.append(token.access_token)
+
+
+@dataclass
+class FakeAssets:
+    items: list[DiscoveredAsset] = field(
+        default_factory=lambda: [
+            DiscoveredAsset(
+                "pagina",
+                "pag-1",
+                name="Página",
+                token=Token(TokenKind.ASSET, "tok-pagina"),
+                capabilities=frozenset(Capability),
+            ),
+            DiscoveredAsset("cuenta", "cta-1", parent_external_id="pag-1"),
+        ]
+    )
+
+    async def discover(self, token: Token) -> Sequence[DiscoveredAsset]:
+        return list(self.items)
+
+
+@dataclass
+class FakeContent:
+    calls: list[tuple[str, str]] = field(default_factory=list)
+
+    async def list_posts(
+        self, asset: Asset, token: Token, *, window: TimeWindow, limit: int | None
+    ) -> Sequence[Post]:
+        self.calls.append((asset.external_id, token.access_token))
+        return [Post("post-1", asset.external_id, NOW, text="hola")]
+
+
+@dataclass
+class FakeComments:
+    replies: list[tuple[str, str]] = field(default_factory=list)
+    hidden: dict[str, bool] = field(default_factory=dict)
+
+    async def list_comments(self, asset: Asset, token: Token, *, object_id: str) -> Sequence[Comment]:
+        return [Comment("com-1", object_id, NOW, text="buenísimo")]
+
+    async def reply(self, asset: Asset, token: Token, *, comment_id: str, text: str) -> str:
+        self.replies.append((comment_id, text))
+        return "com-nuevo"
+
+    async def set_hidden(self, asset: Asset, token: Token, *, comment_id: str, hidden: bool) -> None:
+        self.hidden[comment_id] = hidden
+
+
+@dataclass
+class FakeMessaging:
+    messages: list[Message] = field(default_factory=list)
+    sent: list[tuple[str, str]] = field(default_factory=list)
+    reply_window: ReplyWindow = field(default_factory=lambda: ReplyWindow(timedelta(hours=24)))
+
+    async def list_conversations(
+        self, asset: Asset, token: Token, *, limit: int | None
+    ) -> Sequence[Conversation]:
+        return [Conversation("conv-1", asset.external_id, NOW)]
+
+    async def list_messages(
+        self, asset: Asset, token: Token, *, conversation_id: str, limit: int | None
+    ) -> Sequence[Message]:
+        return list(self.messages)
+
+    async def send(self, asset: Asset, token: Token, *, recipient_id: str, text: str) -> str:
+        self.sent.append((recipient_id, text))
+        return "msg-nuevo"
+
+
+@dataclass
+class FakeInsights:
+    api_version: str = "v2.0"
+    catalog: MetricCatalog = field(
+        default_factory=lambda: MetricCatalog(
+            (
+                CatalogEntry("pagina", CanonicalMetric.REACH, "alcance_unico"),
+                CatalogEntry("pagina", CanonicalMetric.FOLLOWERS, "seguidores"),
+            )
+        )
+    )
+    requested: list[tuple[str, ...]] = field(default_factory=list)
+
+    async def read(
+        self, asset: Asset, token: Token, *, metrics: Sequence[str], period: Period, window: TimeWindow
+    ) -> Sequence[MetricSeries]:
+        self.requested.append(tuple(metrics))
+        return [MetricSeries(name, period, (MetricPoint(NOW, 10.0),)) for name in metrics]
+
+
+@dataclass
+class FakeWebhooks:
+    secret_ok: bool = True
+
+    def verify_signature(self, body: bytes, headers: Mapping[str, str]) -> bool:
+        return self.secret_ok and headers.get("x-firma") == "valida"
+
+    def parse(self, body: bytes) -> Sequence[SocialEvent]:
+        return [SocialEvent(FAKE, EventKind.COMMENT, EventAction.CREATED, body.decode(), "com-9", NOW)]
+
+
+@dataclass
+class FakeNetwork:
+    clock: FakeClock = field(default_factory=FakeClock)
+    oauth: FakeOAuth = field(default_factory=FakeOAuth)
+    assets: FakeAssets = field(default_factory=FakeAssets)
+    content: FakeContent = field(default_factory=FakeContent)
+    comments: FakeComments = field(default_factory=FakeComments)
+    messaging: FakeMessaging = field(default_factory=FakeMessaging)
+    insights: FakeInsights = field(default_factory=FakeInsights)
+    webhooks: FakeWebhooks = field(default_factory=FakeWebhooks)
+
+    def __post_init__(self) -> None:
+        self.oauth.clock = self.clock
+
+    def provider(self, *, only: frozenset[Capability] | None = None) -> Provider:
+        def pick(capability: Capability, component: object) -> object:
+            return component if only is None or capability in only else None
+
+        return Provider(
+            id=FAKE,
+            oauth=pick(Capability.LOGIN, self.oauth),  # type: ignore[arg-type]
+            assets=pick(Capability.ASSETS, self.assets),  # type: ignore[arg-type]
+            content=pick(Capability.CONTENT, self.content),  # type: ignore[arg-type]
+            comments=pick(Capability.COMMENTS, self.comments),  # type: ignore[arg-type]
+            messaging=pick(Capability.MESSAGING, self.messaging),  # type: ignore[arg-type]
+            insights=pick(Capability.INSIGHTS, self.insights),  # type: ignore[arg-type]
+            webhooks=pick(Capability.WEBHOOKS, self.webhooks),  # type: ignore[arg-type]
+        )

@@ -1,0 +1,124 @@
+[build-system]
+requires = ["hatchling>=1.25"]
+build-backend = "hatchling.build"
+
+[project]
+name = "omnisocial"
+version = "0.0.0"
+description = "Redes sociales con las mismas reglas: login, conexiones, activos, publicaciones, comentarios, mensajes, métricas y webhooks, con un adaptador por red."
+readme = "README.md"
+license = "MIT"
+license-files = ["LICENSE"]
+requires-python = ">=3.11"
+authors = [{ name = "Pablo Alaniz" }]
+keywords = ["social", "oauth", "graph-api", "facebook", "instagram", "insights", "messaging", "comments", "webhooks"]
+classifiers = [
+    "Development Status :: 2 - Pre-Alpha",
+    "Intended Audience :: Developers",
+    "Natural Language :: Spanish",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
+    "Topic :: Internet :: WWW/HTTP",
+    "Typing :: Typed",
+]
+dependencies = []
+
+[project.optional-dependencies]
+# El cliente HTTP de `omnisocial.httpx`.
+httpx = ["httpx>=0.27"]
+# El cifrado de tokens de `omnisocial.crypto`.
+crypto = ["cryptography>=43"]
+# Los repositorios de `omnisocial.postgres`.
+postgres = ["psycopg[pool]>=3.2"]
+# Las rutas de `omnisocial.starlette`, también para FastAPI.
+starlette = ["starlette>=0.37"]
+
+[project.urls]
+Homepage = "https://github.com/PabloAlaniz/omnisocial"
+Repository = "https://github.com/PabloAlaniz/omnisocial"
+Issues = "https://github.com/PabloAlaniz/omnisocial/issues"
+Changelog = "https://github.com/PabloAlaniz/omnisocial/blob/main/CHANGELOG.md"
+
+[dependency-groups]
+dev = [
+    "cryptography>=43",
+    "httpx>=0.28.1",
+    "import-linter>=2.17",
+    "mypy>=1.13",
+    "psycopg[binary,pool]>=3.2",
+    "pytest>=8.3",
+    "pytest-asyncio>=1.0",
+    "pytest-cov>=7.0",
+    "ruff>=0.8",
+    "starlette>=0.37",
+]
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/omnisocial"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "--cov --cov-report=term-missing:skip-covered -m 'not integration and not live'"
+asyncio_mode = "auto"
+asyncio_default_fixture_loop_scope = "function"
+filterwarnings = ["error"]
+markers = [
+    "integration: necesita un servicio externo (PostgreSQL)",
+    "live: llama a la API real de una red con credenciales de verdad",
+]
+
+[tool.coverage.run]
+source_pkgs = ["omnisocial"]
+branch = true
+# Se prueban contra PostgreSQL de verdad, en los tests de integración.
+omit = ["*/omnisocial/adapters/stores/postgres.py", "*/omnisocial/postgres.py"]
+
+[tool.coverage.report]
+fail_under = 90
+exclude_also = ["if TYPE_CHECKING:", "@overload", "raise NotImplementedError", "\\.\\.\\."]
+
+[tool.mypy]
+strict = true
+files = ["src", "tests"]
+
+[tool.ruff]
+line-length = 110
+target-version = "py311"
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "B", "UP", "SIM", "RUF", "S", "PT", "C4", "TID"]
+# El texto es español: las tildes y la ñ en docstrings y mensajes son a propósito.
+ignore = ["RUF001", "RUF002", "RUF003"]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**" = ["S101", "S105", "S106"]
+
+# Reglas de arquitectura. Las dependencias apuntan hacia adentro:
+#   entrypoints → adapters → application → domain
+# Ver docs/adr/0001-arquitectura-en-capas.md.
+[tool.importlinter]
+root_package = "omnisocial"
+include_external_packages = true
+
+[[tool.importlinter.contracts]]
+name = "Las capas dependen hacia adentro"
+type = "layers"
+layers = [
+    "omnisocial.entrypoints",
+    "omnisocial.adapters",
+    "omnisocial.application",
+    "omnisocial.domain",
+]
+
+[[tool.importlinter.contracts]]
+name = "Las redes no se conocen entre sí ni las conoce el núcleo"
+type = "independence"
+modules = ["omnisocial.adapters.providers.meta", "omnisocial.adapters.stores"]
+
+[[tool.importlinter.contracts]]
+name = "El núcleo no depende de paquetes opcionales"
+type = "forbidden"
+source_modules = ["omnisocial.domain", "omnisocial.application"]
+forbidden_modules = ["httpx", "starlette", "psycopg", "cryptography"]
