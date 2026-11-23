@@ -3,7 +3,9 @@
 Redes sociales con las mismas reglas: login, conexiones, activos, publicaciones, comentarios, mensajes
 privados, métricas y webhooks, con un núcleo común y un adaptador por red.
 
-> **Todavía no hay una versión publicada.** La API puede cambiar hasta la 1.0.
+[![PyPI](https://img.shields.io/pypi/v/omnisocial)](https://pypi.org/project/omnisocial/)
+
+> La API puede cambiar entre versiones menores hasta la 1.0.
 
 Cada producto que trabaja con redes termina escribiendo lo mismo: el diálogo de OAuth, dónde guardar el
 token, cuándo renovarlo, qué páginas administra la persona, cómo leer métricas que cambian de nombre en
