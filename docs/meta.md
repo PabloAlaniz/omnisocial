@@ -30,6 +30,24 @@ propios de Instagram.
   configuración avanzada de la app.
 - `MetaOAuth.debug_token` dice tipo, vencimiento y permisos concedidos de cualquier token.
 
+## Modo token (sin app)
+
+Mientras no hay una app con acceso avanzado (o mientras la verificación del negocio está pendiente), se
+puede trabajar solo con el token de un **usuario de sistema** del portfolio que administra las páginas:
+
+```python
+provider = meta_provider(MetaConfig(api_version="v24.0"), RetryingTransport(HttpxTransport()))
+await social.register_system_connection.execute("meta", owner=..., token=Token(TokenKind.SYSTEM, token))
+```
+
+- Sin `app_id` ni `app_secret` el proveedor no trae OAuth ni webhooks, y las llamadas van sin
+  `appsecret_proof`. Si la app del usuario de sistema tiene activado "Require App Secret", hace falta
+  configurarla con su `app_id` y `app_secret`.
+- El dueño del token se identifica con `/me?fields=id,name`: un usuario de sistema no tiene email ni foto.
+- Antes de guardar se descubren los activos (`/me/accounts`). Un token rechazado, sin permisos o que no
+  administra ninguna página no se guarda.
+- Cuando la app está lista, se carga `app_id` y `app_secret` y aparecen OAuth y webhooks sin cambiar nada más.
+
 ## Permisos y revisión de la app
 
 `CONNECT_SCOPES` pide lo necesario para todas las capacidades. Cada permiso que no sea básico necesita

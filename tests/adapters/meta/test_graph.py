@@ -32,8 +32,10 @@ def test_contadores_de_summary() -> None:
 
 
 def test_la_configuracion_valida_lo_basico() -> None:
-    with pytest.raises(ValueError, match="app_secret"):
+    with pytest.raises(ValueError, match="los dos o ninguno"):
         MetaConfig(app_id="a", app_secret="", api_version="v24.0")
+    with pytest.raises(ValueError, match="los dos o ninguno"):
+        MetaConfig(app_secret="s", api_version="v24.0")
     with pytest.raises(ValueError, match=r"v24\.0"):
         MetaConfig(app_id="a", app_secret="s", api_version="24")
     assert "secreto" not in repr(config())
@@ -121,3 +123,13 @@ async def test_collect_respeta_el_tope(fake: FakeGraph, graph: GraphClient) -> N
     items = await graph.collect("p/media", "tok", None, time_field="t", limit=1)
     assert [i["id"] for i in items] == ["1"]
     assert len(fake.calls) == 1
+
+
+async def test_modo_token_sin_app(fake: FakeGraph) -> None:
+    token_only = MetaConfig(api_version="v24.0")
+    assert not token_only.has_app
+    with pytest.raises(ValueError, match="modo token"):
+        _ = token_only.app_access_token
+    fake.on("GET", "me", {"id": "1"})
+    await GraphClient(token_only, fake).get("me", "tok")
+    assert "appsecret_proof" not in fake.calls[0].params

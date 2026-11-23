@@ -41,6 +41,8 @@ class Refusal(StrEnum):
     VIEWER_REQUIRED = "viewer_required"
     """La red solo muestra cuentas ajenas a través de una cuenta propia, y no se indicó una que sirva."""
     PROFILE_NOT_FOUND = "profile_not_found"
+    NO_ASSETS = "no_assets"
+    """El token es válido pero no administra ningún activo: no se guarda."""
     OUTSIDE_REPLY_WINDOW = "outside_reply_window"
     NO_RECIPIENT = "no_recipient"
 

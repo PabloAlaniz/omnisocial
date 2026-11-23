@@ -17,7 +17,7 @@ from omnisocial.adapters.providers.meta.deletion import (
     parse_signed_request,
 )
 from omnisocial.adapters.providers.meta.graph import GraphClient
-from omnisocial.adapters.providers.meta.oauth import MetaOAuth, TokenInfo
+from omnisocial.adapters.providers.meta.oauth import MetaIdentity, MetaOAuth, TokenInfo
 from omnisocial.adapters.providers.meta.provider import meta_provider
 from omnisocial.adapters.providers.meta.webhooks import verify_subscription
 
@@ -35,6 +35,7 @@ __all__ = [
     "InvalidSignedRequest",
     "MetaConfig",
     "MetaDeletionRequests",
+    "MetaIdentity",
     "MetaOAuth",
     "TokenInfo",
     "meta_provider",

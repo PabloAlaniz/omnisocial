@@ -24,10 +24,11 @@ from omnisocial.application.results import (
     Refusal,
     Refused,
 )
-from omnisocial.domain.asset import Asset
+from omnisocial.domain.asset import Asset, DiscoveredAsset
 from omnisocial.domain.authorization import DEFAULT_STATE_TTL, AuthorizationRequest, Purpose
 from omnisocial.domain.connection import Connection, ConnectionStatus
-from omnisocial.domain.errors import TokenRejected
+from omnisocial.domain.errors import PermissionMissing, TokenRejected
+from omnisocial.domain.provider import Capability
 from omnisocial.domain.redirect import ReturnUrlPolicy
 from omnisocial.domain.token import Token
 
@@ -118,9 +119,16 @@ class ConnectionStore:
         self._clock = clock
         self._ids = ids
 
-    async def store(self, provider: Provider, *, owner: str, token: Token) -> Connected:
-        oauth = provider.require_oauth()
-        subject = await oauth.identity(token)
+    async def store(
+        self,
+        provider: Provider,
+        *,
+        owner: str,
+        token: Token,
+        discovered: Sequence[DiscoveredAsset] | None = None,
+    ) -> Connected:
+        """`discovered`: los activos ya descubiertos con este token, para no pedirlos dos veces."""
+        subject = await provider.require_identity().identity(token)
         now = self._clock.now()
         existing = await self._connections.find(
             owner=owner, provider=provider.id, subject_id=subject.external_id
@@ -151,7 +159,9 @@ class ConnectionStore:
 
         assets: Sequence[Asset] = ()
         if provider.assets is not None:
-            assets = await AssetSync(assets=self._assets, ids=self._ids).sync(provider, connection)
+            assets = await AssetSync(assets=self._assets, ids=self._ids).sync(
+                provider, connection, discovered=discovered
+            )
         return Connected(connection=connection, assets=assets, reconnected=existing is not None)
 
 
@@ -160,8 +170,15 @@ class AssetSync:
         self._assets = assets
         self._ids = ids
 
-    async def sync(self, provider: Provider, connection: Connection) -> Sequence[Asset]:
-        discovered = await provider.require_assets().discover(connection.token)
+    async def sync(
+        self,
+        provider: Provider,
+        connection: Connection,
+        *,
+        discovered: Sequence[DiscoveredAsset] | None = None,
+    ) -> Sequence[Asset]:
+        if discovered is None:
+            discovered = await provider.require_assets().discover(connection.token)
         known = {(a.kind, a.external_id): a.id for a in await self._assets.list_by_connection(connection.id)}
         assets = [
             Asset.from_discovered(
@@ -242,8 +259,23 @@ class RegisterSystemConnection:
         self._registry = registry
         self._store = store
 
-    async def execute(self, provider_id: str, *, owner: str, token: Token) -> Connected:
-        return await self._store.store(self._registry.get(provider_id), owner=owner, token=token)
+    async def execute(self, provider_id: str, *, owner: str, token: Token) -> Connected | Refused:
+        """Antes de guardar, comprueba que el token sirve y que ve al menos un activo.
+
+        Un token que la red rechaza, al que le faltan permisos o que no administra nada no se guarda.
+        """
+        provider = self._registry.get(provider_id)
+        if provider.assets is None:
+            return await self._store.store(provider, owner=owner, token=token)
+        try:
+            discovered = await provider.assets.discover(token)
+        except TokenRejected as error:
+            return Refused(Refusal.PROVIDER_DENIED, detail=str(error))
+        except PermissionMissing as error:
+            return Refused(Refusal.MISSING_PERMISSION, detail=str(error), capability=Capability.ASSETS)
+        if not discovered:
+            return Refused(Refusal.NO_ASSETS)
+        return await self._store.store(provider, owner=owner, token=token, discovered=discovered)
 
 
 class Disconnect:

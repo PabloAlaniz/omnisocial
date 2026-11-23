@@ -14,9 +14,9 @@ from omnisocial.application.results import (
 )
 from omnisocial.domain.authorization import Purpose
 from omnisocial.domain.connection import ConnectionStatus
-from omnisocial.domain.errors import CapabilityNotSupported, UnknownProvider
+from omnisocial.domain.errors import CapabilityNotSupported, PermissionMissing, TokenRejected, UnknownProvider
 from omnisocial.domain.identity import Identity
-from omnisocial.domain.provider import Capability
+from omnisocial.domain.provider import Capability, ProviderId
 from omnisocial.domain.token import Token, TokenKind
 from tests.application.conftest import World, build_world
 from tests.fakes import FAKE, FakeNetwork, FakeOAuth
@@ -140,6 +140,7 @@ async def test_si_la_persona_cancela_no_se_llama_a_la_red(world: World) -> None:
 async def test_registrar_un_usuario_de_sistema(world: World) -> None:
     token = Token(TokenKind.SYSTEM, "tok-sistema")
     result = await world.social.register_system_connection.execute("falsa", owner="agencia", token=token)
+    assert isinstance(result, Connected)
     assert result.connection.token.kind is TokenKind.SYSTEM
     assert len(result.assets) == 2
 
@@ -149,7 +150,37 @@ async def test_una_red_sin_activos_conecta_igual() -> None:
     result = await world.social.register_system_connection.execute(
         "falsa", owner="x", token=Token(TokenKind.SYSTEM, "t")
     )
+    assert isinstance(result, Connected)
     assert result.assets == ()
+
+
+async def test_un_token_que_no_sirve_no_se_guarda(world: World) -> None:
+    token = Token(TokenKind.SYSTEM, "t")
+    world.network.assets.fail_with = TokenRejected(ProviderId("falsa"), "token vencido")
+    rejected = await world.social.register_system_connection.execute("falsa", owner="a", token=token)
+    world.network.assets.fail_with = PermissionMissing(ProviderId("falsa"), "falta pages_show_list")
+    missing = await world.social.register_system_connection.execute("falsa", owner="a", token=token)
+    world.network.assets.fail_with = None
+    world.network.assets.items = []
+    empty = await world.social.register_system_connection.execute("falsa", owner="a", token=token)
+    assert rejected == Refused(Refusal.PROVIDER_DENIED, detail="token vencido")
+    assert missing == Refused(
+        Refusal.MISSING_PERMISSION, detail="falta pages_show_list", capability=Capability.ASSETS
+    )
+    assert empty == Refused(Refusal.NO_ASSETS)
+    assert await world.connections.list_by_owner("a") == []
+
+
+async def test_una_red_sin_oauth_identifica_con_su_lector_propio() -> None:
+    token = Token(TokenKind.SYSTEM, "t")
+    without = build_world(only=frozenset({Capability.ASSETS}))
+    with pytest.raises(CapabilityNotSupported):
+        await without.social.register_system_connection.execute("falsa", owner="a", token=token)
+    network = FakeNetwork()
+    with_reader = build_world(network, only=frozenset({Capability.ASSETS}), identity=network.oauth)
+    result = await with_reader.social.register_system_connection.execute("falsa", owner="a", token=token)
+    assert isinstance(result, Connected)
+    assert result.connection.subject == network.oauth.subject
 
 
 async def test_desconectar_revoca_y_borra_activos(world: World) -> None:

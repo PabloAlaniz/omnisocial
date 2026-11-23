@@ -11,7 +11,7 @@ from omnisocial.adapters.providers.meta.content import MetaContentReader
 from omnisocial.adapters.providers.meta.graph import GraphClient
 from omnisocial.adapters.providers.meta.insights import MetaInsightsReader
 from omnisocial.adapters.providers.meta.messaging import MetaMessagingGateway
-from omnisocial.adapters.providers.meta.oauth import MetaOAuth
+from omnisocial.adapters.providers.meta.oauth import MetaIdentity, MetaOAuth
 from omnisocial.adapters.providers.meta.profiles import MetaProfileLookup
 from omnisocial.adapters.providers.meta.webhooks import MetaWebhookParser
 from omnisocial.adapters.system import SystemClock
@@ -27,16 +27,18 @@ def meta_provider(
     clock: Clock | None = None,
     catalog: MetricCatalog = DEFAULT_CATALOG,
 ) -> Provider:
+    """Con app, todas las capacidades. En modo token (sin app), todo menos OAuth y webhooks."""
     clock = clock or SystemClock()
     graph = GraphClient(config, transport)
     return Provider(
         id=META,
-        oauth=MetaOAuth(graph, clock),
+        oauth=MetaOAuth(graph, clock) if config.has_app else None,
+        identity=MetaIdentity(graph),
         assets=MetaAssetDirectory(graph),
         content=MetaContentReader(graph),
         comments=MetaCommentGateway(graph),
         messaging=MetaMessagingGateway(graph),
         insights=MetaInsightsReader(graph, clock, catalog),
-        webhooks=MetaWebhookParser(config),
+        webhooks=MetaWebhookParser(config) if config.has_app else None,
         profiles=MetaProfileLookup(graph),
     )

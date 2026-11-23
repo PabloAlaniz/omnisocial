@@ -91,7 +91,8 @@ class MetaDeletionRequests:
     """Lo que necesita la ruta del callback: verificar con los secretos de la app."""
 
     def __init__(self, config: MetaConfig) -> None:
-        self._secrets = (config.app_secret, *config.previous_app_secrets)
+        _, app_secret = config.require_app
+        self._secrets = (app_secret, *config.previous_app_secrets)
 
     def parse(self, signed_request: str) -> DeletionRequest:
         return parse_signed_request(signed_request, self._secrets)

@@ -128,7 +128,11 @@ class FakeAssets:
         ]
     )
 
+    fail_with: Exception | None = None
+
     async def discover(self, token: Token) -> Sequence[DiscoveredAsset]:
+        if self.fail_with is not None:
+            raise self.fail_with
         return list(self.items)
 
 
@@ -285,7 +289,9 @@ class FakeNetwork:
     def __post_init__(self) -> None:
         self.oauth.clock = self.clock
 
-    def provider(self, *, only: frozenset[Capability] | None = None) -> Provider:
+    def provider(
+        self, *, only: frozenset[Capability] | None = None, identity: object | None = None
+    ) -> Provider:
         def pick(capability: Capability, component: object) -> object:
             return component if only is None or capability in only else None
 
@@ -299,6 +305,7 @@ class FakeNetwork:
             insights=pick(Capability.INSIGHTS, self.insights),  # type: ignore[arg-type]
             webhooks=pick(Capability.WEBHOOKS, self.webhooks),  # type: ignore[arg-type]
             profiles=pick(Capability.PUBLIC_PROFILES, self.profiles),  # type: ignore[arg-type]
+            identity=identity,  # type: ignore[arg-type]
         )
 
 

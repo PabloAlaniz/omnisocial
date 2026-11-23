@@ -221,10 +221,20 @@ Cuando la organización administra las páginas desde su propio portfolio de la 
 dueño autorice: se registra el token del usuario de sistema y se descubren sus activos igual.
 
 ```python
-await social.register_system_connection.execute(
+result = await social.register_system_connection.execute(
     "meta", owner="agencia", token=Token(TokenKind.SYSTEM, os.environ["META_SYSTEM_USER_TOKEN"])
 )
+match result:
+    case Connected(assets=assets):
+        ...  # páginas y cuentas de Instagram que ve el token
+    case Refused(reason=reason):
+        ...  # PROVIDER_DENIED (token rechazado), MISSING_PERMISSION o NO_ASSETS
 ```
+
+Antes de guardar el token se comprueba que sirve y que administra al menos un activo.
+
+Para esto **no hace falta una app propia**: `MetaConfig(api_version="v24.0")` sin `app_id` ni
+`app_secret` arma Meta en modo token, con todo menos OAuth y webhooks.
 
 ## Documentación
 
