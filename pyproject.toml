@@ -155,6 +155,8 @@ ban-relative-imports = "all"
 "src/omnisocial/adapters/crypto/aes_gcm.py" = ["TID251"]
 # La raíz de composición recibe todas las dependencias a propósito.
 "src/omnisocial/entrypoints/hub.py" = ["PLR0913"]
+# El puerto HTTP tiene las dimensiones de un pedido HTTP: método, URL, query, cuerpo, cabeceras y si se repite.
+"src/omnisocial/adapters/http/transport.py" = ["PLR0913"]
 "tests/**" = [
     "S101", "S105", "S106",
     # Los dobles implementan puertos y no usan todos los argumentos.

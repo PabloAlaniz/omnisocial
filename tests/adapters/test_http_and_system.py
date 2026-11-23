@@ -1,9 +1,11 @@
 from __future__ import annotations
 
 import httpx
+import pytest
 
 from omnisocial.adapters.http.httpx_transport import HttpxTransport
-from omnisocial.adapters.system import SystemClock, SystemSecrets, UuidGenerator
+from omnisocial.adapters.http.transport import TransportError
+from omnisocial.adapters.system import SystemClock, SystemSecrets, UuidGenerator, uniform_jitter
 
 
 async def test_transporte_httpx() -> None:
@@ -32,3 +34,29 @@ def test_reloj_ids_y_secretos_de_verdad() -> None:
     secret = SystemSecrets().token(32)
     assert len(secret) >= 40
     assert "/" not in secret
+
+
+async def test_transporte_httpx_formulario_cabeceras_y_errores_de_red() -> None:
+    seen: list[httpx.Request] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        seen.append(request)
+        if request.url.host == "caido":
+            raise httpx.ConnectError("sin ruta")
+        return httpx.Response(200, json={}, headers={"Retry-After": "2"})
+
+    transport = HttpxTransport(httpx.AsyncClient(transport=httpx.MockTransport(handler)))
+    response = await transport.request(
+        "POST", "https://api/token?x=1", form={"code": "c"}, headers={"Authorization": "Bearer t"}
+    )
+    assert response.header("retry-after") == "2"
+    assert seen[0].content == b"code=c"
+    assert seen[0].headers["authorization"] == "Bearer t"
+    assert seen[0].url.params["x"] == "1"
+    with pytest.raises(TransportError, match="caido") as raised:
+        await transport.request("GET", "https://caido/x?access_token=secreto")
+    assert "secreto" not in str(raised.value)
+
+
+def test_jitter_de_verdad() -> None:
+    assert 0 <= uniform_jitter(2.0) <= 2.0

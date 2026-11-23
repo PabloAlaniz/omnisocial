@@ -27,3 +27,11 @@ class SystemSecrets(SecretGenerator):
     @override
     def token(self, nbytes: int) -> str:
         return secrets.token_urlsafe(nbytes)
+
+
+_RANDOM = secrets.SystemRandom()
+
+
+def uniform_jitter(ceiling: float) -> float:
+    """Un valor al azar entre 0 y `ceiling`, para repartir los reintentos en el tiempo."""
+    return _RANDOM.uniform(0, ceiling)

@@ -46,6 +46,9 @@ class FakeGraph:
         *,
         params: Params | None = None,
         json: Mapping[str, object] | None = None,
+        form: Mapping[str, str] | None = None,
+        headers: Mapping[str, str] | None = None,
+        retry_safe: str | None = None,
     ) -> HttpResponse:
         call = Call(method, url, dict(params or {}), json)
         self.calls.append(call)
