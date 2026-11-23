@@ -9,7 +9,6 @@ from omnisocial.adapters.providers.tiktok.config import (
 )
 from omnisocial.adapters.providers.tiktok.insights import DEFAULT_CATALOG, STATS
 from omnisocial.adapters.providers.tiktok.provider import tiktok_provider
-from omnisocial.adapters.providers.tiktok.webhooks import TikTokSignatureVerifier
 
 __all__ = [
     "CONNECT_SCOPES",
@@ -19,6 +18,5 @@ __all__ = [
     "TIKTOK",
     "TIKTOK_ACCOUNT",
     "TikTokConfig",
-    "TikTokSignatureVerifier",
     "tiktok_provider",
 ]

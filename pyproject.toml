@@ -23,7 +23,7 @@ classifiers = [
     "Topic :: Internet :: WWW/HTTP",
     "Typing :: Typed",
 ]
-dependencies = ["omniwebhook>=0.1.1,<0.2", "typing_extensions>=4.5"]
+dependencies = ["omniwebhook>=0.4,<0.5", "typing_extensions>=4.5"]
 
 [project.optional-dependencies]
 # El cliente HTTP de `omnisocial.httpx`.

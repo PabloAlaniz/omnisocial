@@ -71,7 +71,8 @@ Se configura una sola URL de callback en el portal (`https://.../webhooks/tiktok
 hay saludo de verificación.
 
 - Cada aviso llega con `TikTok-Signature: t=<segundos>,s=<hex>`: HMAC-SHA256 de `"<t>.<cuerpo>"` con el
-  secreto de la app. Se rechazan los avisos con más de 5 minutos (`webhook_tolerance_seconds`).
+  secreto de la app. Lo verifica el esquema `tiktok` de omniwebhook. Se rechazan los avisos con más de 5
+  minutos (`webhook_tolerance_seconds`).
 - TikTok reintenta hasta 72 horas y puede mandar el mismo aviso más de una vez: la deduplicación es por huella
   del cuerpo, como en Meta.
 - **`authorization.removed`**: la persona quitó la app desde TikTok (o la cuenta se borró o se suspendió). La

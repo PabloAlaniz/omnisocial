@@ -129,7 +129,7 @@ def test_firma_valida_y_clave_por_cuerpo(clock: FakeClock) -> None:
     verified = verifier.verify(signed(REMOVED))
     assert isinstance(verified, Verified)
     assert verified.timestamp == int(NOW.timestamp())
-    assert verified.event_key == verifier.verify(signed(REMOVED)).event_key  # type: ignore[union-attr]
+    assert verified.event_key == f"tiktok:sha256:{hashlib.sha256(REMOVED).hexdigest()}"
 
 
 def test_secreto_anterior_mientras_se_rota(clock: FakeClock) -> None:

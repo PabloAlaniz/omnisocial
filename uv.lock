@@ -821,7 +821,7 @@ dev = [
 requires-dist = [
     { name = "cryptography", marker = "extra == 'crypto'", specifier = ">=43" },
     { name = "httpx", marker = "extra == 'httpx'", specifier = ">=0.27" },
-    { name = "omniwebhook", specifier = ">=0.1.1,<0.2" },
+    { name = "omniwebhook", specifier = ">=0.4,<0.5" },
     { name = "psycopg", extras = ["pool"], marker = "extra == 'postgres'", specifier = ">=3.2" },
     { name = "starlette", marker = "extra == 'starlette'", specifier = ">=0.37" },
     { name = "typing-extensions", specifier = ">=4.5" },
@@ -844,11 +844,11 @@ dev = [
 
 [[package]]
 name = "omniwebhook"
-version = "0.1.1"
+version = "0.4.0"
 source = { registry = "https://pypi.org/simple" }
-sdist = { url = "https://files.pythonhosted.org/packages/e0/e3/6e2c93b4ce38c3273daa033d4c4d10e6ac55966ffef89b9076c429345625/omniwebhook-0.1.1.tar.gz", hash = "sha256:6ee87d50daaac8f4259bc99645363547893aaf9a0935cf5151ae1b44f2bfb064", size = 161192, upload-time = "2026-11-23T13:56:16.918Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/d9/40/64ab5ad489258750ef36140dadf89203045395c42d7ac6e68d3ae960c56a/omniwebhook-0.4.0.tar.gz", hash = "sha256:94725183a2bb5416246fb96251c84f54426d20e16904ca67b3207355486ad934", size = 167461, upload-time = "2026-11-23T16:53:46.124Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/05/14/64b6a7fa9c2a3d6f06723538d0380f5d42ee68170381f44286ee19831690/omniwebhook-0.1.1-py3-none-any.whl", hash = "sha256:806affa497c2eb98da4ac7c1e13a3e09a242834648dbc4ffdfce872b7fffb823", size = 56227, upload-time = "2026-11-23T13:56:15.889Z" },
+    { url = "https://files.pythonhosted.org/packages/35/92/c81b9bcb25b4836f758c4e462d0bf81f0e215c78047473a5e35e1dde6e55/omniwebhook-0.4.0-py3-none-any.whl", hash = "sha256:0ef5700dee411ae60f93130e1b1e287612349565b888069d6f17b86c4eb9b257", size = 64253, upload-time = "2026-11-23T16:53:44.805Z" },
 ]
 
 [[package]]
