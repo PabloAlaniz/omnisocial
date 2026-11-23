@@ -33,6 +33,12 @@ from omnisocial.domain.window import TimeWindow
 # ── Capacidades de una red ──────────────────────────────────────────────────────────────────────
 
 
+class IdentityReader(Protocol):
+    """Quién es el dueño de un token. Lo usa el OAuth y también un token cargado a mano."""
+
+    async def identity(self, token: Token) -> Identity: ...
+
+
 class OAuthClient(Protocol):
     @property
     def supports_pkce(self) -> bool: ...

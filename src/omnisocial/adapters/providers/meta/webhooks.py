@@ -37,9 +37,10 @@ def verify_subscription(query: Mapping[str, str], expected_token: str | None) ->
 
 class MetaWebhookParser(WebhookParser):
     def __init__(self, config: MetaConfig) -> None:
+        _, app_secret = config.require_app
         self._config = config
         self._verifier = hmac_body_scheme(
-            secrets=[secret for secret in (config.app_secret, *config.previous_app_secrets) if secret],
+            secrets=[secret for secret in (app_secret, *config.previous_app_secrets) if secret],
             header=SIGNATURE_HEADER,
             prefix="sha256=",
             name="meta",

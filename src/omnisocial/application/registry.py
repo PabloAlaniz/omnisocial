@@ -11,6 +11,7 @@ from omnisocial.application.ports import (
     AssetDirectory,
     CommentGateway,
     ContentReader,
+    IdentityReader,
     InsightsReader,
     MessagingGateway,
     OAuthClient,
@@ -38,6 +39,8 @@ class Provider:
     insights: InsightsReader | None = None
     webhooks: WebhookParser | None = None
     profiles: ProfileLookup | None = None
+    identity: IdentityReader | None = None
+    """Quién es el dueño de un token sin pasar por OAuth. Si falta, se usa el del OAuth."""
 
     @property
     def capabilities(self) -> frozenset[Capability]:
@@ -78,6 +81,13 @@ class Provider:
 
     def require_webhooks(self) -> WebhookParser:
         return self._require(self.webhooks, Capability.WEBHOOKS)
+
+    def require_identity(self) -> IdentityReader:
+        """El lector de identidad propio, o el del OAuth si la red no trae uno aparte."""
+        reader = self.identity or self.oauth
+        if reader is None:
+            raise CapabilityNotSupported(self.id, Capability.LOGIN)
+        return reader
 
     def require_profiles(self) -> ProfileLookup:
         return self._require(self.profiles, Capability.PUBLIC_PROFILES)

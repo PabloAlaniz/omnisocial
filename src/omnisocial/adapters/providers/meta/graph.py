@@ -89,7 +89,7 @@ class GraphClient:
 
     def _auth(self, access_token: str) -> dict[str, str | int]:
         params: dict[str, str | int] = {"access_token": access_token}
-        if self._config.use_appsecret_proof:
+        if self._config.use_appsecret_proof and self._config.app_secret:
             params["appsecret_proof"] = hmac.new(
                 self._config.app_secret.encode(), access_token.encode(), hashlib.sha256
             ).hexdigest()

@@ -18,7 +18,7 @@ from omnisocial.adapters.providers.meta.graph import (
     as_str,
     parse_time,
 )
-from omnisocial.application.ports import Clock, OAuthClient
+from omnisocial.application.ports import Clock, IdentityReader, OAuthClient
 from omnisocial.domain.authorization import Purpose
 from omnisocial.domain.errors import ProviderError
 from omnisocial.domain.identity import Identity
@@ -43,13 +43,43 @@ def _expiry(value: object) -> datetime | None:
     return parse_time(value) if as_int(value) else None
 
 
+LOGIN_IDENTITY_FIELDS = "id,name,email,picture.type(large)"
+"""Lo que se pide de una persona que hace login."""
+OWNER_IDENTITY_FIELDS = "id,name"
+"""Lo que se pide del dueño de un token cargado a mano: un usuario de sistema no tiene email ni foto."""
+
+
+class MetaIdentity(IdentityReader):
+    """Quién es el dueño de un token (`/me`). Sirve con o sin app."""
+
+    def __init__(self, graph: GraphClient, *, fields: str = OWNER_IDENTITY_FIELDS) -> None:
+        self._graph = graph
+        self._fields = fields
+
+    @override
+    async def identity(self, token: Token) -> Identity:
+        body = await self._graph.get("me", token.access_token, {"fields": self._fields})
+        external_id = as_str(body.get("id"))
+        if not external_id:
+            raise ProviderError(META, "Meta no devolvió el id del dueño del token.")
+        return Identity(
+            provider=META,
+            external_id=external_id,
+            name=as_str(body.get("name")),
+            email=as_str(body.get("email")),
+            avatar_url=as_str(as_dict(as_dict(body.get("picture")).get("data")).get("url")),
+        )
+
+
 class MetaOAuth(OAuthClient):
     supports_pkce = False
     """El canje del código va del servidor con el secreto de la app."""
 
     def __init__(self, graph: GraphClient, clock: Clock) -> None:
+        self._app_id, self._app_secret = graph.config.require_app
         self._graph = graph
         self._clock = clock
+        self._identity = MetaIdentity(graph, fields=LOGIN_IDENTITY_FIELDS)
 
     @override
     def default_scopes(self, purpose: Purpose) -> tuple[str, ...]:
@@ -63,7 +93,7 @@ class MetaOAuth(OAuthClient):
         config = self._graph.config
         query = urlencode(
             {
-                "client_id": config.app_id,
+                "client_id": self._app_id,
                 "redirect_uri": redirect_uri,
                 "state": state,
                 "scope": ",".join(scopes),
@@ -78,12 +108,11 @@ class MetaOAuth(OAuthClient):
 
         Los tokens de página que se obtienen con un token de larga duración no vencen.
         """
-        config = self._graph.config
         short = await self._graph.get_app(
             "oauth/access_token",
             {
-                "client_id": config.app_id,
-                "client_secret": config.app_secret,
+                "client_id": self._app_id,
+                "client_secret": self._app_secret,
                 "redirect_uri": redirect_uri,
                 "code": code,
             },
@@ -95,8 +124,8 @@ class MetaOAuth(OAuthClient):
             "oauth/access_token",
             {
                 "grant_type": "fb_exchange_token",
-                "client_id": config.app_id,
-                "client_secret": config.app_secret,
+                "client_id": self._app_id,
+                "client_secret": self._app_secret,
                 "fb_exchange_token": short_token,
             },
         )
@@ -118,19 +147,7 @@ class MetaOAuth(OAuthClient):
 
     @override
     async def identity(self, token: Token) -> Identity:
-        body = await self._graph.get(
-            "me", token.access_token, {"fields": "id,name,email,picture.type(large)"}
-        )
-        external_id = as_str(body.get("id"))
-        if not external_id:
-            raise ProviderError(META, "Meta no devolvió el id de la persona.")
-        return Identity(
-            provider=META,
-            external_id=external_id,
-            name=as_str(body.get("name")),
-            email=as_str(body.get("email")),
-            avatar_url=as_str(as_dict(as_dict(body.get("picture")).get("data")).get("url")),
-        )
+        return await self._identity.identity(token)
 
     @override
     def can_refresh(self, token: Token) -> bool:
