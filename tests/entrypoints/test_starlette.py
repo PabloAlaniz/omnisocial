@@ -14,6 +14,7 @@ from omnisocial.domain.authorization import Purpose
 from omnisocial.domain.provider import Capability
 from omnisocial.entrypoints.starlette import oauth_routes, webhook_routes
 from tests.application.conftest import World, build_world
+from tests.fakes import sign
 
 
 def _app(world: World, *, with_login: bool = True) -> tuple[TestClient, list[RoutedEvent]]:
@@ -95,9 +96,12 @@ def test_saludo_de_webhooks() -> None:
 async def test_avisos_de_webhooks() -> None:
     world = build_world()
     client, received = _app(world)
-    assert client.post("/webhooks/falsa", content=b"pag-1", headers={"X-Firma": "valida"}).text == "ok"
+    response = client.post("/webhooks/falsa", content=b"pag-1", headers=sign(b"pag-1"))
+    assert (response.status_code, response.content) == (200, b"")
     assert [e.event.asset_external_id for e in received] == ["pag-1"]
-    assert client.post("/webhooks/falsa", content=b"pag-1", headers={"X-Firma": "mala"}).status_code == 401
+    assert client.post("/webhooks/falsa", content=b"pag-1", headers=sign(b"pag-1")).status_code == 200
+    assert len(received) == 1  # el repetido no se vuelve a entregar
+    assert client.post("/webhooks/falsa", content=b"otro", headers=sign(b"pag-1")).status_code == 401
     assert client.post("/webhooks/otra", content=b"").status_code == 404
     assert len(received) == 1
 

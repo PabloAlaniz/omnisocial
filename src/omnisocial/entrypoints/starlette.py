@@ -6,20 +6,20 @@ y eso lo resuelve la app antes de llamar a `social.start_authorization`.
 
 from __future__ import annotations
 
-from collections.abc import Awaitable, Callable, Sequence
+from collections.abc import Awaitable, Callable
 from urllib.parse import urlencode, urlsplit, urlunsplit
 
+from omniwebhook.starlette import to_incoming_request
 from starlette.requests import Request
 from starlette.responses import JSONResponse, PlainTextResponse, RedirectResponse, Response
 from starlette.routing import Route
 
 from omnisocial.application.results import LoggedIn, Refused
-from omnisocial.application.use_cases.webhooks import RoutedEvent
+from omnisocial.application.use_cases.webhooks import OnEvents
 from omnisocial.domain.errors import CapabilityNotSupported, UnknownProvider
 from omnisocial.entrypoints.hub import Omnisocial
 
 OnLoggedIn = Callable[[Request, LoggedIn], Awaitable[Response]]
-OnEvents = Callable[[Sequence[RoutedEvent]], Awaitable[None]]
 
 
 def _with_query(url: str, **params: str) -> str:
@@ -75,7 +75,9 @@ def webhook_routes(
 ) -> list[Route]:
     """`GET` para el saludo de suscripción y `POST` para los avisos.
 
-    Los avisos se verifican antes de traducirlos. Una firma inválida responde 401 y no llega a `on_events`.
+    Los avisos los recibe omniwebhook: se verifican, se reservan y recién ahí se traducen. Una firma inválida
+    responde 401; un aviso repetido, 200 sin volver a llamar a `on_events`; si `on_events` falla, 500 y la
+    red reintenta.
     """
 
     async def handshake(request: Request) -> Response:
@@ -89,16 +91,15 @@ def webhook_routes(
         return PlainTextResponse(challenge)
 
     async def receive(request: Request) -> Response:
-        provider = request.path_params["provider"]
         try:
             result = await social.handle_webhook.execute(
-                provider, body=await request.body(), headers=dict(request.headers)
+                request.path_params["provider"],
+                request=await to_incoming_request(request),
+                on_events=on_events,
             )
         except (UnknownProvider, CapabilityNotSupported):
             return _not_found()
-        if isinstance(result, Refused):
-            return JSONResponse({"error": result.reason.value}, status_code=401)
-        await on_events(result.value)
-        return PlainTextResponse("ok")
+        # Como en omniwebhook, el cuerpo no dice qué falló.
+        return Response(status_code=result.status)
 
     return [Route(path, handshake, methods=["GET"]), Route(path, receive, methods=["POST"])]

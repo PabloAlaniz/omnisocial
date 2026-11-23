@@ -34,7 +34,6 @@ class Refusal(StrEnum):
     NOT_SUPPORTED = "not_supported"
     OUTSIDE_REPLY_WINDOW = "outside_reply_window"
     NO_RECIPIENT = "no_recipient"
-    INVALID_SIGNATURE = "invalid_signature"
 
 
 @dataclass(frozen=True, slots=True)

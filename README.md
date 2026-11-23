@@ -18,6 +18,9 @@ esas reglas de cada red:
 - **Resultados tipados.** Las decisiones de negocio (el `state` venció, la conexión fue revocada, pasó la
   ventana para responder) vuelven como `Refused(reason)`. Las excepciones quedan para lo que el código no
   puede decidir.
+- **Webhooks con [omniwebhook](https://pypi.org/project/omniwebhook/).** Cada aviso se verifica y se
+  reserva antes de procesarlo: un reintento de la red no se procesa dos veces, y si el procesamiento falla,
+  el reintento entra.
 - **Cualquier base, cualquier cliente HTTP.** Son puertos: hay adaptadores en memoria y para PostgreSQL, y
   un transporte con httpx.
 
@@ -48,6 +51,7 @@ from omnisocial import Omnisocial, ReturnUrlPolicy, SystemClock
 from omnisocial.crypto import AesGcmTokenCipher
 from omnisocial.httpx import HttpxTransport
 from omnisocial.meta import MetaConfig, meta_provider
+from omniwebhook.postgres import AsyncPostgresIdempotencyStore, AsyncPsycopgClient
 from omnisocial.postgres import (
     PostgresAssetRepository,
     PostgresAuthorizationStateStore,
@@ -73,13 +77,16 @@ social = Omnisocial.build(
     connections=PostgresConnectionRepository(pool, cipher),
     assets=PostgresAssetRepository(pool, cipher),
     states=PostgresAuthorizationStateStore(pool, cipher, SystemClock()),
+    webhook_events=AsyncPostgresIdempotencyStore(AsyncPsycopgClient(pool.connection)),
     redirect_uri_for=lambda provider: f"https://api.ejemplo.com/oauth/{provider}/callback",
     return_urls=ReturnUrlPolicy.of("https://app.ejemplo.com"),
 )
 ```
 
 La clave se genera una vez con `omnisocial.crypto.generate_key()` y va al gestor de secretos.
-`create_schema(pool)` crea las tablas si no existen.
+`create_schema(pool)` crea las tablas si no existen, incluida la de reservas de webhooks de omniwebhook.
+Para probar sin base, hay almacenes en memoria (`InMemory*` y `omniwebhook.AsyncMemoryIdempotencyStore`):
+sirven en un solo proceso y no sobreviven a un reinicio.
 
 ## Conectar una cuenta
 
@@ -111,6 +118,26 @@ app.router.routes.extend(webhook_routes(social, on_events=encolar))
 
 Al volver, la app recibe `?status=connected&connection_id=...` o `?status=error&reason=...`. Las páginas y
 cuentas de Instagram que administra la persona ya quedaron guardadas como activos.
+
+## Webhooks
+
+```python
+async def encolar(events: Sequence[RoutedEvent]) -> None:
+    for routed in events:
+        for asset in routed.assets:  # un aviso puede ser de varios dueños
+            await cola.put(asset.owner, routed.event)
+```
+
+| Llega                                   | Respuesta | `on_events`                 |
+|-----------------------------------------|-----------|-----------------------------|
+| Aviso firmado y nuevo                   | 200       | se llama una vez            |
+| El mismo aviso otra vez                 | 200       | no se vuelve a llamar       |
+| `on_events` lanza una excepción         | 500       | la red reintenta y entra    |
+| Firma inválida o ausente                | 401       | no se llama                 |
+| Sin secreto configurado                 | 500       | no se llama                 |
+
+La deduplicación es por entrega: si una entrega trae varios eventos y `on_events` falla, se reprocesa
+entera. Conviene que lo que haga `on_events` sea idempotente por evento.
 
 ## Login con una red
 
@@ -170,6 +197,7 @@ await social.register_system_connection.execute(
 
 - [Arquitectura en capas](docs/adr/0001-arquitectura-en-capas.md)
 - [Capacidades por red](docs/adr/0002-capacidades-por-red.md)
+- [Webhooks con omniwebhook](docs/adr/0003-webhooks-con-omniwebhook.md)
 - [Meta: permisos, revisión de la app y lo que conviene saber](docs/meta.md)
 - [Sumar una red](docs/nueva-red.md)
 

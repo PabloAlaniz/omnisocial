@@ -2,10 +2,11 @@
 
 from __future__ import annotations
 
-import hashlib
 import hmac
 import json
 from collections.abc import Mapping, Sequence
+
+from omniwebhook import Verifier, hmac_body_scheme
 
 from omnisocial.adapters.providers.meta.config import META, MetaConfig
 from omnisocial.adapters.providers.meta.graph import as_dict, as_list, as_str, parse_time
@@ -35,17 +36,24 @@ def verify_subscription(query: Mapping[str, str], expected_token: str | None) ->
 class MetaWebhookParser:
     def __init__(self, config: MetaConfig) -> None:
         self._config = config
+        self._verifier = hmac_body_scheme(
+            secrets=[secret for secret in (config.app_secret, *config.previous_app_secrets) if secret],
+            header=SIGNATURE_HEADER,
+            prefix="sha256=",
+            name="meta",
+        )
 
     def handshake(self, query: Mapping[str, str]) -> str | None:
         return verify_subscription(query, self._config.webhook_verify_token)
 
-    def verify_signature(self, body: bytes, headers: Mapping[str, str]) -> bool:
-        """`X-Hub-Signature-256: sha256=<hex>`: HMAC-SHA256 del cuerpo crudo con el secreto de la app."""
-        header = headers.get(SIGNATURE_HEADER, "")
-        if not header.startswith("sha256=") or not self._config.app_secret:
-            return False
-        expected = hmac.new(self._config.app_secret.encode(), body, hashlib.sha256).hexdigest()
-        return hmac.compare_digest(header.removeprefix("sha256=").encode(), expected.encode())
+    @property
+    def verifier(self) -> Verifier:
+        """`X-Hub-Signature-256: sha256=<hex>`: HMAC-SHA256 del cuerpo crudo con el secreto de la app.
+
+        Meta no manda un id de entrega, así que la clave del aviso es la huella del cuerpo: los reintentos
+        llegan con el mismo cuerpo y se reconocen como duplicados.
+        """
+        return self._verifier
 
     def parse(self, body: bytes) -> Sequence[SocialEvent]:
         try:

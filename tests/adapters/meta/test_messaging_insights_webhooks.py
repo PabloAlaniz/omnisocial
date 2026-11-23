@@ -6,6 +6,7 @@ import json
 from datetime import UTC, datetime, timedelta
 
 import pytest
+from omniwebhook import IncomingRequest, Verified
 
 from omnisocial.adapters.providers.meta.config import FACEBOOK_PAGE, INSTAGRAM_ACCOUNT, META
 from omnisocial.adapters.providers.meta.graph import GraphClient
@@ -189,14 +190,34 @@ def test_suscripcion() -> None:
     assert verify_subscription(query, None) is None
 
 
+def _verify(parser: MetaWebhookParser, body: bytes, headers: dict[str, str]) -> str:
+    verification = parser.verifier.verify(IncomingRequest(headers=list(headers.items()), query=[], body=body))
+    return "ok" if isinstance(verification, Verified) else verification.outcome
+
+
 def test_firma() -> None:
     parser = MetaWebhookParser(config())
     body = b'{"object":"page"}'
-    assert parser.verify_signature(body, _signed(body))
-    assert not parser.verify_signature(body, _signed(body, b"otro"))
-    assert not parser.verify_signature(body + b" ", _signed(body))
-    assert not parser.verify_signature(body, {})
-    assert not parser.verify_signature(body, {"x-hub-signature-256": "sha1=abc"})
+    assert _verify(parser, body, _signed(body)) == "ok"
+    assert _verify(parser, body, {"X-Hub-Signature-256": _signed(body)["x-hub-signature-256"]}) == "ok"
+    assert _verify(parser, body, _signed(body, b"otro")) == "invalid"
+    assert _verify(parser, body + b" ", _signed(body)) == "invalid"
+    assert _verify(parser, body, {}) == "missing"
+    assert _verify(parser, body, {"x-hub-signature-256": "sha1=abc"}) == "malformed"
+
+
+def test_rotacion_del_secreto() -> None:
+    body = b'{"object":"page"}'
+    rotating = MetaWebhookParser(config(app_secret="nuevo", previous_app_secrets=("secreto",)))
+    assert _verify(rotating, body, _signed(body, b"secreto")) == "ok"
+    assert _verify(rotating, body, _signed(body, b"nuevo")) == "ok"
+    assert (
+        _verify(MetaWebhookParser(config(app_secret="nuevo")), body, _signed(body, b"secreto")) == "invalid"
+    )
+
+
+def test_los_secretos_no_aparecen_en_repr() -> None:
+    assert "anterior" not in repr(config(previous_app_secrets=("anterior",)))
 
 
 def test_traduce_avisos_de_pagina_instagram_y_mensajes() -> None:

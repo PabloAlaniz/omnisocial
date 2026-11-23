@@ -2,9 +2,13 @@
 
 from __future__ import annotations
 
+import hashlib
+import hmac
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, field
 from datetime import UTC, datetime, timedelta
+
+from omniwebhook import IncomingRequest, Verifier, hmac_body_scheme
 
 from omnisocial.application.registry import Provider
 from omnisocial.domain.asset import Asset, DiscoveredAsset
@@ -194,15 +198,24 @@ class FakeInsights:
         return [MetricSeries(name, period, (MetricPoint(NOW, 10.0),)) for name in metrics]
 
 
+WEBHOOK_SECRET = "secreto-webhooks"
+
+
+def sign(body: bytes, secret: str = WEBHOOK_SECRET) -> dict[str, str]:
+    """Las cabeceras con que la red falsa firma un aviso."""
+    return {"x-firma": hmac.new(secret.encode(), body, hashlib.sha256).hexdigest()}
+
+
 @dataclass
 class FakeWebhooks:
-    secret_ok: bool = True
+    secrets: list[str] = field(default_factory=lambda: [WEBHOOK_SECRET])
+
+    @property
+    def verifier(self) -> Verifier:
+        return hmac_body_scheme(secrets=self.secrets, header="x-firma", name="falsa")
 
     def handshake(self, query: Mapping[str, str]) -> str | None:
         return query.get("desafio") if query.get("clave") == "ok" else None
-
-    def verify_signature(self, body: bytes, headers: Mapping[str, str]) -> bool:
-        return self.secret_ok and headers.get("x-firma") == "valida"
 
     def parse(self, body: bytes) -> Sequence[SocialEvent]:
         return [SocialEvent(FAKE, EventKind.COMMENT, EventAction.CREATED, body.decode(), "com-9", NOW)]
@@ -236,3 +249,7 @@ class FakeNetwork:
             insights=pick(Capability.INSIGHTS, self.insights),  # type: ignore[arg-type]
             webhooks=pick(Capability.WEBHOOKS, self.webhooks),  # type: ignore[arg-type]
         )
+
+
+def incoming(body: bytes, headers: Mapping[str, str]) -> IncomingRequest:
+    return IncomingRequest(headers=list(headers.items()), query=[], body=body)

@@ -11,6 +11,7 @@ from collections.abc import Sequence
 from datetime import datetime
 from typing import Any
 
+from omniwebhook.postgres import postgres_store_schema
 from psycopg.rows import dict_row
 from psycopg.types.json import Jsonb
 from psycopg_pool import AsyncConnectionPool
@@ -73,8 +74,10 @@ CREATE INDEX IF NOT EXISTS omnisocial_states_expiry ON omnisocial_authorization_
 
 
 async def create_schema(pool: AsyncConnectionPool[Any]) -> None:
+    """Las tablas de omnisocial y la de reservas de webhooks de omniwebhook."""
     async with pool.connection() as conn:
         await conn.execute(SCHEMA)
+        await conn.execute(postgres_store_schema())
 
 
 def _seal(cipher: TokenCipher, token: Token, context: str) -> str:

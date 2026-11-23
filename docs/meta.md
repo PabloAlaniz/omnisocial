@@ -97,7 +97,20 @@ agente humano) no están soportadas.
    `webhook_verify_token` de `MetaConfig`. El `GET` de verificación lo responde `webhook_routes`.
 2. Suscribir cada página a la app (`POST /{page}/subscribed_apps` con su token y los campos que interesan).
 3. Cada aviso llega firmado con `X-Hub-Signature-256` (HMAC-SHA256 del cuerpo crudo con el secreto de la
-   app). Sin firma válida no se traduce nada.
+   app). Lo verifica omniwebhook; sin firma válida no se traduce nada.
+
+Meta no manda un id de entrega, así que cada aviso se identifica por la huella de su cuerpo. Los reintentos
+de Meta llegan con el mismo cuerpo y se responden 200 sin volver a procesarse. Meta tampoco firma una marca
+de tiempo, así que no hay control de frescura: la firma y la deduplicación son la defensa.
+
+**Rotar el secreto de la app.** Al resetearlo en el panel, los avisos en vuelo pueden llegar firmados con el
+anterior. Durante el cambio:
+
+```python
+MetaConfig(app_secret=nuevo, previous_app_secrets=(anterior,), ...)
+```
+
+y después de un rato se saca el anterior.
 
 Los avisos se enrutan a todos los activos guardados con ese id: si dos dueños conectaron la misma página,
 los dos lo reciben.

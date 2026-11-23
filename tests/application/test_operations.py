@@ -150,17 +150,3 @@ async def test_todas_las_operaciones_propagan_el_rechazo_de_acceso(world: World)
         await social.read_insights.execute("nada", metrics=["x"], period=Period.DAY, window=TimeWindow())
         == missing
     )
-
-
-async def test_webhooks_verifican_firma_y_enrutan(world: World) -> None:
-    await _page_id(world)
-    result = await world.social.handle_webhook.execute("falsa", body=b"pag-1", headers={"X-Firma": "valida"})
-    assert isinstance(result, Done)
-    [routed] = result.value
-    assert routed.event.object_external_id == "com-9"
-    assert [a.owner for a in routed.assets] == ["c"]
-
-
-async def test_webhooks_sin_firma_valida_no_se_traducen(world: World) -> None:
-    result = await world.social.handle_webhook.execute("falsa", body=b"pag-1", headers={"x-firma": "mala"})
-    assert result == Refused(Refusal.INVALID_SIGNATURE)

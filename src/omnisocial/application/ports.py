@@ -14,6 +14,8 @@ from collections.abc import Mapping, Sequence
 from datetime import datetime
 from typing import Protocol
 
+from omniwebhook import Verifier
+
 from omnisocial.domain.asset import Asset, DiscoveredAsset
 from omnisocial.domain.authorization import AuthorizationRequest, Purpose
 from omnisocial.domain.connection import Connection
@@ -108,8 +110,9 @@ class WebhookParser(Protocol):
         """La respuesta al pedido con que la red confirma la URL del webhook, o `None` si no es válido."""
         ...
 
-    def verify_signature(self, body: bytes, headers: Mapping[str, str]) -> bool:
-        """El aviso viene de la red. Sin secreto configurado devuelve `False`, nunca `True`."""
+    @property
+    def verifier(self) -> Verifier:
+        """El esquema de firma de la red, armado con omniwebhook. Sin secreto, rechaza todo."""
         ...
 
     def parse(self, body: bytes) -> Sequence[SocialEvent]: ...

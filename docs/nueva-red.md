@@ -14,7 +14,7 @@ Cada una es un `Protocol` de `omnisocial.application.ports`:
 | `CommentGateway` | Leer, responder y ocultar comentarios. |
 | `MessagingGateway` | Conversaciones, mensajes, enviar y la ventana para responder. |
 | `InsightsReader` | Métricas por nombre propio, con su catálogo de nombres comunes. |
-| `WebhookParser` | Saludo de suscripción, firma y traducción de los avisos. |
+| `WebhookParser` | Saludo de suscripción, esquema de firma (omniwebhook) y traducción de los avisos. |
 
 Reglas que el núcleo espera:
 
@@ -22,7 +22,9 @@ Reglas que el núcleo espera:
 - Si la red rechaza un token, se lanza `TokenRejected`: la conexión queda inválida y no se reintenta.
 - Cualquier otro error de la red es `ProviderError`.
 - `can_refresh` dice la verdad: si la red no renueva, devuelve `False` y la conexión vence sola.
-- `verify_signature` sin secreto configurado devuelve `False`, nunca `True`.
+- `WebhookParser.verifier` es un esquema de [omniwebhook](https://pypi.org/project/omniwebhook/)
+  (`hmac_body_scheme`, `stripe_scheme`…), no una verificación propia. Sin secreto configurado, omniwebhook
+  rechaza todo.
 - Los tipos de activo son texto libre, propio de la red (`tiktok_account`, por ejemplo).
 
 ## 2. El proveedor

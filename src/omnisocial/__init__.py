@@ -24,7 +24,7 @@ from omnisocial.application.results import (
     Refused,
     ValidToken,
 )
-from omnisocial.application.use_cases.webhooks import RoutedEvent
+from omnisocial.application.use_cases.webhooks import OnEvents, RoutedEvent, WebhookReceived
 from omnisocial.domain.asset import Asset, DiscoveredAsset
 from omnisocial.domain.authorization import Purpose
 from omnisocial.domain.connection import Connection, ConnectionStatus
@@ -82,6 +82,7 @@ __all__ = [
     "MetricSeries",
     "Omnisocial",
     "OmnisocialError",
+    "OnEvents",
     "Period",
     "Post",
     "Provider",
@@ -102,4 +103,5 @@ __all__ = [
     "TokenRejected",
     "UnknownProvider",
     "ValidToken",
+    "WebhookReceived",
 ]

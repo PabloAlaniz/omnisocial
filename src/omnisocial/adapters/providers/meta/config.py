@@ -45,6 +45,8 @@ class MetaConfig:
     dialog_url: str = "https://www.facebook.com"
     login_scopes: tuple[str, ...] = LOGIN_SCOPES
     connect_scopes: tuple[str, ...] = CONNECT_SCOPES
+    previous_app_secrets: tuple[str, ...] = field(default=(), repr=False)
+    """Secretos anteriores que todavía se aceptan para firmar webhooks, mientras se rota el secreto."""
     webhook_verify_token: str | None = field(default=None, repr=False)
     """El que se carga al suscribir los webhooks en el panel de la app."""
     use_appsecret_proof: bool = True

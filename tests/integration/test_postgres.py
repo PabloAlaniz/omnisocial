@@ -3,6 +3,7 @@ from __future__ import annotations
 from typing import Any
 
 import pytest
+from omniwebhook.postgres import AsyncPostgresIdempotencyStore, AsyncPsycopgClient
 from psycopg_pool import AsyncConnectionPool
 
 from omnisocial.adapters.crypto.aes_gcm import AesGcmTokenCipher
@@ -11,6 +12,8 @@ from omnisocial.adapters.stores.postgres import (
     PostgresAuthorizationStateStore,
     PostgresConnectionRepository,
 )
+from omnisocial.domain.redirect import ReturnUrlPolicy
+from omnisocial.entrypoints.hub import Omnisocial
 from tests.adapters.stores.contract import (
     asset,
     asset_contract,
@@ -19,7 +22,7 @@ from tests.adapters.stores.contract import (
     request,
     state_contract,
 )
-from tests.fakes import FakeClock
+from tests.fakes import FakeClock, FakeNetwork, incoming, sign
 
 pytestmark = pytest.mark.integration
 
@@ -64,3 +67,31 @@ async def test_un_token_movido_de_fila_no_se_descifra(pool: Pool, cipher: AesGcm
         )
     with pytest.raises(Exception, match="descifrar"):
         await connections.get("c2")
+
+
+async def test_webhooks_sin_duplicados_entre_procesos(pool: Pool, cipher: AesGcmTokenCipher) -> None:
+    """Dos instancias de la app con la misma base: el aviso repetido no se procesa dos veces."""
+
+    def instance() -> Omnisocial:
+        clock = FakeClock()
+        return Omnisocial.build(
+            providers=[FakeNetwork().provider()],
+            connections=PostgresConnectionRepository(pool, cipher),
+            assets=PostgresAssetRepository(pool, cipher),
+            states=PostgresAuthorizationStateStore(pool, cipher, clock),
+            webhook_events=AsyncPostgresIdempotencyStore(AsyncPsycopgClient(pool.connection)),
+            redirect_uri_for=lambda provider: f"https://api/{provider}",
+            return_urls=ReturnUrlPolicy.of("https://app.ejemplo.com"),
+            clock=clock,
+        )
+
+    received: list[object] = []
+
+    async def on_events(events: object) -> None:
+        received.append(events)
+
+    request = incoming(b"pag-1", sign(b"pag-1"))
+    first = await instance().handle_webhook.execute("falsa", request=request, on_events=on_events)
+    second = await instance().handle_webhook.execute("falsa", request=request, on_events=on_events)
+    assert (first.outcome, second.outcome) == ("ok", "duplicate")
+    assert len(received) == 1

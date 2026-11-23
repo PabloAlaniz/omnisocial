@@ -5,6 +5,8 @@ from __future__ import annotations
 from collections.abc import Iterable
 from dataclasses import dataclass
 
+from omniwebhook import AsyncIdempotencyStore
+
 from omnisocial.adapters.system import SystemClock, SystemSecrets, UuidGenerator
 from omnisocial.application.ports import (
     AssetRepository,
@@ -46,7 +48,7 @@ class Omnisocial:
     ```python
     social = Omnisocial.build(
         providers=[meta_provider(MetaConfig(...))],
-        connections=..., assets=..., states=...,
+        connections=..., assets=..., states=..., webhook_events=...,
         redirect_uri_for=lambda provider: f"https://api.ejemplo.com/oauth/{provider}/callback",
         return_urls=ReturnUrlPolicy.of("https://app.ejemplo.com"),
     )
@@ -81,6 +83,7 @@ class Omnisocial:
         connections: ConnectionRepository,
         assets: AssetRepository,
         states: AuthorizationStateStore,
+        webhook_events: AsyncIdempotencyStore,
         redirect_uri_for: RedirectUriFor,
         return_urls: ReturnUrlPolicy,
         clock: Clock | None = None,
@@ -121,5 +124,5 @@ class Omnisocial:
             list_messages=ListMessages(registry=registry, access=access),
             send_message=SendMessage(registry=registry, access=access, clock=clock),
             read_insights=ReadInsights(registry=registry, access=access),
-            handle_webhook=HandleWebhook(registry=registry, assets=assets),
+            handle_webhook=HandleWebhook(registry=registry, assets=assets, store=webhook_events),
         )

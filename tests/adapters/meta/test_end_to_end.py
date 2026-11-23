@@ -7,6 +7,8 @@ import hmac
 import json
 from datetime import timedelta
 
+from omniwebhook import AsyncMemoryIdempotencyStore, IncomingRequest
+
 from omnisocial.adapters.providers.meta.config import FACEBOOK_PAGE
 from omnisocial.adapters.providers.meta.provider import meta_provider
 from omnisocial.adapters.stores.memory import (
@@ -37,6 +39,7 @@ def _social(fake: FakeGraph, clock: FakeClock) -> Omnisocial:
         connections=InMemoryConnectionRepository(),
         assets=InMemoryAssetRepository(),
         states=InMemoryAuthorizationStateStore(clock),
+        webhook_events=AsyncMemoryIdempotencyStore(),
         redirect_uri_for=lambda provider: f"https://api.ejemplo.com/oauth/{provider}/callback",
         return_urls=ReturnUrlPolicy.of("https://app.ejemplo.com"),
         clock=clock,
@@ -168,9 +171,16 @@ async def test_un_webhook_firmado_llega_al_dueno(fake: FakeGraph, clock: FakeClo
         }
     ).encode()
     signature = "sha256=" + hmac.new(b"secreto", body, hashlib.sha256).hexdigest()
-    result = await social.handle_webhook.execute(
-        "meta", body=body, headers={"X-Hub-Signature-256": signature}
-    )
-    assert isinstance(result, Done)
-    [routed] = result.value
+    received: list[object] = []
+
+    async def on_events(events: object) -> None:
+        received.append(events)
+
+    request = IncomingRequest(headers=[("X-Hub-Signature-256", signature)], query=[], body=body)
+    result = await social.handle_webhook.execute("meta", request=request, on_events=on_events)
+    assert result.outcome == "ok"
+    [routed] = result.events
     assert [a.owner for a in routed.assets] == ["cliente-1"]
+    duplicate = await social.handle_webhook.execute("meta", request=request, on_events=on_events)
+    assert duplicate.outcome == "duplicate"
+    assert len(received) == 1

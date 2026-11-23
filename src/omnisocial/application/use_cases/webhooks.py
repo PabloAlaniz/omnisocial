@@ -1,14 +1,29 @@
-"""Recibir avisos de una red y saber a qué activos (y dueños) corresponden."""
+"""Recibir avisos de una red: verificar, no procesar dos veces, traducir y enrutar a sus dueños.
+
+La verificación y la idempotencia las resuelve omniwebhook. Cada aviso se reserva antes de procesarlo: si el
+procesamiento falla, la reserva se libera y el reintento de la red entra; si llega de nuevo después de
+procesarse, se responde 200 sin volver a procesarlo.
+"""
 
 from __future__ import annotations
 
-from collections.abc import Mapping, Sequence
-from dataclasses import dataclass
+from collections.abc import Awaitable, Callable, Sequence
+from dataclasses import dataclass, field
+
+from omniwebhook import (
+    AsyncIdempotencyStore,
+    AsyncReceiveWebhook,
+    IncomingRequest,
+    ReceptionOutcome,
+    VerifiedEvent,
+    create_async_receiver,
+    http_status_for,
+)
 
 from omnisocial.application.ports import AssetRepository
-from omnisocial.application.registry import ProviderRegistry
-from omnisocial.application.results import Done, Refusal, Refused
+from omnisocial.application.registry import Provider, ProviderRegistry
 from omnisocial.domain.asset import Asset
+from omnisocial.domain.provider import ProviderId
 from omnisocial.domain.webhooks import SocialEvent
 
 
@@ -19,23 +34,57 @@ class RoutedEvent:
     """Los activos guardados con ese id. Puede haber varios si más de un dueño conectó la misma página."""
 
 
-class HandleWebhook:
-    """Verifica la firma, traduce el aviso y lo enruta. Nada se traduce sin verificar."""
+OnEvents = Callable[[Sequence[RoutedEvent]], Awaitable[None]]
 
-    def __init__(self, *, registry: ProviderRegistry, assets: AssetRepository) -> None:
+
+@dataclass(frozen=True, slots=True)
+class WebhookReceived:
+    outcome: ReceptionOutcome
+    """El resultado de omniwebhook: `ok`, `duplicate`, `in_progress`, `failed` o el motivo del rechazo."""
+    status: int
+    """El estado HTTP para responderle a la red."""
+    events: Sequence[RoutedEvent] = field(default_factory=tuple)
+    """Lo que se entregó a `on_events`. Vacío si no se procesó (duplicado, rechazo o falla)."""
+    error: Exception | None = None
+
+
+class HandleWebhook:
+    def __init__(
+        self, *, registry: ProviderRegistry, assets: AssetRepository, store: AsyncIdempotencyStore
+    ) -> None:
         self._registry = registry
         self._assets = assets
+        self._store = store
+        self._receivers: dict[ProviderId, AsyncReceiveWebhook] = {}
+
+    def _receiver(self, provider: Provider) -> AsyncReceiveWebhook:
+        receiver = self._receivers.get(provider.id)
+        if receiver is None:
+            verifier = provider.require_webhooks().verifier
+            receiver = create_async_receiver(verifier=verifier, store=self._store)
+            self._receivers[provider.id] = receiver
+        return receiver
 
     async def execute(
-        self, provider_id: str, *, body: bytes, headers: Mapping[str, str]
-    ) -> Done[Sequence[RoutedEvent]] | Refused:
+        self, provider_id: str, *, request: IncomingRequest, on_events: OnEvents
+    ) -> WebhookReceived:
         provider = self._registry.get(provider_id)
         parser = provider.require_webhooks()
-        lowered = {k.lower(): v for k, v in headers.items()}
-        if not parser.verify_signature(body, lowered):
-            return Refused(Refusal.INVALID_SIGNATURE)
-        routed = [
-            RoutedEvent(event, await self._assets.find_by_external_id(provider.id, event.asset_external_id))
-            for event in parser.parse(body)
-        ]
-        return Done(routed)
+        receiver = self._receiver(provider)
+        delivered: list[RoutedEvent] = []
+
+        async def handle(event: VerifiedEvent) -> None:
+            routed = [
+                RoutedEvent(item, await self._assets.find_by_external_id(provider.id, item.asset_external_id))
+                for item in parser.parse(event.request.body)
+            ]
+            await on_events(routed)
+            delivered.extend(routed)
+
+        reception = await receiver.execute(request, handle)
+        return WebhookReceived(
+            outcome=reception.outcome,
+            status=http_status_for(reception.outcome),
+            events=tuple(delivered) if reception.outcome == "ok" else (),
+            error=reception.error,
+        )

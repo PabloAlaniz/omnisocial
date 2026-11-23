@@ -3,6 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 import pytest
+from omniwebhook import AsyncMemoryIdempotencyStore
 
 from omnisocial.adapters.stores.memory import (
     InMemoryAssetRepository,
@@ -31,6 +32,7 @@ def build_world(network: FakeNetwork | None = None, **provider_kwargs: object) -
         connections=connections,
         assets=assets,
         states=InMemoryAuthorizationStateStore(network.clock),
+        webhook_events=AsyncMemoryIdempotencyStore(),
         redirect_uri_for=lambda provider: f"https://api.ejemplo.com/oauth/{provider}/callback",
         return_urls=ReturnUrlPolicy.of("https://app.ejemplo.com"),
         clock=network.clock,
