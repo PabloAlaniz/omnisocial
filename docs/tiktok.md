@@ -21,7 +21,9 @@ from omnisocial.httpx import HttpxTransport, RetryingTransport
 from omnisocial.tiktok import TikTokConfig, tiktok_provider
 
 tiktok = tiktok_provider(
-    TikTokConfig(client_key=os.environ["TIKTOK_CLIENT_KEY"], client_secret=os.environ["TIKTOK_CLIENT_SECRET"]),
+    TikTokConfig(
+        client_key=os.environ["TIKTOK_CLIENT_KEY"], client_secret=os.environ["TIKTOK_CLIENT_SECRET"]
+    ),
     RetryingTransport(HttpxTransport()),
 )
 ```
