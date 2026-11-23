@@ -1,0 +1,135 @@
+"""Webhooks de Meta: suscripción, firma y traducción de los avisos."""
+
+from __future__ import annotations
+
+import hashlib
+import hmac
+import json
+from collections.abc import Mapping, Sequence
+
+from omnisocial.adapters.providers.meta.config import META, MetaConfig
+from omnisocial.adapters.providers.meta.graph import as_dict, as_list, as_str, parse_time
+from omnisocial.domain.webhooks import EventAction, EventKind, SocialEvent
+
+SIGNATURE_HEADER = "x-hub-signature-256"
+
+_ACTIONS = {
+    "add": EventAction.CREATED,
+    "edited": EventAction.UPDATED,
+    "edit": EventAction.UPDATED,
+    "remove": EventAction.DELETED,
+}
+_POST_ITEMS = frozenset({"post", "status", "photo", "video", "share"})
+
+
+def verify_subscription(query: Mapping[str, str], expected_token: str | None) -> str | None:
+    """El GET con que Meta confirma la URL del webhook. Devuelve el `hub.challenge` a responder, o `None`."""
+    if not expected_token or query.get("hub.mode") != "subscribe":
+        return None
+    given = query.get("hub.verify_token", "")
+    if not hmac.compare_digest(given.encode(), expected_token.encode()):
+        return None
+    return query.get("hub.challenge")
+
+
+class MetaWebhookParser:
+    def __init__(self, config: MetaConfig) -> None:
+        self._config = config
+
+    def verify_signature(self, body: bytes, headers: Mapping[str, str]) -> bool:
+        """`X-Hub-Signature-256: sha256=<hex>`: HMAC-SHA256 del cuerpo crudo con el secreto de la app."""
+        header = headers.get(SIGNATURE_HEADER, "")
+        if not header.startswith("sha256=") or not self._config.app_secret:
+            return False
+        expected = hmac.new(self._config.app_secret.encode(), body, hashlib.sha256).hexdigest()
+        return hmac.compare_digest(header.removeprefix("sha256=").encode(), expected.encode())
+
+    def parse(self, body: bytes) -> Sequence[SocialEvent]:
+        try:
+            payload = as_dict(json.loads(body))
+        except ValueError:
+            return []
+        events: list[SocialEvent] = []
+        for entry in as_list(payload.get("entry")):
+            asset_id = as_str(entry.get("id"))
+            if not asset_id:
+                continue
+            occurred = parse_time(entry.get("time"))
+            for change in as_list(entry.get("changes")):
+                events.append(self._change(asset_id, change, occurred))
+            for messaging in as_list(entry.get("messaging")):
+                event = self._message(asset_id, messaging)
+                if event is not None:
+                    events.append(event)
+        return events
+
+    @staticmethod
+    def _change(asset_id: str, change: dict[str, object], occurred: object) -> SocialEvent:
+        field = as_str(change.get("field"))
+        value = as_dict(change.get("value"))
+        author = as_dict(value.get("from"))
+        base = {
+            "provider": META,
+            "asset_external_id": asset_id,
+            "occurred_at": parse_time(value.get("created_time")) or occurred,
+            "actor_id": as_str(author.get("id")),
+            "raw": change,
+        }
+        if field == "feed":
+            item = as_str(value.get("item"))
+            action = _ACTIONS.get(as_str(value.get("verb")) or "", EventAction.UNKNOWN)
+            if item == "comment":
+                return SocialEvent(
+                    kind=EventKind.COMMENT,
+                    action=action,
+                    object_external_id=as_str(value.get("comment_id")),
+                    text=as_str(value.get("message")),
+                    **base,  # type: ignore[arg-type]
+                )
+            if item in _POST_ITEMS:
+                return SocialEvent(
+                    kind=EventKind.POST,
+                    action=action,
+                    object_external_id=as_str(value.get("post_id")),
+                    text=as_str(value.get("message")),
+                    **base,  # type: ignore[arg-type]
+                )
+        if field in {"comments", "live_comments"}:
+            return SocialEvent(
+                kind=EventKind.COMMENT,
+                action=EventAction.CREATED,
+                object_external_id=as_str(value.get("id")),
+                text=as_str(value.get("text")),
+                **base,  # type: ignore[arg-type]
+            )
+        if field == "mentions":
+            return SocialEvent(
+                kind=EventKind.MENTION,
+                action=EventAction.CREATED,
+                object_external_id=as_str(value.get("comment_id")) or as_str(value.get("media_id")),
+                **base,  # type: ignore[arg-type]
+            )
+        return SocialEvent(
+            kind=EventKind.OTHER,
+            action=EventAction.UNKNOWN,
+            object_external_id=None,
+            **base,  # type: ignore[arg-type]
+        )
+
+    @staticmethod
+    def _message(asset_id: str, messaging: dict[str, object]) -> SocialEvent | None:
+        message = as_dict(messaging.get("message"))
+        if not message:
+            return None
+        action = EventAction.DELETED if message.get("is_deleted") is True else EventAction.CREATED
+        return SocialEvent(
+            provider=META,
+            kind=EventKind.MESSAGE,
+            action=action,
+            asset_external_id=asset_id,
+            object_external_id=as_str(message.get("mid")),
+            occurred_at=parse_time(messaging.get("timestamp")),
+            actor_id=as_str(as_dict(messaging.get("sender")).get("id")),
+            text=as_str(message.get("text")),
+            raw=messaging,
+        )
