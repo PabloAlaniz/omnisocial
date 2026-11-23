@@ -19,3 +19,5 @@ class Capability(StrEnum):
     MESSAGING = "messaging"
     INSIGHTS = "insights"
     WEBHOOKS = "webhooks"
+    PUBLIC_PROFILES = "public_profiles"
+    """Leer el perfil público de cuentas que no se administran."""

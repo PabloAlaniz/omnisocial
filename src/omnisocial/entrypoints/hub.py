@@ -40,6 +40,7 @@ from omnisocial.application.use_cases.operations import (
     SendMessage,
     SetCommentHidden,
 )
+from omnisocial.application.use_cases.profiles import LookupProfile
 from omnisocial.application.use_cases.webhooks import HandleWebhook
 from omnisocial.domain.redirect import ReturnUrlPolicy
 
@@ -74,6 +75,7 @@ class Omnisocial:
     set_comment_hidden: SetCommentHidden
     delete_comment: DeleteComment
     like_comment: LikeComment
+    lookup_profile: LookupProfile
     list_conversations: ListConversations
     list_messages: ListMessages
     send_message: SendMessage
@@ -126,6 +128,7 @@ class Omnisocial:
             set_comment_hidden=SetCommentHidden(registry=registry, access=access),
             delete_comment=DeleteComment(registry=registry, access=access),
             like_comment=LikeComment(registry=registry, access=access),
+            lookup_profile=LookupProfile(registry=registry, access=access),
             list_conversations=ListConversations(registry=registry, access=access),
             list_messages=ListMessages(registry=registry, access=access),
             send_message=SendMessage(registry=registry, access=access, clock=clock),

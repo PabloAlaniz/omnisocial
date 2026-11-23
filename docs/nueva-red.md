@@ -44,6 +44,28 @@ Reglas que el núcleo espera:
   rechaza todo.
 - Los tipos de activo son texto libre, propio de la red (`tiktok_account`, por ejemplo).
 
+### Perfiles públicos de otra fuente
+
+`ProfileLookup` sirve también para una fuente que no es la API oficial de una red (un servicio propio, por
+ejemplo). Se implementa en un paquete aparte y se registra como cualquier red:
+
+```python
+class MiFuente(ProfileLookup):
+    networks = frozenset({Network.INSTAGRAM})
+
+    def viewer_kinds(self, network: Network) -> frozenset[str]:
+        return frozenset()  # no necesita cuenta propia
+
+    async def lookup(self, handle, *, viewer, token):
+        datos = await self._cliente.perfil(handle.value)
+        return PublicProfile(
+            Network.INSTAGRAM, datos["id"], username=handle.value, followers=datos["seguidores"]
+        )
+
+
+Provider(id=ProviderId("mi-fuente"), profiles=MiFuente(cliente))
+```
+
 ## 2. El proveedor
 
 ```python

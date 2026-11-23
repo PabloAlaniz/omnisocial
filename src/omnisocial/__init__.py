@@ -28,14 +28,16 @@ from omnisocial.application.use_cases.webhooks import OnEvents, RoutedEvent, Web
 from omnisocial.domain.asset import Asset, DiscoveredAsset
 from omnisocial.domain.authorization import Purpose
 from omnisocial.domain.connection import Connection, ConnectionStatus
-from omnisocial.domain.content import Comment, Post
+from omnisocial.domain.content import Comment, CommentAction, Post
 from omnisocial.domain.errors import (
     CapabilityNotSupported,
     OmnisocialError,
+    PermissionMissing,
     ProviderError,
     TokenRejected,
     UnknownProvider,
 )
+from omnisocial.domain.handles import Handle, HandleKind, Network, parse_handle
 from omnisocial.domain.identity import Identity
 from omnisocial.domain.messaging import Conversation, Message, ReplyWindow
 from omnisocial.domain.metrics import (
@@ -46,6 +48,7 @@ from omnisocial.domain.metrics import (
     MetricSeries,
     Period,
 )
+from omnisocial.domain.profile import PublicProfile
 from omnisocial.domain.provider import Capability, ProviderId
 from omnisocial.domain.redirect import ReturnUrlPolicy
 from omnisocial.domain.token import Token, TokenKind
@@ -62,6 +65,7 @@ __all__ = [
     "CapabilityNotSupported",
     "CatalogEntry",
     "Comment",
+    "CommentAction",
     "Connected",
     "Connection",
     "ConnectionStatus",
@@ -70,6 +74,8 @@ __all__ = [
     "Done",
     "EventAction",
     "EventKind",
+    "Handle",
+    "HandleKind",
     "Identity",
     "InMemoryAssetRepository",
     "InMemoryAuthorizationStateStore",
@@ -80,15 +86,18 @@ __all__ = [
     "MetricCatalog",
     "MetricPoint",
     "MetricSeries",
+    "Network",
     "Omnisocial",
     "OmnisocialError",
     "OnEvents",
     "Period",
+    "PermissionMissing",
     "Post",
     "Provider",
     "ProviderError",
     "ProviderId",
     "ProviderRegistry",
+    "PublicProfile",
     "Purpose",
     "Refusal",
     "Refused",
@@ -104,4 +113,5 @@ __all__ = [
     "UnknownProvider",
     "ValidToken",
     "WebhookReceived",
+    "parse_handle",
 ]

@@ -14,6 +14,7 @@ from omnisocial.application.ports import (
     InsightsReader,
     MessagingGateway,
     OAuthClient,
+    ProfileLookup,
     WebhookParser,
 )
 from omnisocial.domain.errors import CapabilityNotSupported, UnknownProvider
@@ -36,6 +37,7 @@ class Provider:
     messaging: MessagingGateway | None = None
     insights: InsightsReader | None = None
     webhooks: WebhookParser | None = None
+    profiles: ProfileLookup | None = None
 
     @property
     def capabilities(self) -> frozenset[Capability]:
@@ -47,6 +49,7 @@ class Provider:
             Capability.MESSAGING: self.messaging,
             Capability.INSIGHTS: self.insights,
             Capability.WEBHOOKS: self.webhooks,
+            Capability.PUBLIC_PROFILES: self.profiles,
         }
         return frozenset(c for c, component in present.items() if component is not None)
 
@@ -75,6 +78,9 @@ class Provider:
 
     def require_webhooks(self) -> WebhookParser:
         return self._require(self.webhooks, Capability.WEBHOOKS)
+
+    def require_profiles(self) -> ProfileLookup:
+        return self._require(self.profiles, Capability.PUBLIC_PROFILES)
 
 
 class ProviderRegistry:

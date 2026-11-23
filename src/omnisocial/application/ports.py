@@ -20,9 +20,11 @@ from omnisocial.domain.asset import Asset, DiscoveredAsset
 from omnisocial.domain.authorization import AuthorizationRequest, Purpose
 from omnisocial.domain.connection import Connection
 from omnisocial.domain.content import Comment, CommentAction, Post
+from omnisocial.domain.handles import Handle, Network
 from omnisocial.domain.identity import Identity
 from omnisocial.domain.messaging import Conversation, Message, ReplyWindow
 from omnisocial.domain.metrics import MetricCatalog, MetricSeries, Period
+from omnisocial.domain.profile import PublicProfile
 from omnisocial.domain.provider import ProviderId
 from omnisocial.domain.token import Token
 from omnisocial.domain.webhooks import SocialEvent
@@ -111,6 +113,28 @@ class InsightsReader(Protocol):
     async def read(
         self, asset: Asset, token: Token, *, metrics: Sequence[str], period: Period, window: TimeWindow
     ) -> Sequence[MetricSeries]: ...
+
+
+class ProfileLookup(Protocol):
+    """Perfiles públicos de cuentas ajenas, por su nombre."""
+
+    @property
+    def networks(self) -> frozenset[Network]:
+        """Las redes cuyos perfiles sabe leer."""
+        ...
+
+    def viewer_kinds(self, network: Network) -> frozenset[str]:
+        """Los tipos de activo propio que sirven de mirador para esa red. Vacío si no hace falta ninguno.
+
+        Algunas redes solo muestran cuentas ajenas a través de una cuenta propia (Instagram, por ejemplo).
+        """
+        ...
+
+    async def lookup(
+        self, handle: Handle, *, viewer: Asset | None, token: Token | None
+    ) -> PublicProfile | None:
+        """El perfil, o `None` si la cuenta no existe o la red no la deja ver."""
+        ...
 
 
 class WebhookParser(Protocol):

@@ -36,6 +36,11 @@ class Refusal(StrEnum):
     """La red no ofrece esa acción para ese activo (dar like a un comentario de Instagram, por ejemplo)."""
     MISSING_PERMISSION = "missing_permission"
     """Al token le falta un permiso: se resuelve volviendo a conectar la cuenta."""
+    INVALID_HANDLE = "invalid_handle"
+    """Lo que se pasó no es un nombre de cuenta válido para esa red."""
+    VIEWER_REQUIRED = "viewer_required"
+    """La red solo muestra cuentas ajenas a través de una cuenta propia, y no se indicó una que sirva."""
+    PROFILE_NOT_FOUND = "profile_not_found"
     OUTSIDE_REPLY_WINDOW = "outside_reply_window"
     NO_RECIPIENT = "no_recipient"
 

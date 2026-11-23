@@ -13,7 +13,7 @@ esas reglas de cada red:
 - **Un núcleo para todas las redes.** Autorizar, guardar conexiones, renovar tokens con
   compare-and-swap, descubrir activos y enrutar webhooks se hace igual para Meta que para la próxima red.
 - **Capacidades, no herencia.** Cada red implementa solo lo que soporta (`login`, `assets`, `content`,
-  `comments`, `messaging`, `insights`, `webhooks`). Si una red no tiene mensajes privados, el caso de uso
+  `comments`, `messaging`, `insights`, `webhooks`, `public_profiles`). Si una red no tiene mensajes privados, el caso de uso
   lo dice con un resultado, no con una excepción a mitad de camino.
 - **Resultados tipados.** Las decisiones de negocio (el `state` venció, la conexión fue revocada, pasó la
   ventana para responder) vuelven como `Refused(reason)`. Las excepciones quedan para lo que el código no
@@ -186,6 +186,24 @@ marcada como inválida y todas las operaciones devuelven `Refused(CONNECTION_INV
 vuelva a conectar. Si al token le falta un permiso, la operación devuelve `Refused(MISSING_PERMISSION)` y la
 conexión sigue sana.
 
+## Cuentas ajenas
+
+Los perfiles públicos se buscan por nombre o por URL. Instagram solo los muestra a través de una cuenta
+profesional propia, que se pasa como mirador:
+
+```python
+perfil = await social.lookup_profile.execute(
+    "meta", network="instagram", handle="https://www.instagram.com/marca/", viewer_asset_id=instagram.id
+)
+match perfil:
+    case Done(value=p):
+        ...  # p.external_id es la identidad estable; p.followers, p.posts, p.bio…
+    case Refused(reason=Refusal.PROFILE_NOT_FOUND):
+        ...  # no existe o no es una cuenta profesional
+```
+
+`omnisocial.parse_handle(network, texto)` normaliza `@marca`, URLs y variantes de las redes principales.
+
 ## Usuario de sistema
 
 Cuando la organización administra las páginas desde su propio portfolio de la red, no hace falta que cada
@@ -203,6 +221,7 @@ await social.register_system_connection.execute(
 - [Capacidades por red](docs/adr/0002-capacidades-por-red.md)
 - [Webhooks con omniwebhook](docs/adr/0003-webhooks-con-omniwebhook.md)
 - [Reglas estáticas de diseño](docs/adr/0004-reglas-estaticas-de-diseno.md)
+- [Perfiles públicos y mirador](docs/adr/0005-perfiles-publicos-y-mirador.md)
 - [Meta: permisos, revisión de la app y lo que conviene saber](docs/meta.md)
 - [Sumar una red](docs/nueva-red.md)
 

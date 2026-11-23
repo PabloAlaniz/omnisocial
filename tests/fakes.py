@@ -15,6 +15,7 @@ from omnisocial.domain.asset import Asset, DiscoveredAsset
 from omnisocial.domain.authorization import Purpose
 from omnisocial.domain.content import Comment, CommentAction, Post
 from omnisocial.domain.errors import TokenRejected
+from omnisocial.domain.handles import Handle, Network
 from omnisocial.domain.identity import Identity
 from omnisocial.domain.messaging import Conversation, Message, ReplyWindow
 from omnisocial.domain.metrics import (
@@ -25,6 +26,7 @@ from omnisocial.domain.metrics import (
     MetricSeries,
     Period,
 )
+from omnisocial.domain.profile import PublicProfile
 from omnisocial.domain.provider import Capability, ProviderId
 from omnisocial.domain.token import Token, TokenKind
 from omnisocial.domain.webhooks import EventAction, EventKind, SocialEvent
@@ -238,6 +240,37 @@ class FakeWebhooks:
 
 
 @dataclass
+class FakeProfiles:
+    """Instagram necesita una cuenta propia de mirador; X no."""
+
+    known: dict[str, PublicProfile] = field(
+        default_factory=lambda: {
+            "marca": PublicProfile(Network.INSTAGRAM, "17841400", username="marca", followers=1200),
+            "otra": PublicProfile(Network.X, "44196397", username="otra", followers=10),
+        }
+    )
+    calls: list[tuple[str, str | None, str | None]] = field(default_factory=list)
+    fail_with: Exception | None = None
+
+    @property
+    def networks(self) -> frozenset[Network]:
+        return frozenset({Network.INSTAGRAM, Network.X})
+
+    def viewer_kinds(self, network: Network) -> frozenset[str]:
+        return frozenset({"cuenta"}) if network is Network.INSTAGRAM else frozenset()
+
+    async def lookup(
+        self, handle: Handle, *, viewer: Asset | None, token: Token | None
+    ) -> PublicProfile | None:
+        self.calls.append(
+            (handle.value, viewer.external_id if viewer else None, token.access_token if token else None)
+        )
+        if self.fail_with is not None:
+            raise self.fail_with
+        return self.known.get(handle.value)
+
+
+@dataclass
 class FakeNetwork:
     clock: FakeClock = field(default_factory=FakeClock)
     oauth: FakeOAuth = field(default_factory=FakeOAuth)
@@ -247,6 +280,7 @@ class FakeNetwork:
     messaging: FakeMessaging = field(default_factory=FakeMessaging)
     insights: FakeInsights = field(default_factory=FakeInsights)
     webhooks: FakeWebhooks = field(default_factory=FakeWebhooks)
+    profiles: FakeProfiles = field(default_factory=FakeProfiles)
 
     def __post_init__(self) -> None:
         self.oauth.clock = self.clock
@@ -264,6 +298,7 @@ class FakeNetwork:
             messaging=pick(Capability.MESSAGING, self.messaging),  # type: ignore[arg-type]
             insights=pick(Capability.INSIGHTS, self.insights),  # type: ignore[arg-type]
             webhooks=pick(Capability.WEBHOOKS, self.webhooks),  # type: ignore[arg-type]
+            profiles=pick(Capability.PUBLIC_PROFILES, self.profiles),  # type: ignore[arg-type]
         )
 
 
