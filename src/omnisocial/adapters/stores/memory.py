@@ -13,6 +13,7 @@ from omnisocial.application.ports import (
     Clock,
     ConnectionRepository,
     PublicationRepository,
+    QuotaLedger,
 )
 from omnisocial.domain.asset import Asset
 from omnisocial.domain.authorization import AuthorizationRequest
@@ -147,3 +148,20 @@ class InMemoryPublicationRepository(PublicationRepository):
     @override
     async def remove(self, publication_id: str) -> None:
         self._items.pop(publication_id, None)
+
+
+class InMemoryQuotaLedger(QuotaLedger):
+    def __init__(self) -> None:
+        self._used: dict[tuple[str, str], int] = {}
+
+    @override
+    async def spend(self, key: str, period: str, units: int, *, limit: int) -> bool:
+        total = self._used.get((key, period), 0) + units
+        if total > limit:
+            return False
+        self._used[key, period] = total
+        return True
+
+    @override
+    async def spent(self, key: str, period: str) -> int:
+        return self._used.get((key, period), 0)

@@ -1,11 +1,14 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from pathlib import Path
 
 import pytest
 
+from omnisocial.adapters.files import PathFile
 from omnisocial.domain.provider import Capability, ProviderId
 from omnisocial.domain.publishing import (
+    BytesFile,
     Draft,
     DraftIssue,
     Media,
@@ -175,3 +178,42 @@ def test_un_activo_publica_si_y_solo_si_declara_sus_limites() -> None:
             assets={"cuenta": frozenset()},
             publishing={"cuenta": TEXT_ONLY},
         )
+
+
+def test_un_medio_es_una_url_o_un_archivo() -> None:
+    file = BytesFile(b"0123456789", "video/mp4")
+    upload = Media(MediaKind.VIDEO, file=file)
+    assert (upload.upload, upload.known_size, upload.url) == (file, 10, None)
+    assert (IMAGE.public_url, IMAGE.known_size) == (IMAGE.url, None)
+    with pytest.raises(ValueError, match="uno de los dos"):
+        Media(MediaKind.VIDEO)
+    with pytest.raises(ValueError, match="uno de los dos"):
+        Media(MediaKind.VIDEO, "https://cdn.ejemplo.com/a.mp4", file=file)
+    with pytest.raises(ValueError, match="no tiene URL"):
+        _ = upload.public_url
+    with pytest.raises(ValueError, match="no hay archivo"):
+        _ = IMAGE.upload
+
+
+async def test_los_archivos_se_leen_de_a_partes(tmp_path: Path) -> None:
+    in_memory = BytesFile(b"0123456789", "video/mp4")
+    assert await in_memory.read(4, 3) == b"456"
+    assert await in_memory.read(8, 100) == b"89"
+    assert "0123" not in repr(in_memory)
+    path = tmp_path / "video.mp4"
+    path.write_bytes(b"0123456789")
+    on_disk = PathFile.open(str(path), "video/mp4")
+    assert (on_disk.size, on_disk.content_type) == (10, "video/mp4")
+    assert await on_disk.read(4, 3) == b"456"
+    assert await on_disk.read(8, 100) == b"89"
+
+
+def test_cada_red_dice_de_donde_toma_los_medios() -> None:
+    upload = Media(MediaKind.VIDEO, file=BytesFile(b"x" * 20, "video/mp4"))
+    only_files = PublishLimits(
+        max_text=10, max_videos=1, media_by_url=False, media_by_file=True, max_video_bytes=10
+    )
+    assert issues(Draft("hola", media=(VIDEO,)), only_files) == [DraftIssue.MEDIA_SOURCE_NOT_SUPPORTED]
+    assert issues(Draft("hola", media=(upload,)), RICH) == [DraftIssue.MEDIA_SOURCE_NOT_SUPPORTED]
+    # El tamaño de un archivo se conoce: se valida sin que nadie lo declare.
+    assert issues(Draft("hola", media=(upload,)), only_files) == [DraftIssue.MEDIA_TOO_BIG]

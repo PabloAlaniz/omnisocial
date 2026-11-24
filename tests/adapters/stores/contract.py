@@ -10,6 +10,7 @@ from omnisocial.application.ports import (
     AuthorizationStateStore,
     ConnectionRepository,
     PublicationRepository,
+    QuotaLedger,
 )
 from omnisocial.domain.asset import Asset
 from omnisocial.domain.authorization import AuthorizationRequest, Purpose
@@ -173,3 +174,17 @@ async def publication_contract(repo: PublicationRepository) -> None:
     await repo.remove("nada")
     assert await repo.get("pub-1") is None
     assert await repo.add(publication("pub-6", key="clave"))
+
+
+async def quota_contract(ledger: QuotaLedger) -> None:
+    assert await ledger.spent("app", "2026-11-23") == 0
+    assert await ledger.spend("app", "2026-11-23", 60, limit=100)
+    assert await ledger.spend("app", "2026-11-23", 40, limit=100)
+    # Lo que no entra no se anota.
+    assert not await ledger.spend("app", "2026-11-23", 1, limit=100)
+    assert await ledger.spent("app", "2026-11-23") == 100
+    # Otro día y otra app tienen su propia cuenta.
+    assert await ledger.spend("app", "2026-11-24", 100, limit=100)
+    assert await ledger.spend("otra", "2026-11-23", 1, limit=100)
+    assert not await ledger.spend("nueva", "2026-11-23", 101, limit=100)
+    assert await ledger.spent("nueva", "2026-11-23") == 0

@@ -23,6 +23,7 @@ from omnisocial.application.ports import (
     Clock,
     ConnectionRepository,
     PublicationRepository,
+    QuotaLedger,
     TokenCipher,
 )
 from omnisocial.domain.asset import Asset
@@ -97,6 +98,13 @@ CREATE TABLE IF NOT EXISTS omnisocial_publications (
     UNIQUE (asset_id, idempotency_key)
 );
 CREATE INDEX IF NOT EXISTS omnisocial_publications_owner ON omnisocial_publications (owner, created_at);
+
+CREATE TABLE IF NOT EXISTS omnisocial_quota (
+    key    text NOT NULL,
+    period text NOT NULL,
+    used   integer NOT NULL,
+    PRIMARY KEY (key, period)
+);
 """
 
 
@@ -498,3 +506,32 @@ class PostgresPublicationRepository(PublicationRepository):
     async def remove(self, publication_id: str) -> None:
         async with self._pool.connection() as conn:
             await conn.execute("DELETE FROM omnisocial_publications WHERE id = %s", [publication_id])
+
+
+class PostgresQuotaLedger(QuotaLedger):
+    """La cuota gastada, compartida entre procesos."""
+
+    def __init__(self, pool: AsyncConnectionPool[Any]) -> None:
+        self._pool = pool
+
+    @override
+    async def spend(self, key: str, period: str, units: int, *, limit: int) -> bool:
+        if units > limit:
+            return False
+        async with self._pool.connection() as conn:
+            cur = await conn.execute(
+                "INSERT INTO omnisocial_quota (key, period, used) VALUES (%s, %s, %s) "
+                "ON CONFLICT (key, period) DO UPDATE SET used = omnisocial_quota.used + EXCLUDED.used "
+                "WHERE omnisocial_quota.used + EXCLUDED.used <= %s",
+                [key, period, units, limit],
+            )
+            return bool(cur.rowcount == 1)
+
+    @override
+    async def spent(self, key: str, period: str) -> int:
+        async with self._pool.connection() as conn:
+            cur = await conn.execute(
+                "SELECT used FROM omnisocial_quota WHERE key = %s AND period = %s", [key, period]
+            )
+            row = await cur.fetchone()
+            return int(row[0]) if row else 0

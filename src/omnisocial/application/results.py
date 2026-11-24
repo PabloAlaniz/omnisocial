@@ -13,7 +13,13 @@ from typing import Generic, TypeVar
 
 from omnisocial.domain.asset import Asset
 from omnisocial.domain.connection import Connection
-from omnisocial.domain.errors import PermissionMissing, ProviderError, QuotaExhausted, RateLimited
+from omnisocial.domain.errors import (
+    NotPublished,
+    PermissionMissing,
+    ProviderError,
+    QuotaExhausted,
+    RateLimited,
+)
 from omnisocial.domain.identity import Identity
 from omnisocial.domain.metrics import CanonicalMetric, MetricSeries
 from omnisocial.domain.provider import Capability
@@ -55,11 +61,14 @@ class Refusal(StrEnum):
     """El borrador no entra en ese activo. `problems` dice por qué. No se llamó a la red."""
     CONTENT_REJECTED = "content_rejected"
     """La red no aceptó el contenido. No salió, y repetirlo igual da lo mismo."""
+    NOT_PUBLISHED = "not_published"
+    """Falló antes de que la red creara nada (se cortó la subida, por ejemplo). Se puede reintentar."""
 
 
 _REFUSAL_BY_ERROR: dict[type[ProviderError], Refusal] = {
     PermissionMissing: Refusal.MISSING_PERMISSION,
     QuotaExhausted: Refusal.QUOTA_EXHAUSTED,
+    NotPublished: Refusal.NOT_PUBLISHED,
 }
 
 

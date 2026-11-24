@@ -49,7 +49,7 @@ def _video(draft: Draft, options: TikTokOptions) -> dict[str, object]:
             "brand_content_toggle": options.brand_content,
             "brand_organic_toggle": options.brand_organic,
         },
-        "source_info": {"source": "PULL_FROM_URL", "video_url": draft.media[0].url},
+        "source_info": {"source": "PULL_FROM_URL", "video_url": draft.media[0].public_url},
     }
 
 
@@ -66,7 +66,7 @@ def _photos(draft: Draft, options: TikTokOptions) -> dict[str, object]:
         "source_info": {
             "source": "PULL_FROM_URL",
             "photo_cover_index": 0,
-            "photo_images": [media.url for media in draft.media],
+            "photo_images": [media.public_url for media in draft.media],
         },
         "post_mode": "DIRECT_POST",
         "media_type": "PHOTO",

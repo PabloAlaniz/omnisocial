@@ -6,13 +6,16 @@ from omnisocial.meta import MetaConfig, meta_provider
 ```
 """
 
+from omnisocial.adapters.files import PathFile
 from omnisocial.adapters.stores.memory import (
     InMemoryAssetRepository,
     InMemoryAuthorizationStateStore,
     InMemoryConnectionRepository,
     InMemoryPublicationRepository,
+    InMemoryQuotaLedger,
 )
 from omnisocial.adapters.system import SystemClock
+from omnisocial.application.quota import QuotaBudget
 from omnisocial.application.registry import Provider, ProviderRegistry
 from omnisocial.application.results import (
     AssetAccess,
@@ -33,6 +36,7 @@ from omnisocial.domain.content import Comment, CommentAction, Post
 from omnisocial.domain.errors import (
     CapabilityNotSupported,
     ErrorKind,
+    NotPublished,
     OmnisocialError,
     PermissionMissing,
     ProviderError,
@@ -55,10 +59,12 @@ from omnisocial.domain.metrics import (
 from omnisocial.domain.profile import PublicProfile
 from omnisocial.domain.provider import Capability, ProviderId
 from omnisocial.domain.publishing import (
+    BytesFile,
     Draft,
     DraftIssue,
     DraftProblem,
     Media,
+    MediaFile,
     MediaKind,
     Publication,
     PublicationStatus,
@@ -76,6 +82,7 @@ __all__ = [
     "Asset",
     "AssetAccess",
     "AuthorizationStarted",
+    "BytesFile",
     "CanonicalMetric",
     "Capability",
     "CapabilityNotSupported",
@@ -101,9 +108,11 @@ __all__ = [
     "InMemoryAuthorizationStateStore",
     "InMemoryConnectionRepository",
     "InMemoryPublicationRepository",
+    "InMemoryQuotaLedger",
     "InsightsRead",
     "LoggedIn",
     "Media",
+    "MediaFile",
     "MediaKind",
     "Message",
     "MetricCatalog",
@@ -111,9 +120,11 @@ __all__ = [
     "MetricSeries",
     "Network",
     "NetworkSpec",
+    "NotPublished",
     "Omnisocial",
     "OmnisocialError",
     "OnEvents",
+    "PathFile",
     "Period",
     "PermissionMissing",
     "Post",
@@ -127,6 +138,7 @@ __all__ = [
     "PublishLimits",
     "PublishOptions",
     "Purpose",
+    "QuotaBudget",
     "QuotaExhausted",
     "RateLimited",
     "Refusal",

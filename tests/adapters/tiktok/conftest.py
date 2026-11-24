@@ -46,6 +46,7 @@ class FakeTikTok:
         form: Mapping[str, str] | None = None,
         headers: Mapping[str, str] | None = None,
         retry_safe: str | None = None,
+        content: bytes | None = None,
     ) -> HttpResponse:
         path = url.removeprefix(BASE)
         self.calls.append(Call(method, path, dict(params or {}), json, form, headers, retry_safe))

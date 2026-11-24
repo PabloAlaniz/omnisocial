@@ -43,7 +43,15 @@ from omnisocial.domain.authorization import Purpose
 from omnisocial.domain.errors import ErrorKind
 from omnisocial.domain.metrics import CanonicalMetric, Period
 from omnisocial.domain.provider import Capability
-from omnisocial.domain.publishing import Draft, DraftIssue, Media, MediaKind, check_draft
+from omnisocial.domain.publishing import (
+    BytesFile,
+    Draft,
+    DraftIssue,
+    Media,
+    MediaKind,
+    PublishLimits,
+    check_draft,
+)
 from omnisocial.domain.redirect import ReturnUrlPolicy
 from omnisocial.domain.spec import NetworkSpec
 from omnisocial.domain.window import TimeWindow
@@ -152,13 +160,21 @@ async def _insights(world: _World, asset: Asset) -> object:
     )
 
 
+def _sample(kind: MediaKind, limits: PublishLimits) -> Media:
+    if limits.media_by_url:
+        extension = "mp4" if kind is MediaKind.VIDEO else "jpg"
+        return Media(kind, f"https://cdn.ejemplo.com/medio.{extension}")
+    content_type = "video/mp4" if kind is MediaKind.VIDEO else "image/jpeg"
+    return Media(kind, file=BytesFile(b"contenido de prueba", content_type))
+
+
 def _draft(world: _World, asset: Asset) -> Draft:
     """Un borrador que entra en ese tipo de activo, armado desde los límites que declara."""
     limits = world.harness.spec.publishing[asset.kind]
     if limits.max_videos:
-        return Draft("hola", media=(Media(MediaKind.VIDEO, "https://cdn.ejemplo.com/video.mp4"),))
+        return Draft("hola", media=(_sample(MediaKind.VIDEO, limits),))
     if limits.max_images:
-        return Draft("hola", media=(Media(MediaKind.IMAGE, "https://cdn.ejemplo.com/foto.jpg"),))
+        return Draft("hola", media=(_sample(MediaKind.IMAGE, limits),))
     return Draft("hola")
 
 

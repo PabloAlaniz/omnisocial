@@ -60,3 +60,19 @@ async def test_transporte_httpx_formulario_cabeceras_y_errores_de_red() -> None:
 
 def test_jitter_de_verdad() -> None:
     assert 0 <= uniform_jitter(2.0) <= 2.0
+
+
+async def test_transporte_httpx_cuerpo_binario() -> None:
+    seen: list[httpx.Request] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        seen.append(request)
+        return httpx.Response(308, headers={"Range": "bytes=0-3"})
+
+    transport = HttpxTransport(httpx.AsyncClient(transport=httpx.MockTransport(handler)))
+    response = await transport.request(
+        "PUT", "https://subidas/sesion", content=b"\x00\x01\x02\x03", headers={"Content-Range": "bytes 0-3/8"}
+    )
+    assert (response.status, response.header("range")) == (308, "bytes=0-3")
+    assert seen[0].content == b"\x00\x01\x02\x03"
+    assert seen[0].headers["content-range"] == "bytes 0-3/8"

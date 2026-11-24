@@ -104,5 +104,13 @@ class RateLimited(ProviderError):
         self.retry_after = retry_after
 
 
+class NotPublished(ProviderError):
+    """Publicar falló antes de que la red creara nada: con certeza no salió, y se puede reintentar.
+
+    Es lo que lanza un adaptador cuando se corta la subida de un archivo. Sin esto, un error a mitad de
+    camino dejaría la publicación en duda.
+    """
+
+
 class QuotaExhausted(ProviderError):
     """Se acabó la cuota o el crédito de la app en la red. El token no tiene la culpa."""

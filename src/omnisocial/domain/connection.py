@@ -58,6 +58,10 @@ class Connection:
         )
 
     def reconnect(self, subject: Identity, token: Token, now: datetime) -> Connection:
+        """Hay redes que solo mandan el token de renovación la primera vez que la persona autoriza: si el
+        token nuevo no trae uno, se conserva el que había."""
+        if token.refresh_token is None and self.token.refresh_token is not None:
+            token = replace(token, refresh_token=self.token.refresh_token)
         return replace(self.with_token(token, now), subject=subject)
 
     def mark(self, status: ConnectionStatus, reason: str, now: datetime) -> Connection:

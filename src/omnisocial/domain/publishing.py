@@ -7,6 +7,7 @@ from collections.abc import Iterator, Mapping
 from dataclasses import dataclass, field, replace
 from datetime import datetime
 from enum import StrEnum
+from typing import Protocol
 from urllib.parse import urlsplit
 
 from typing_extensions import override
@@ -21,16 +22,71 @@ class MediaKind(StrEnum):
     VIDEO = "video"
 
 
+class MediaFile(Protocol):
+    """Un archivo que se sube a la red por partes. No hace falta tenerlo entero en memoria."""
+
+    @property
+    def size(self) -> int: ...
+
+    @property
+    def content_type(self) -> str:
+        """`video/mp4`, `image/jpeg`…"""
+        ...
+
+    async def read(self, offset: int, length: int) -> bytes:
+        """Hasta `length` bytes desde `offset`. Se puede pedir la misma parte más de una vez."""
+        ...
+
+
+@dataclass(frozen=True, slots=True)
+class BytesFile:
+    """Un `MediaFile` que ya está en memoria."""
+
+    data: bytes = field(repr=False)
+    content_type: str
+
+    @property
+    def size(self) -> int:
+        return len(self.data)
+
+    async def read(self, offset: int, length: int) -> bytes:
+        return self.data[offset : offset + length]
+
+
 @dataclass(frozen=True, slots=True)
 class Media:
-    """Una imagen o un video que la red va a buscar a una URL pública."""
+    """Una imagen o un video: una URL pública que la red va a buscar, o un archivo que se le sube.
+
+    Cada red acepta una de las dos formas, o las dos: lo dicen sus límites.
+    """
 
     kind: MediaKind
-    url: str
+    url: str | None = None
     alt_text: str | None = None
     size_bytes: int | None = None
     """Si se conocen, el tamaño y la duración se validan antes de llamar a la red."""
     duration_seconds: float | None = None
+    file: MediaFile | None = None
+
+    def __post_init__(self) -> None:
+        if (self.url is None) == (self.file is None):
+            raise ValueError("Un medio es una URL o un archivo: uno de los dos, no ambos.")
+
+    @property
+    def public_url(self) -> str:
+        if self.url is None:
+            raise ValueError("Este medio es un archivo: no tiene URL.")
+        return self.url
+
+    @property
+    def upload(self) -> MediaFile:
+        if self.file is None:
+            raise ValueError("Este medio es una URL: no hay archivo para subir.")
+        return self.file
+
+    @property
+    def known_size(self) -> int | None:
+        return self.file.size if self.file is not None else self.size_bytes
 
 
 class PublishOptions:
@@ -71,6 +127,10 @@ class PublishLimits:
     mix_media: bool = False
     """Si acepta imágenes y videos en la misma publicación."""
     media_required: bool = False
+    media_by_url: bool = True
+    """Si toma los medios de una URL pública."""
+    media_by_file: bool = False
+    """Si acepta que se le suban archivos."""
     link: bool = False
     first_comment: bool = False
     delete: bool = False
@@ -90,6 +150,7 @@ class DraftIssue(StrEnum):
     TOO_MANY_MEDIA = "too_many_media"
     MIXED_MEDIA = "mixed_media"
     MEDIA_URL_INVALID = "media_url_invalid"
+    MEDIA_SOURCE_NOT_SUPPORTED = "media_source_not_supported"
     MEDIA_TOO_BIG = "media_too_big"
     VIDEO_TOO_LONG = "video_too_long"
     LINK_NOT_SUPPORTED = "link_not_supported"
@@ -157,20 +218,31 @@ def _media_count(draft: Draft, limits: PublishLimits) -> Iterator[DraftProblem]:
 
 def _each_media(draft: Draft, limits: PublishLimits) -> Iterator[DraftProblem]:
     for position, media in enumerate(draft.media, start=1):
-        if not public_https_url(media.url):
-            yield DraftProblem(
-                DraftIssue.MEDIA_URL_INVALID, f"El medio {position} no tiene una URL https pública."
-            )
+        yield from _source(position, media, limits)
         top = limits.max_image_bytes if media.kind is MediaKind.IMAGE else limits.max_video_bytes
-        if top is not None and media.size_bytes is not None and media.size_bytes > top:
+        size = media.known_size
+        if top is not None and size is not None and size > top:
             yield DraftProblem(
-                DraftIssue.MEDIA_TOO_BIG, f"El medio {position} pesa {media.size_bytes} bytes; máximo {top}."
+                DraftIssue.MEDIA_TOO_BIG, f"El medio {position} pesa {size} bytes; máximo {top}."
             )
         seconds = limits.max_video_seconds
         if seconds is not None and media.duration_seconds is not None and media.duration_seconds > seconds:
             yield DraftProblem(
                 DraftIssue.VIDEO_TOO_LONG, f"El medio {position} dura más de {seconds} segundos."
             )
+
+
+def _source(position: int, media: Media, limits: PublishLimits) -> Iterator[DraftProblem]:
+    by_url = media.url is not None
+    if not (limits.media_by_url if by_url else limits.media_by_file):
+        wanted = "un archivo para subir" if by_url else "una URL pública"
+        yield DraftProblem(
+            DraftIssue.MEDIA_SOURCE_NOT_SUPPORTED, f"El medio {position} tiene que ser {wanted}."
+        )
+    elif media.url is not None and not public_https_url(media.url):
+        yield DraftProblem(
+            DraftIssue.MEDIA_URL_INVALID, f"El medio {position} no tiene una URL https pública."
+        )
 
 
 def _extras(draft: Draft, limits: PublishLimits) -> Iterator[DraftProblem]:

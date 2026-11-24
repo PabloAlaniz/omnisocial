@@ -43,7 +43,7 @@ def _created_id(body: Mapping[str, object], *keys: str) -> str:
 
 
 def _page_photo(media: Media) -> dict[str, object]:
-    params: dict[str, object] = {"url": media.url}
+    params: dict[str, object] = {"url": media.public_url}
     if media.alt_text:
         params["alt_text_custom"] = media.alt_text
     return params
@@ -51,12 +51,12 @@ def _page_photo(media: Media) -> dict[str, object]:
 
 def _instagram_media(media: Media, *, in_carousel: bool) -> dict[str, object]:
     if media.kind is MediaKind.IMAGE:
-        params: dict[str, object] = {"image_url": media.url}
+        params: dict[str, object] = {"image_url": media.public_url}
         if media.alt_text:
             params["alt_text"] = media.alt_text
     else:
         # Un video suelto es un reel; dentro de un carrusel es un video común.
-        params = {"video_url": media.url, "media_type": "VIDEO" if in_carousel else "REELS"}
+        params = {"video_url": media.public_url, "media_type": "VIDEO" if in_carousel else "REELS"}
     if in_carousel:
         params["is_carousel_item"] = "true"
     return params
@@ -115,7 +115,7 @@ class MetaPublisher(Publisher):
             return _created_id(await self._graph.post(f"{page_id}/feed", token, json=params), "id")
         first = draft.media[0]
         if first.kind is MediaKind.VIDEO:
-            video = {"file_url": first.url, "description": draft.text}
+            video = {"file_url": first.public_url, "description": draft.text}
             return _created_id(await self._graph.post_video(f"{page_id}/videos", token, json=video), "id")
         if len(draft.media) == 1:
             photo = {**_page_photo(first), "caption": draft.text}

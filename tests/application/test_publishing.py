@@ -11,6 +11,7 @@ from omnisocial.application.results import AuthorizationStarted, Connected, Done
 from omnisocial.domain.authorization import Purpose
 from omnisocial.domain.errors import (
     ErrorKind,
+    NotPublished,
     PermissionMissing,
     ProviderError,
     RateLimited,
@@ -144,6 +145,7 @@ async def test_publicada_con_error_no_es_un_fracaso(world: World) -> None:
         (PermissionMissing(FAKE, "falta publicar"), Refusal.MISSING_PERMISSION),
         (RateLimited(FAKE, "despacio", retry_after=60.0), Refusal.RATE_LIMITED),
         (ProviderError(FAKE, "video muy largo", kind=ErrorKind.INVALID_REQUEST), Refusal.CONTENT_REJECTED),
+        (NotPublished(FAKE, "se cortó la subida"), Refusal.NOT_PUBLISHED),
         (TokenRejected(FAKE, "token vencido"), Refusal.CONNECTION_INVALID),
     ],
 )

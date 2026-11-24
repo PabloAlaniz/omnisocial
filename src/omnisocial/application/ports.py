@@ -228,6 +228,19 @@ class PublicationRepository(Protocol):
         ...
 
 
+class QuotaLedger(Protocol):
+    """Lleva la cuenta de lo gastado por clave y por período (un día, en general)."""
+
+    async def spend(self, key: str, period: str, units: int, *, limit: int) -> bool:
+        """Suma `units` a lo gastado si el total no pasa de `limit`. Devuelve si entró.
+
+        Es atómico: dos procesos que gastan a la vez no pasan juntos el límite.
+        """
+        ...
+
+    async def spent(self, key: str, period: str) -> int: ...
+
+
 class AuthorizationStateStore(Protocol):
     async def put(self, request: AuthorizationRequest) -> None: ...
 

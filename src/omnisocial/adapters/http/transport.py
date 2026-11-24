@@ -48,11 +48,13 @@ class HttpTransport(Protocol):
         form: Mapping[str, str] | None = None,
         headers: Mapping[str, str] | None = None,
         retry_safe: str | None = None,
+        content: bytes | None = None,
     ) -> HttpResponse:
         """Hace el pedido.
 
         `retry_safe` marca un POST que se puede repetir sin efectos (una lectura que la red obliga a pedir
         por POST, el canje de un código). Va el motivo, para que quien lea el código no tenga que adivinarlo.
+        `content` es un cuerpo binario (una parte de un video, por ejemplo), en vez de `json` o `form`.
         Lanza `TransportError` si no hubo respuesta.
         """
         ...

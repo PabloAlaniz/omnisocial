@@ -20,11 +20,13 @@ from omnisocial.application.ports import (
     Publisher,
     WebhookParser,
 )
+from omnisocial.application.quota import QuotaBudget
 from omnisocial.application.registry import ENTRY_POINT_GROUP, Provider, load_entry_point
 from omnisocial.domain.asset import Asset, DiscoveredAsset
 from omnisocial.domain.authorization import Purpose
 from omnisocial.domain.errors import (
     ErrorKind,
+    NotPublished,
     PermissionMissing,
     ProviderError,
     QuotaExhausted,
@@ -67,6 +69,7 @@ __all__ = [
     "MediaKind",
     "MessagingGateway",
     "NetworkSpec",
+    "NotPublished",
     "OAuthApp",
     "OAuthClient",
     "OAuthSpec",
@@ -82,6 +85,7 @@ __all__ = [
     "PublishOptions",
     "Publisher",
     "Purpose",
+    "QuotaBudget",
     "QuotaExhausted",
     "RateLimited",
     "StandardOAuth",

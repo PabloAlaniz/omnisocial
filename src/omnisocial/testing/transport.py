@@ -20,6 +20,7 @@ class RecordedCall:
     form: Mapping[str, str] | None
     headers: Mapping[str, str] | None
     retry_safe: str | None
+    content: bytes | None = None
 
 
 @dataclass
@@ -55,9 +56,12 @@ class FakeTransport(HttpTransport):
         form: Mapping[str, str] | None = None,
         headers: Mapping[str, str] | None = None,
         retry_safe: str | None = None,
+        content: bytes | None = None,
     ) -> HttpResponse:
         path = url.removeprefix(self.base) if self.base else url
-        self.calls.append(RecordedCall(method, path, dict(params or {}), json, form, headers, retry_safe))
+        self.calls.append(
+            RecordedCall(method, path, dict(params or {}), json, form, headers, retry_safe, content)
+        )
         if self.failing is not None:
             return self.failing
         queue = self.routes.get((method, path))

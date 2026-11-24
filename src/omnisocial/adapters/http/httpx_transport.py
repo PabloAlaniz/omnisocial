@@ -30,12 +30,13 @@ class HttpxTransport(HttpTransport):
         form: Mapping[str, str] | None = None,
         headers: Mapping[str, str] | None = None,
         retry_safe: str | None = None,
+        content: bytes | None = None,
     ) -> HttpResponse:
         # `params=None` y no `{}`: con un dict vacío httpx borra la query de la URL, y las URLs de
         # paginación traen ahí el cursor y el token.
         try:
             response = await self._client.request(
-                method, url, params=params or None, json=json, data=form, headers=headers
+                method, url, params=params or None, json=json, data=form, headers=headers, content=content
             )
         except httpx.TransportError as error:
             raise TransportError(f"{method} {httpx.URL(url).host}: {type(error).__name__}") from error
