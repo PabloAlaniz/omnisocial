@@ -95,7 +95,9 @@ la red necesita la hora, recibe un `Clock`. Ver [ADR 0004](adr/0004-reglas-estat
 Reglas que el núcleo espera:
 
 - `exchange_code` devuelve el mejor token que la red permita (el de mayor duración).
-- `can_refresh` dice la verdad: si la red no renueva, devuelve `False` y la conexión vence sola.
+- `can_refresh` dice la verdad: si la red no renueva, devuelve `False` y la conexión vence sola. Si solo
+  renueva en ciertas condiciones (un token vigente y con más de un día, por ejemplo), las comprueba ahí,
+  con el `Clock`.
 - `WebhookParser.verifier` es un esquema de [omniwebhook](https://pypi.org/project/omniwebhook/)
   (`hmac_body_scheme`, `stripe_scheme`…), no una verificación propia. Sin secreto configurado, omniwebhook
   rechaza todo.

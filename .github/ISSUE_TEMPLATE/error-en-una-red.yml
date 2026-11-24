@@ -16,6 +16,7 @@ body:
         - LinkedIn
         - X
         - Threads
+        - Instagram con login propio
         - El núcleo, no una red
     validations:
       required: true

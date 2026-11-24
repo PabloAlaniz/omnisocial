@@ -18,7 +18,7 @@ contrato común, tiene su página en `docs/` y aparece en la matriz de capacidad
 | 2 ✓ | Publicar | Meta y TikTok publican |
 | 3 ✓ | Video largo y cuotas | YouTube |
 | 4 ✓ | Redes profesionales y pagas | LinkedIn, X |
-| 5 | Salud de las conexiones | Threads, Instagram con login propio |
+| 5 ✓ | Salud de las conexiones | Threads, Instagram con login propio |
 | 6 | Redes abiertas y federadas | Bluesky, Mastodon, Pixelfed |
 | 7 | Publicaciones con campos propios | Pinterest, Reddit, Google Business Profile |
 | 8 | Mensajería y comunidades | WhatsApp Business, Telegram, Discord |
@@ -112,6 +112,11 @@ afuera los mensajes privados y los avisos de actividad.
   cambiar el comportamiento de uno existente.
 
 ## Sprint 5. Salud de las conexiones: Threads e Instagram con login propio
+
+**Hecho** ([ADR 0010](adr/0010-salud-de-las-conexiones.md), [threads.md](threads.md),
+[instagram.md](instagram.md)). Quedaron afuera los webhooks de Threads y, en Instagram con login propio,
+los mensajes y los webhooks: la documentación no deja claro con qué secreto se firman, y conviene
+resolverlo con una cuenta real.
 
 - **Threads**: login, publicar (con hilos), respuestas y métricas.
 - **Instagram con login propio**, sin pasar por una página de Facebook.

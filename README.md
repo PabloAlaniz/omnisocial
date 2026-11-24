@@ -31,6 +31,8 @@ Redes disponibles, y qué puede hacer cada una y cada tipo de activo:
 <!-- matriz:inicio (generada por scripts/matriz.py, no editar a mano) -->
 | Red | Activo | Login | Activos | Publicaciones | Publicar | Comentarios | Mensajes | Métricas | Webhooks | Perfiles públicos |
 |---|---|---|---|---|---|---|---|---|---|---|
+| [**Instagram (login propio)**](docs/instagram.md) |  | ✓ | ✓ | ✓ | ✓ | ✓ |  | ✓ |  |  |
+|  | `instagram_account` |  |  | ✓ | ✓ | ✓ |  | ✓ |  |  |
 | [**LinkedIn**](docs/linkedin.md) |  | ✓ | ✓ | ✓ | ✓ | ✓ |  | ✓ |  |  |
 |  | `linkedin_member` |  |  |  | ✓ |  |  |  |  |  |
 |  | `linkedin_organization` |  |  | ✓ | ✓ | ✓ |  | ✓ |  |  |
@@ -46,6 +48,9 @@ Redes disponibles, y qué puede hacer cada una y cada tipo de activo:
 | [**YouTube**](docs/youtube.md) |  | ✓ | ✓ | ✓ | ✓ | ✓ |  | ✓ |  | ✓ |
 |  | `youtube_channel` |  |  | ✓ | ✓ | ✓ |  | ✓ |  |  |
 <!-- matriz:fin -->
+
+Instagram está dos veces: a través de una página de Facebook (dentro de Meta, con todo) o con su login
+propio, sin página ([cuál conviene](docs/instagram.md)).
 
 La fila de la red dice lo que ofrece; la de cada activo, lo que ese activo habilita. Lo que falta es
 porque la API de la red no lo ofrece (TikTok no tiene comentarios ni mensajes; LinkedIn y Threads no tienen mensajes) o porque todavía no se integró
@@ -69,7 +74,7 @@ pip install "omnisocial[httpx,postgres,crypto,starlette]"
 | `starlette` | Las rutas del callback y de los webhooks (sirve en FastAPI).|
 
 Cada red se carga recién cuando se importa su módulo (`omnisocial.meta`, `omnisocial.tiktok`,
-`omnisocial.youtube`, `omnisocial.linkedin`, `omnisocial.x`, `omnisocial.threads`): quien usa una
+`omnisocial.youtube`, `omnisocial.linkedin`, `omnisocial.x`, `omnisocial.threads`, `omnisocial.instagram`): quien usa una
 sola no ejecuta el código de las otras, y ninguna suma dependencias obligatorias.
 
 ## Armado
@@ -346,12 +351,14 @@ Para esto **no hace falta una app propia**: `MetaConfig(api_version="v24.0")` si
 - [Descripción y contrato de una red](docs/adr/0007-descripcion-y-contrato-de-una-red.md)
 - [Publicar](docs/adr/0008-publicar.md)
 - [Cuota y subida por partes](docs/adr/0009-cuota-y-subida-por-partes.md)
+- [Salud de las conexiones](docs/adr/0010-salud-de-las-conexiones.md)
 - [Meta: permisos, revisión de la app y lo que conviene saber](docs/meta.md)
 - [TikTok: Login Kit, Display API y lo que conviene saber](docs/tiktok.md)
 - [YouTube: Data API v3, cuota y lo que conviene saber](docs/youtube.md)
 - [LinkedIn: perfiles, páginas de empresa y lo que conviene saber](docs/linkedin.md)
 - [X: API v2, pago por uso y lo que conviene saber](docs/x.md)
 - [Threads: login, publicar en etapas y lo que conviene saber](docs/threads.md)
+- [Instagram con login propio](docs/instagram.md)
 - [Lo que vale para todas las redes](docs/redes-pendientes.md)
 - [Sumar una red](docs/nueva-red.md)
 - [Hoja de ruta: diez sprints](docs/hoja-de-ruta.md)
