@@ -40,9 +40,12 @@ result = await social.connect_with_credentials.execute(
     credentials={"identifier": "ana.bsky.social", "password": "abcd-efgh-ijkl-mnop"},
 )
 match result:
-    case Connected(connection=connection, assets=assets): ...
-    case Refused(reason=Refusal.PROVIDER_DENIED, detail=detail): ...  # no la aceptó
-    case Refused(reason=Refusal.RATE_LIMITED, retry_after=seconds): ...  # demasiados intentos
+    case Connected(connection=connection, assets=assets):
+        ...
+    case Refused(reason=Refusal.PROVIDER_DENIED, detail=detail):
+        ...  # no la aceptó
+    case Refused(reason=Refusal.RATE_LIMITED, retry_after=seconds):
+        ...  # demasiados intentos
 ```
 
 - **La contraseña no se guarda.** Se cambia por una sesión y se descarta; lo que queda guardado, cifrado,

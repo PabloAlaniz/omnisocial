@@ -59,6 +59,16 @@ un `IdentityReader`. Lo que se puede declarar: el separador de permisos, si usa 
 parámetros de la app, parámetros fijos de la URL de autorización y si el token de renovación rota. Si el
 flujo es distinto de verdad (un canje extra, por ejemplo), la red trae su propio `OAuthClient`.
 
+**Si la red no conecta con el diálogo de siempre**, trae otra cosa en lugar de `oauth`
+([ADR 0011](adr/0011-redes-federadas-y-credenciales.md)):
+
+- `server_oauth` (un `ServerOAuth`) si es federada: la persona elige el servidor, que llega ya validado, y
+  el token vuelve con `server` anotado. Los demás adaptadores le hablan a `token.server`.
+- `credentials` (un `CredentialLogin`) si se conecta con una credencial: declara qué datos pedir y cuáles
+  son secretos, y cambia la credencial por un token.
+
+En los dos casos la identidad la lee un `IdentityReader` aparte, y renovar y revocar se implementan ahí.
+
 ## 3. Las capacidades
 
 Cada una es un `Protocol` de `omnisocial.application.ports` (también en `omnisocial.network`):
@@ -200,6 +210,9 @@ class TestTikTokCumpleElContrato(ProviderContract):
     def harness(self) -> NetworkHarness:
         return TikTokHarness()
 ```
+
+Una red federada dice además su servidor de prueba (`server()`), y una que conecta con una credencial, la
+credencial (`credentials()`): el contrato conecta como lo hace esa red.
 
 Con eso se comprueba, pasando por los casos de uso, que:
 

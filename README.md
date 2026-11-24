@@ -38,9 +38,13 @@ Redes disponibles, y qué puede hacer cada una y cada tipo de activo:
 | [**LinkedIn**](docs/linkedin.md) |  | ✓ |  | ✓ | ✓ | ✓ | ✓ |  | ✓ |  |  |
 |  | `linkedin_member` |  |  |  |  | ✓ |  |  |  |  |  |
 |  | `linkedin_organization` |  |  |  | ✓ | ✓ | ✓ |  | ✓ |  |  |
+| [**Mastodon**](docs/mastodon.md) |  | ✓ |  | ✓ | ✓ | ✓ | ✓ |  | ✓ |  | ✓ |
+|  | `mastodon_account` |  |  |  | ✓ | ✓ | ✓ |  | ✓ |  |  |
 | [**Meta**](docs/meta.md) |  | ✓ |  | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
 |  | `facebook_page` |  |  |  | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |  |
 |  | `instagram_account` |  |  |  | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |  |
+| [**Pixelfed**](docs/mastodon.md) |  | ✓ |  | ✓ | ✓ | ✓ | ✓ |  | ✓ |  |  |
+|  | `pixelfed_account` |  |  |  | ✓ | ✓ | ✓ |  | ✓ |  |  |
 | [**Threads**](docs/threads.md) |  | ✓ |  | ✓ | ✓ | ✓ | ✓ |  | ✓ |  |  |
 |  | `threads_account` |  |  |  | ✓ | ✓ | ✓ |  | ✓ |  |  |
 | [**TikTok**](docs/tiktok.md) |  | ✓ |  | ✓ | ✓ | ✓ |  |  | ✓ | ✓ |  |
@@ -76,7 +80,7 @@ pip install "omnisocial[httpx,postgres,crypto,starlette]"
 | `starlette` | Las rutas del callback y de los webhooks (sirve en FastAPI).|
 
 Cada red se carga recién cuando se importa su módulo (`omnisocial.meta`, `omnisocial.tiktok`,
-`omnisocial.youtube`, `omnisocial.linkedin`, `omnisocial.x`, `omnisocial.threads`, `omnisocial.instagram`, `omnisocial.bluesky`): quien usa una
+`omnisocial.youtube`, `omnisocial.linkedin`, `omnisocial.x`, `omnisocial.threads`, `omnisocial.instagram`, `omnisocial.bluesky`, `omnisocial.mastodon`, `omnisocial.pixelfed`): quien usa una
 sola no ejecuta el código de las otras, y ninguna suma dependencias obligatorias.
 
 ## Armado
@@ -159,6 +163,23 @@ app.router.routes.extend(webhook_routes(social, on_events=encolar))
 
 Al volver, la app recibe `?status=connected&connection_id=...` o `?status=error&reason=...`. Las páginas y
 cuentas de Instagram que administra la persona ya quedaron guardadas como activos.
+
+No todas las redes conectan con ese diálogo:
+
+```python
+# Redes federadas (Mastodon, Pixelfed): la persona dice en qué servidor está su cuenta.
+started = await social.start_authorization.execute(
+    "mastodon", purpose=Purpose.CONNECT, owner=owner, server="mastodon.social"
+)
+
+# Redes sin diálogo (Bluesky): una contraseña de aplicación, que se cambia por un token y no se guarda.
+connected = await social.connect_with_credentials.execute(
+    "bluesky", owner=owner, credentials={"identifier": "ana.bsky.social", "password": "abcd-efgh-ijkl-mnop"}
+)
+```
+
+El servidor se valida antes de hacerle un pedido: tiene que ser un dominio público. Después de conectar,
+todo lo demás se usa igual que en cualquier red.
 
 ## Webhooks
 
@@ -354,6 +375,7 @@ Para esto **no hace falta una app propia**: `MetaConfig(api_version="v24.0")` si
 - [Publicar](docs/adr/0008-publicar.md)
 - [Cuota y subida por partes](docs/adr/0009-cuota-y-subida-por-partes.md)
 - [Salud de las conexiones](docs/adr/0010-salud-de-las-conexiones.md)
+- [Redes federadas y conexión por credencial](docs/adr/0011-redes-federadas-y-credenciales.md)
 - [Meta: permisos, revisión de la app y lo que conviene saber](docs/meta.md)
 - [TikTok: Login Kit, Display API y lo que conviene saber](docs/tiktok.md)
 - [YouTube: Data API v3, cuota y lo que conviene saber](docs/youtube.md)
@@ -362,6 +384,7 @@ Para esto **no hace falta una app propia**: `MetaConfig(api_version="v24.0")` si
 - [Threads: login, publicar en etapas y lo que conviene saber](docs/threads.md)
 - [Instagram con login propio](docs/instagram.md)
 - [Bluesky: contraseñas de aplicación y lo que conviene saber](docs/bluesky.md)
+- [Mastodon y Pixelfed: una app por servidor y lo que conviene saber](docs/mastodon.md)
 - [Lo que vale para todas las redes](docs/redes-pendientes.md)
 - [Sumar una red](docs/nueva-red.md)
 - [Hoja de ruta: diez sprints](docs/hoja-de-ruta.md)

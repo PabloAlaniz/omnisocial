@@ -18,6 +18,8 @@ body:
         - Threads
         - Instagram con login propio
         - Bluesky
+        - Mastodon
+        - Pixelfed
         - El núcleo, no una red
     validations:
       required: true

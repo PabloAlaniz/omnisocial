@@ -19,7 +19,7 @@ contrato común, tiene su página en `docs/` y aparece en la matriz de capacidad
 | 3 ✓ | Video largo y cuotas | YouTube |
 | 4 ✓ | Redes profesionales y pagas | LinkedIn, X |
 | 5 ✓ | Salud de las conexiones | Threads, Instagram con login propio |
-| 6 | Redes abiertas y federadas | Bluesky, Mastodon, Pixelfed |
+| 6 ✓ | Redes abiertas y federadas | Bluesky, Mastodon, Pixelfed |
 | 7 | Publicaciones con campos propios | Pinterest, Reddit, Google Business Profile |
 | 8 | Mensajería y comunidades | WhatsApp Business, Telegram, Discord |
 | 9 | Operar en producción | — |
@@ -127,6 +127,11 @@ resolverlo con una cuenta real.
 - **Reconexión**: volver a autorizar conserva el id de la conexión y de sus activos.
 
 ## Sprint 6. Redes abiertas y federadas: Bluesky, Mastodon y Pixelfed
+
+**Hecho** ([ADR 0011](adr/0011-redes-federadas-y-credenciales.md), [bluesky.md](bluesky.md),
+[mastodon.md](mastodon.md)). Quedaron afuera el OAuth de Bluesky (se conecta con contraseñas de
+aplicación), las menciones y ocultar respuestas en Bluesky, y leer los límites de cada servidor de
+Mastodon (se usan los de un servidor por defecto).
 
 - **Conexión por credencial**: generaliza el usuario de sistema para redes que no usan OAuth clásico
   (contraseña de aplicación, token de bot).
