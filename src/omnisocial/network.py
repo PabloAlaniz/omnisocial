@@ -40,6 +40,15 @@ from omnisocial.domain.errors import (
 )
 from omnisocial.domain.identity import Identity
 from omnisocial.domain.lookup import Choice, LookupSpec
+from omnisocial.domain.messaging import (
+    Attachment,
+    AttachmentKind,
+    DeliveryStatus,
+    MessagingLimits,
+    OutboundMessage,
+    ReplyWindow,
+    TemplateRef,
+)
 from omnisocial.domain.provider import Capability, ProviderId
 from omnisocial.domain.publishing import (
     Draft,
@@ -58,6 +67,8 @@ __all__ = [
     "ENTRY_POINT_GROUP",
     "Asset",
     "AssetDirectory",
+    "Attachment",
+    "AttachmentKind",
     "Capability",
     "Choice",
     "Clock",
@@ -65,6 +76,7 @@ __all__ = [
     "ContentReader",
     "CredentialField",
     "CredentialLogin",
+    "DeliveryStatus",
     "DiscoveredAsset",
     "Draft",
     "ErrorKind",
@@ -79,11 +91,13 @@ __all__ = [
     "Media",
     "MediaKind",
     "MessagingGateway",
+    "MessagingLimits",
     "NetworkSpec",
     "NotPublished",
     "OAuthApp",
     "OAuthClient",
     "OAuthSpec",
+    "OutboundMessage",
     "Outcome",
     "Pace",
     "PacedTransport",
@@ -101,11 +115,13 @@ __all__ = [
     "QuotaBudget",
     "QuotaExhausted",
     "RateLimited",
+    "ReplyWindow",
     "ServerApp",
     "ServerAppStore",
     "ServerOAuth",
     "StandardOAuth",
     "SystemClock",
+    "TemplateRef",
     "TextCount",
     "Token",
     "TokenKind",

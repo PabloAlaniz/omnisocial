@@ -61,7 +61,7 @@ class MetaWebhookParser(WebhookParser):
         return self._verifier
 
     @override
-    def parse(self, body: bytes) -> Sequence[SocialEvent]:
+    def parse(self, body: bytes, *, query: Mapping[str, str] | None = None) -> Sequence[SocialEvent]:
         try:
             payload = as_dict(json.loads(body))
         except ValueError:

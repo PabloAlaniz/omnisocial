@@ -32,6 +32,7 @@ from omnisocial.application.use_cases.authorization import (
     RegisterSystemConnection,
     StartAuthorization,
 )
+from omnisocial.application.use_cases.inbox import InboxSources, ReadInbox
 from omnisocial.application.use_cases.operations import (
     DeleteComment,
     LikeComment,
@@ -95,6 +96,7 @@ class Omnisocial:
     check_publication: CheckPublication
     delete_post: DeletePost
     refresh_expiring: RefreshExpiring
+    read_inbox: ReadInbox
 
     @classmethod
     def build(
@@ -127,8 +129,15 @@ class Omnisocial:
         store = ConnectionStore(connections=connections, assets=assets, clock=clock, ids=ids, watch=watch)
         tokens = GetValidToken(registry=registry, connections=connections, clock=clock, watch=watch)
         access = ResolveAssetAccess(assets=assets, tokens=tokens, clock=clock)
+        sources = InboxSources(
+            posts=ListPosts(registry=registry, access=access),
+            comments=ListComments(registry=registry, access=access),
+            conversations=ListConversations(registry=registry, access=access),
+            messages=ListMessages(registry=registry, access=access),
+        )
         return cls(
             registry=registry,
+            read_inbox=ReadInbox(registry=registry, access=access, sources=sources),
             start_authorization=StartAuthorization(
                 registry=registry,
                 states=states,
@@ -148,16 +157,16 @@ class Omnisocial:
             resolve_asset_access=access,
             sync_assets=SyncAssets(registry=registry, tokens=tokens, assets=assets, ids=ids),
             list_assets=ListAssets(assets=assets),
-            list_posts=ListPosts(registry=registry, access=access),
+            list_posts=sources.posts,
             list_choices=ListChoices(registry=registry, access=access),
-            list_comments=ListComments(registry=registry, access=access),
+            list_comments=sources.comments,
             reply_to_comment=ReplyToComment(registry=registry, access=access),
             set_comment_hidden=SetCommentHidden(registry=registry, access=access),
             delete_comment=DeleteComment(registry=registry, access=access),
             like_comment=LikeComment(registry=registry, access=access),
             lookup_profile=LookupProfile(registry=registry, access=access),
-            list_conversations=ListConversations(registry=registry, access=access),
-            list_messages=ListMessages(registry=registry, access=access),
+            list_conversations=sources.conversations,
+            list_messages=sources.messages,
             send_message=SendMessage(registry=registry, access=access, clock=clock),
             read_insights=ReadInsights(registry=registry, access=access),
             handle_webhook=HandleWebhook(

@@ -15,6 +15,7 @@ from omnisocial.adapters.providers.meta.messaging import MetaMessagingGateway
 from omnisocial.adapters.providers.meta.webhooks import MetaWebhookParser, verify_subscription
 from omnisocial.domain.asset import Asset
 from omnisocial.domain.errors import ProviderError
+from omnisocial.domain.messaging import OutboundMessage
 from omnisocial.domain.metrics import MetricPoint, Period
 from omnisocial.domain.token import Token, TokenKind
 from omnisocial.domain.webhooks import EventAction, EventKind
@@ -88,7 +89,7 @@ async def test_mensajes_distinguen_lo_que_mando_el_activo(fake: FakeGraph, graph
 async def test_enviar_por_la_pagina(fake: FakeGraph, graph: GraphClient) -> None:
     fake.on("POST", "p1/messages", {"recipient_id": "u1", "message_id": "mid.1"})
     gateway = MetaMessagingGateway(graph)
-    assert await gateway.send(INSTAGRAM, TOKEN, recipient_id="u1", text="Hola") == "mid.1"
+    assert await gateway.send(INSTAGRAM, TOKEN, recipient_id="u1", message=OutboundMessage("Hola")) == "mid.1"
     assert fake.calls[0].json == {
         "recipient": {"id": "u1"},
         "message": {"text": "Hola"},
@@ -101,7 +102,7 @@ async def test_enviar_sin_id_o_sin_pagina_es_error(fake: FakeGraph, graph: Graph
     fake.on("POST", "p1/messages", {"recipient_id": "u1"})
     gateway = MetaMessagingGateway(graph)
     with pytest.raises(ProviderError, match="id del mensaje"):
-        await gateway.send(PAGE, TOKEN, recipient_id="u1", text="Hola")
+        await gateway.send(PAGE, TOKEN, recipient_id="u1", message=OutboundMessage("Hola"))
     with pytest.raises(ProviderError, match="página conectada"):
         await gateway.list_conversations(ORPHAN, TOKEN, limit=None)
 

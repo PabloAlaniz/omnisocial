@@ -18,11 +18,16 @@ from omnisocial.adapters.providers.meta.graph import (
 from omnisocial.application.ports import MessagingGateway
 from omnisocial.domain.asset import Asset
 from omnisocial.domain.errors import ProviderError
-from omnisocial.domain.messaging import Conversation, Message, ReplyWindow
+from omnisocial.domain.messaging import Conversation, Message, MessagingLimits, OutboundMessage, ReplyWindow
 from omnisocial.domain.token import Token
 
 STANDARD_REPLY_WINDOW = ReplyWindow(timedelta(hours=24))
 """Fuera de las 24 horas solo se puede escribir con etiquetas especiales, que esta librería no usa."""
+
+
+MESSENGER_LIMITS = MessagingLimits(max_text=2000)
+INSTAGRAM_LIMITS = MessagingLimits(max_text=1000)
+"""Solo texto: los adjuntos y las plantillas de Messenger no se usan."""
 
 
 def _page_id(asset: Asset) -> str:
@@ -103,11 +108,20 @@ class MetaMessagingGateway(MessagingGateway):
         return messages
 
     @override
-    async def send(self, asset: Asset, token: Token, *, recipient_id: str, text: str) -> str:
+    @override
+    def limits_for(self, asset: Asset) -> MessagingLimits:
+        return INSTAGRAM_LIMITS if asset.kind == INSTAGRAM_ACCOUNT else MESSENGER_LIMITS
+
+    @override
+    async def send(self, asset: Asset, token: Token, *, recipient_id: str, message: OutboundMessage) -> str:
         body = await self._graph.post(
             f"{_page_id(asset)}/messages",
             token.access_token,
-            json={"recipient": {"id": recipient_id}, "message": {"text": text}, "messaging_type": "RESPONSE"},
+            json={
+                "recipient": {"id": recipient_id},
+                "message": {"text": message.text},
+                "messaging_type": "RESPONSE",
+            },
         )
         message_id = as_str(body.get("message_id"))
         if not message_id:

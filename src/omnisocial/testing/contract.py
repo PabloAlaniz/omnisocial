@@ -51,6 +51,7 @@ from omnisocial.application.results import (
 from omnisocial.domain.asset import Asset
 from omnisocial.domain.authorization import Purpose
 from omnisocial.domain.errors import ErrorKind
+from omnisocial.domain.messaging import Recipient
 from omnisocial.domain.metrics import CanonicalMetric, Period
 from omnisocial.domain.provider import Capability
 from omnisocial.domain.publishing import (
@@ -183,7 +184,12 @@ async def _comments(world: _World, asset: Asset) -> object:
 
 
 async def _conversations(world: _World, asset: Asset) -> object:
-    return await world.social.list_conversations.execute(asset.id, limit=1)
+    messaging = world.provider.require_messaging()
+    if messaging.limits_for(asset).history:
+        return await world.social.list_conversations.execute(asset.id, limit=1)
+    # La red no deja leer conversaciones: se prueba mandando un mensaje a alguien que acaba de escribir.
+    to = Recipient("5491100000000", SystemClock().now())
+    return await world.social.send_message.execute(asset.id, text="hola", to=to)
 
 
 async def _insights(world: _World, asset: Asset) -> object:

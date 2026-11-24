@@ -5,14 +5,23 @@ from __future__ import annotations
 from collections.abc import Awaitable, Callable, Sequence
 from typing import TypeVar
 
-from omnisocial.application.ports import Clock
+from typing_extensions import override
+
+from omnisocial.application.ports import Clock, MessagingGateway
 from omnisocial.application.registry import Provider, ProviderRegistry
 from omnisocial.application.results import AssetAccess, Done, InsightsRead, Refusal, Refused, refusal_for
 from omnisocial.application.use_cases.access import ResolveAssetAccess
 from omnisocial.domain.content import Comment, CommentAction, Post
 from omnisocial.domain.errors import ProviderError, TokenRejected
 from omnisocial.domain.lookup import Choice, LookupSpec
-from omnisocial.domain.messaging import Conversation, Message, last_inbound_at
+from omnisocial.domain.messaging import (
+    Conversation,
+    Message,
+    OutboundMessage,
+    Recipient,
+    check_message,
+    last_inbound_at,
+)
 from omnisocial.domain.metrics import CanonicalMetric, MetricSeries, Period, select_metrics
 from omnisocial.domain.provider import Capability
 from omnisocial.domain.window import TimeWindow
@@ -83,7 +92,15 @@ class ListChoices(_AssetOperation):
     Qué consultas ofrece cada tipo de activo lo declara la red en su descripción (`spec.lookups`).
     """
 
-    capability = Capability.PUBLISHING
+    capability = Capability.ASSETS
+
+    @override
+    async def _open(self, asset_id: str) -> tuple[Provider, AssetAccess] | Refused:
+        """No pide una capacidad: alcanza con que la red declare la consulta para ese tipo de activo."""
+        access = await self._access.execute(asset_id)
+        if isinstance(access, Refused):
+            return access
+        return self._registry.get(access.asset.provider), access
 
     async def available(self, asset_id: str) -> Done[tuple[LookupSpec, ...]] | Refused:
         """Las consultas que ofrece ese activo. Vacío si no hay nada que elegir."""
@@ -189,14 +206,23 @@ class LikeComment(_CommentAction):
         return await self._act(asset_id, call)
 
 
+_NO_HISTORY = Refused(
+    Refusal.NOT_SUPPORTED,
+    detail="La red no deja leer las conversaciones: los mensajes llegan por avisos.",
+    capability=Capability.MESSAGING,
+)
+
+
 class ListConversations(_AssetOperation):
     capability = Capability.MESSAGING
 
     async def execute(
         self, asset_id: str, *, limit: int | None = None
     ) -> Done[Sequence[Conversation]] | Refused:
-        async def call(provider: Provider, access: AssetAccess) -> Done[Sequence[Conversation]]:
+        async def call(provider: Provider, access: AssetAccess) -> Done[Sequence[Conversation]] | Refused:
             messaging = provider.require_messaging()
+            if not messaging.limits_for(access.asset).history:
+                return _NO_HISTORY
             return Done(await messaging.list_conversations(access.asset, access.token, limit=limit))
 
         return await self._run(asset_id, call)
@@ -208,7 +234,9 @@ class ListMessages(_AssetOperation):
     async def execute(
         self, asset_id: str, *, conversation_id: str, limit: int | None = None
     ) -> Done[Sequence[Message]] | Refused:
-        async def call(provider: Provider, access: AssetAccess) -> Done[Sequence[Message]]:
+        async def call(provider: Provider, access: AssetAccess) -> Done[Sequence[Message]] | Refused:
+            if not provider.require_messaging().limits_for(access.asset).history:
+                return _NO_HISTORY
             messages = await provider.require_messaging().list_messages(
                 access.asset, access.token, conversation_id=conversation_id, limit=limit
             )
@@ -218,10 +246,14 @@ class ListMessages(_AssetOperation):
 
 
 class SendMessage(_AssetOperation):
-    """Responde en una conversación respetando la ventana de la red.
+    """Le escribe a una persona respetando la ventana de la red.
 
-    El destinatario es quien escribió último. Si pasó la ventana, se niega antes de llamar a la red: la
-    red rechazaría el mensaje igual, y repetirlo puede costar la cuenta.
+    Donde la red deja leer la conversación, alcanza con `conversation_id`: el destinatario es quien
+    escribió último. Donde no (WhatsApp, Telegram), hay que decir a quién con `to`, y cuándo escribió por
+    última vez, que la app sabe por los avisos que recibió.
+
+    Si pasó la ventana se niega antes de llamar a la red, salvo que el mensaje sea una plantilla: la red
+    rechazaría el mensaje igual, y repetirlo puede costar la cuenta.
     """
 
     capability = Capability.MESSAGING
@@ -230,28 +262,52 @@ class SendMessage(_AssetOperation):
         super().__init__(registry=registry, access=access)
         self._clock = clock
 
-    async def execute(self, asset_id: str, *, conversation_id: str, text: str) -> Done[str] | Refused:
+    async def execute(
+        self,
+        asset_id: str,
+        *,
+        conversation_id: str | None = None,
+        text: str = "",
+        message: OutboundMessage | None = None,
+        to: Recipient | None = None,
+    ) -> Done[str] | Refused:
+        outbound = message or OutboundMessage(text)
+
         async def call(provider: Provider, access: AssetAccess) -> Done[str] | Refused:
             messaging = provider.require_messaging()
-            messages = await messaging.list_messages(
-                access.asset, access.token, conversation_id=conversation_id, limit=None
-            )
-            latest = last_inbound_at(messages)
-            recipient = next(
-                (
-                    m.sender_id
-                    for m in messages
-                    if not m.from_asset and m.created_at == latest and m.sender_id
-                ),
-                None,
-            )
-            if latest is None or recipient is None:
+            limits = messaging.limits_for(access.asset)
+            problem = check_message(outbound, limits)
+            if problem is not None:
+                return Refused(Refusal.INVALID_MESSAGE, detail=problem, capability=self.capability)
+            recipient = to
+            if recipient is None and conversation_id is not None and limits.history:
+                recipient = await self._last_writer(messaging, access, conversation_id)
+            if recipient is None:
                 return Refused(Refusal.NO_RECIPIENT)
-            if not messaging.reply_window.allows(latest, self._clock.now()):
+            if outbound.template is None and not messaging.reply_window.allows(
+                recipient.last_inbound_at, self._clock.now()
+            ):
                 return Refused(Refusal.OUTSIDE_REPLY_WINDOW)
-            return Done(await messaging.send(access.asset, access.token, recipient_id=recipient, text=text))
+            sent = await messaging.send(
+                access.asset, access.token, recipient_id=recipient.id, message=outbound
+            )
+            return Done(sent)
 
         return await self._run(asset_id, call)
+
+    @staticmethod
+    async def _last_writer(
+        messaging: MessagingGateway, access: AssetAccess, conversation_id: str
+    ) -> Recipient | None:
+        messages = await messaging.list_messages(
+            access.asset, access.token, conversation_id=conversation_id, limit=None
+        )
+        latest = last_inbound_at(messages)
+        sender = next(
+            (m.sender_id for m in messages if not m.from_asset and m.created_at == latest and m.sender_id),
+            None,
+        )
+        return Recipient(sender, latest) if latest is not None and sender is not None else None
 
 
 class ReadInsights(_AssetOperation):

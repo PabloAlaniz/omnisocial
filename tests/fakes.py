@@ -18,7 +18,7 @@ from omnisocial.domain.errors import TokenRejected
 from omnisocial.domain.handles import Handle, Network
 from omnisocial.domain.identity import Identity
 from omnisocial.domain.lookup import Choice, LookupSpec
-from omnisocial.domain.messaging import Conversation, Message, ReplyWindow
+from omnisocial.domain.messaging import Conversation, Message, MessagingLimits, OutboundMessage, ReplyWindow
 from omnisocial.domain.metrics import (
     CanonicalMetric,
     CatalogEntry,
@@ -160,9 +160,16 @@ class FakeComments:
     fail_with: Exception | None = None
     """Si está, `list_comments` la lanza: así se prueba qué hace el caso de uso con los errores de la red."""
 
+    found: list[Comment] | None = None
+    """Lo que devuelve `list_comments`. Si falta, un comentario de la publicación pedida."""
+    asked: list[str] = field(default_factory=list)
+
     async def list_comments(self, asset: Asset, token: Token, *, object_id: str) -> Sequence[Comment]:
+        self.asked.append(object_id)
         if self.fail_with is not None:
             raise self.fail_with
+        if self.found is not None:
+            return list(self.found)
         return [Comment("com-1", object_id, NOW, text="buenísimo")]
 
     def supports(self, asset: Asset, action: CommentAction) -> bool:
@@ -198,8 +205,13 @@ class FakeMessaging:
     ) -> Sequence[Message]:
         return list(self.messages)
 
-    async def send(self, asset: Asset, token: Token, *, recipient_id: str, text: str) -> str:
-        self.sent.append((recipient_id, text))
+    limits: MessagingLimits = field(default_factory=lambda: MessagingLimits(max_text=100))
+
+    def limits_for(self, asset: Asset) -> MessagingLimits:
+        return self.limits
+
+    async def send(self, asset: Asset, token: Token, *, recipient_id: str, message: OutboundMessage) -> str:
+        self.sent.append((recipient_id, message.text or (message.template.name if message.template else "")))
         return "msg-nuevo"
 
 
@@ -242,7 +254,7 @@ class FakeWebhooks:
     def handshake(self, query: Mapping[str, str]) -> str | None:
         return query.get("desafio") if query.get("clave") == "ok" else None
 
-    def parse(self, body: bytes) -> Sequence[SocialEvent]:
+    def parse(self, body: bytes, *, query: Mapping[str, str] | None = None) -> Sequence[SocialEvent]:
         return [SocialEvent(FAKE, EventKind.COMMENT, EventAction.CREATED, body.decode(), "com-9", NOW)]
 
 
@@ -364,7 +376,11 @@ class FakeNetwork:
         self.oauth.clock = self.clock
 
     def provider(
-        self, *, only: frozenset[Capability] | None = None, identity: object | None = None
+        self,
+        *,
+        only: frozenset[Capability] | None = None,
+        identity: object | None = None,
+        spec: NetworkSpec | None = None,
     ) -> Provider:
         def pick(capability: Capability, component: object) -> object:
             return component if only is None or capability in only else None
@@ -382,7 +398,7 @@ class FakeNetwork:
             publisher=pick(Capability.PUBLISHING, self.publisher),  # type: ignore[arg-type]
             identity=identity,  # type: ignore[arg-type]
             lookups=self.lookups,
-            spec=FAKE_SPEC,
+            spec=spec or FAKE_SPEC,
         )
 
 

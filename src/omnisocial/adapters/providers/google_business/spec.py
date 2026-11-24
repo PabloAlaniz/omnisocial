@@ -82,5 +82,6 @@ SPEC = NetworkSpec(
     oauth=oauth_spec(),
     docs="docs/google-business.md",
     publishing={GOOGLE_BUSINESS_LOCATION: LOCATION_LIMITS},
+    asset_comments=frozenset({GOOGLE_BUSINESS_LOCATION}),
     pace=PACE,
 )

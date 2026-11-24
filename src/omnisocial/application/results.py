@@ -53,6 +53,8 @@ class Refusal(StrEnum):
     """El token es válido pero no administra ningún activo: no se guarda."""
     OUTSIDE_REPLY_WINDOW = "outside_reply_window"
     NO_RECIPIENT = "no_recipient"
+    INVALID_MESSAGE = "invalid_message"
+    """El mensaje no entra en lo que acepta la red. `detail` dice por qué. No se llamó a la red."""
     RATE_LIMITED = "rate_limited"
     """La red pide bajar el ritmo. `retry_after` trae los segundos que pidió esperar, si lo dijo."""
     QUOTA_EXHAUSTED = "quota_exhausted"

@@ -86,7 +86,7 @@ class HandleWebhook:
         async def handle(event: VerifiedEvent) -> None:
             routed = [
                 RoutedEvent(item, await self._assets.find_by_external_id(provider.id, item.asset_external_id))
-                for item in parser.parse(event.request.body)
+                for item in parser.parse(event.request.body, query=_query(event.request))
             ]
             await self._revoke(routed)
             await on_events(routed)
@@ -108,3 +108,7 @@ class HandleWebhook:
                 await self._tokens.invalidate(
                     connection_id, "la persona quitó el acceso desde la red", status=ConnectionStatus.REVOKED
                 )
+
+
+def _query(request: IncomingRequest) -> dict[str, str]:
+    return {str(name): str(value) for name, value in request.query}

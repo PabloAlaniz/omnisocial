@@ -49,7 +49,21 @@ from omnisocial.domain.errors import (
 )
 from omnisocial.domain.handles import Handle, HandleKind, Network, parse_handle
 from omnisocial.domain.identity import Identity
-from omnisocial.domain.messaging import Conversation, Message, ReplyWindow
+from omnisocial.domain.inbox import InboxItem, InboxKind
+from omnisocial.domain.inbox import from_event as inbox_item_from_event
+from omnisocial.domain.lookup import Choice, LookupSpec
+from omnisocial.domain.messaging import (
+    Attachment,
+    AttachmentKind,
+    Conversation,
+    DeliveryStatus,
+    Message,
+    MessagingLimits,
+    OutboundMessage,
+    Recipient,
+    ReplyWindow,
+    TemplateRef,
+)
 from omnisocial.domain.metrics import (
     CanonicalMetric,
     CatalogEntry,
@@ -84,12 +98,15 @@ from omnisocial.entrypoints.hub import Omnisocial
 __all__ = [
     "Asset",
     "AssetAccess",
+    "Attachment",
+    "AttachmentKind",
     "AuthorizationStarted",
     "BytesFile",
     "CanonicalMetric",
     "Capability",
     "CapabilityNotSupported",
     "CatalogEntry",
+    "Choice",
     "Comment",
     "CommentAction",
     "Connected",
@@ -98,6 +115,7 @@ __all__ = [
     "ConnectionStatus",
     "Conversation",
     "CredentialField",
+    "DeliveryStatus",
     "DiscoveredAsset",
     "Done",
     "Draft",
@@ -115,12 +133,16 @@ __all__ = [
     "InMemoryPublicationRepository",
     "InMemoryQuotaLedger",
     "InMemoryServerAppStore",
+    "InboxItem",
+    "InboxKind",
     "InsightsRead",
     "LoggedIn",
+    "LookupSpec",
     "Media",
     "MediaFile",
     "MediaKind",
     "Message",
+    "MessagingLimits",
     "MetricCatalog",
     "MetricPoint",
     "MetricSeries",
@@ -130,6 +152,7 @@ __all__ = [
     "Omnisocial",
     "OmnisocialError",
     "OnEvents",
+    "OutboundMessage",
     "PathFile",
     "Period",
     "PermissionMissing",
@@ -147,6 +170,7 @@ __all__ = [
     "QuotaBudget",
     "QuotaExhausted",
     "RateLimited",
+    "Recipient",
     "RefreshReport",
     "Refusal",
     "Refused",
@@ -156,6 +180,7 @@ __all__ = [
     "ServerApp",
     "SocialEvent",
     "SystemClock",
+    "TemplateRef",
     "TimeWindow",
     "Token",
     "TokenKind",
@@ -163,6 +188,7 @@ __all__ = [
     "UnknownProvider",
     "ValidToken",
     "WebhookReceived",
+    "inbox_item_from_event",
     "normalize_server",
     "parse_handle",
 ]

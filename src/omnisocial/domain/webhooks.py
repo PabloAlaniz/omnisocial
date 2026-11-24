@@ -7,6 +7,7 @@ from dataclasses import dataclass, field
 from datetime import datetime
 from enum import StrEnum
 
+from omnisocial.domain.messaging import Attachment, DeliveryStatus
 from omnisocial.domain.provider import ProviderId
 
 
@@ -37,4 +38,10 @@ class SocialEvent:
     occurred_at: datetime | None
     actor_id: str | None = None
     text: str | None = None
+    actor_name: str | None = None
+    conversation_external_id: str | None = None
+    """En un mensaje, la conversación. Es lo que hay que guardar para responder."""
+    attachments: tuple[Attachment, ...] = ()
+    status: DeliveryStatus | None = None
+    """En un aviso sobre un mensaje enviado, hasta dónde llegó."""
     raw: Mapping[str, object] = field(default_factory=dict, repr=False)

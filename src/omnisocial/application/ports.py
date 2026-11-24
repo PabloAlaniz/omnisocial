@@ -23,7 +23,7 @@ from omnisocial.domain.content import Comment, CommentAction, Post
 from omnisocial.domain.handles import Handle, Network
 from omnisocial.domain.identity import Identity
 from omnisocial.domain.lookup import Choice
-from omnisocial.domain.messaging import Conversation, Message, ReplyWindow
+from omnisocial.domain.messaging import Conversation, Message, MessagingLimits, OutboundMessage, ReplyWindow
 from omnisocial.domain.metrics import MetricCatalog, MetricSeries, Period
 from omnisocial.domain.profile import PublicProfile
 from omnisocial.domain.provider import ProviderId
@@ -169,8 +169,12 @@ class MessagingGateway(Protocol):
         self, asset: Asset, token: Token, *, conversation_id: str, limit: int | None
     ) -> Sequence[Message]: ...
 
-    async def send(self, asset: Asset, token: Token, *, recipient_id: str, text: str) -> str:
-        """Le escribe a la persona. Devuelve el id del mensaje."""
+    def limits_for(self, asset: Asset) -> MessagingLimits:
+        """Lo que ese activo acepta al mandar un mensaje, y si deja leer las conversaciones."""
+        ...
+
+    async def send(self, asset: Asset, token: Token, *, recipient_id: str, message: OutboundMessage) -> str:
+        """Le escribe a la persona. El mensaje ya entra en los límites. Devuelve su id."""
         ...
 
 
@@ -248,7 +252,10 @@ class WebhookParser(Protocol):
         """El esquema de firma de la red, armado con omniwebhook. Sin secreto, rechaza todo."""
         ...
 
-    def parse(self, body: bytes) -> Sequence[SocialEvent]: ...
+    def parse(self, body: bytes, *, query: Mapping[str, str] | None = None) -> Sequence[SocialEvent]:
+        """Traduce un aviso ya verificado. `query` son los parámetros de la URL a la que llegó, para las
+        redes cuyo aviso no dice de qué cuenta es."""
+        ...
 
 
 # ── Infraestructura común ───────────────────────────────────────────────────────────────────────

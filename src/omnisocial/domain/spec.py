@@ -131,6 +131,9 @@ class NetworkSpec:
     """Qué acepta cada tipo de activo al publicar."""
     lookups: Mapping[str, tuple[LookupSpec, ...]] = field(default_factory=dict)
     """Qué consultas auxiliares ofrece cada tipo de activo (tableros, comunidades, etiquetas)."""
+    asset_comments: frozenset[str] = frozenset()
+    """Los tipos de activo cuyos comentarios son del activo y no de una publicación (las reseñas de una
+    sede): se piden una vez, sin recorrer publicaciones."""
     pace: Pace | None = None
     """El ritmo que la red tolera. `None`: no declara uno."""
 
