@@ -118,6 +118,8 @@ class TextCount(StrEnum):
     """En unidades UTF-16: un emoji fuera del plano básico cuenta dos."""
     UTF8 = "utf8"
     """En bytes UTF-8: una letra con tilde cuenta dos."""
+    EMOJI_BYTES = "emoji_bytes"
+    """Un carácter común cuenta uno; un emoji, sus bytes UTF-8 (cuatro, en general)."""
     WEIGHTED = "weighted"
     """Con peso, como X: una URL cuenta 23 sin importar su largo; los emojis y la escritura china, japonesa
     o coreana cuentan dos por carácter; el resto, uno. Es una aproximación que nunca cuenta de menos."""
@@ -197,9 +199,14 @@ def _weighted(text: str) -> int:
     return len(urls) * _URL_WEIGHT + len(rest) + heavy
 
 
+_BASIC_PLANE = 0xFFFF
+
+
 def text_length(text: str, count: TextCount) -> int:
     if count is TextCount.WEIGHTED:
         return _weighted(text)
+    if count is TextCount.EMOJI_BYTES:
+        return sum(len(char.encode()) if ord(char) > _BASIC_PLANE else 1 for char in text)
     if count is TextCount.UTF16:
         return len(text.encode("utf-16-le")) // 2
     return len(text.encode()) if count is TextCount.UTF8 else len(text)
