@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from datetime import date
+
 from omnisocial.adapters.providers.youtube.config import (
     AUTHORIZE_URL,
     REVOKE_URL,
@@ -13,7 +15,7 @@ from omnisocial.adapters.providers.youtube.config import (
 from omnisocial.domain.errors import ErrorKind
 from omnisocial.domain.provider import Capability
 from omnisocial.domain.publishing import PublishLimits, TextCount
-from omnisocial.domain.spec import ErrorTable, NetworkSpec, OAuthSpec
+from omnisocial.domain.spec import ApiPin, ErrorTable, NetworkSpec, OAuthSpec
 
 CHANNEL_CAPABILITIES = frozenset(
     {Capability.CONTENT, Capability.COMMENTS, Capability.INSIGHTS, Capability.PUBLISHING}
@@ -96,5 +98,10 @@ SPEC = NetworkSpec(
     errors=ERRORS,
     oauth=oauth_spec(),
     docs="docs/youtube.md",
+    api=ApiPin(
+        "v3",
+        reviewed=date(2026, 11, 24),
+        changelog="https://developers.google.com/youtube/v3/revision_history",
+    ),
     publishing={YOUTUBE_CHANNEL: CHANNEL_LIMITS},
 )

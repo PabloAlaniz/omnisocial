@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from datetime import date
+
 from omnisocial.adapters.providers.google_business.config import (
     AUTHORIZE_URL,
     GOOGLE_BUSINESS,
@@ -13,7 +15,7 @@ from omnisocial.adapters.providers.google_business.config import (
 from omnisocial.domain.errors import ErrorKind
 from omnisocial.domain.provider import Capability
 from omnisocial.domain.publishing import PublishLimits
-from omnisocial.domain.spec import ErrorTable, NetworkSpec, OAuthSpec, Pace
+from omnisocial.domain.spec import ApiPin, ErrorTable, NetworkSpec, OAuthSpec, Pace
 
 LOCATION_CAPABILITIES = frozenset(
     {Capability.CONTENT, Capability.COMMENTS, Capability.INSIGHTS, Capability.PUBLISHING}
@@ -81,6 +83,11 @@ SPEC = NetworkSpec(
     errors=ERRORS,
     oauth=oauth_spec(),
     docs="docs/google-business.md",
+    api=ApiPin(
+        "v4 (novedades y reseñas), v1 (el resto)",
+        reviewed=date(2026, 11, 24),
+        changelog="https://developers.google.com/my-business/content/sunset-dates",
+    ),
     publishing={GOOGLE_BUSINESS_LOCATION: LOCATION_LIMITS},
     asset_comments=frozenset({GOOGLE_BUSINESS_LOCATION}),
     pace=PACE,

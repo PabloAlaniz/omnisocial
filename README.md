@@ -29,44 +29,44 @@ esas reglas de cada red:
 Redes disponibles, y qué puede hacer cada una y cada tipo de activo:
 
 <!-- matriz:inicio (generada por scripts/matriz.py, no editar a mano) -->
-| Red | Activo | Login | Credencial | Activos | Publicaciones | Publicar | Comentarios | Mensajes | Métricas | Webhooks | Perfiles públicos |
-|---|---|---|---|---|---|---|---|---|---|---|---|
-| [**Bluesky**](docs/bluesky.md) |  |  | ✓ | ✓ | ✓ | ✓ | ✓ |  | ✓ |  | ✓ |
-|  | `bluesky_account` |  |  |  | ✓ | ✓ | ✓ |  | ✓ |  |  |
-| [**Discord**](docs/discord.md) |  | ✓ |  | ✓ |  | ✓ |  |  |  |  |  |
-|  | `discord_guild` |  |  |  |  | ✓ |  |  |  |  |  |
-| [**Discord (webhook)**](docs/discord.md) |  |  | ✓ | ✓ |  | ✓ |  |  |  |  |  |
-|  | `discord_webhook` |  |  |  |  | ✓ |  |  |  |  |  |
-| [**Google Business Profile**](docs/google-business.md) |  | ✓ |  | ✓ | ✓ | ✓ | ✓ |  | ✓ |  |  |
-|  | `google_business_location` |  |  |  | ✓ | ✓ | ✓ |  | ✓ |  |  |
-| [**Instagram (login propio)**](docs/instagram.md) |  | ✓ |  | ✓ | ✓ | ✓ | ✓ |  | ✓ |  |  |
-|  | `instagram_account` |  |  |  | ✓ | ✓ | ✓ |  | ✓ |  |  |
-| [**LinkedIn**](docs/linkedin.md) |  | ✓ |  | ✓ | ✓ | ✓ | ✓ |  | ✓ |  |  |
-|  | `linkedin_member` |  |  |  |  | ✓ |  |  |  |  |  |
-|  | `linkedin_organization` |  |  |  | ✓ | ✓ | ✓ |  | ✓ |  |  |
-| [**Mastodon**](docs/mastodon.md) |  | ✓ |  | ✓ | ✓ | ✓ | ✓ |  | ✓ |  | ✓ |
-|  | `mastodon_account` |  |  |  | ✓ | ✓ | ✓ |  | ✓ |  |  |
-| [**Meta**](docs/meta.md) |  | ✓ |  | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
-|  | `facebook_page` |  |  |  | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |  |
-|  | `instagram_account` |  |  |  | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |  |
-| [**Pinterest**](docs/pinterest.md) |  | ✓ |  | ✓ | ✓ | ✓ |  |  | ✓ |  |  |
-|  | `pinterest_account` |  |  |  | ✓ | ✓ |  |  | ✓ |  |  |
-| [**Pixelfed**](docs/mastodon.md) |  | ✓ |  | ✓ | ✓ | ✓ | ✓ |  | ✓ |  |  |
-|  | `pixelfed_account` |  |  |  | ✓ | ✓ | ✓ |  | ✓ |  |  |
-| [**Reddit**](docs/reddit.md) |  | ✓ |  | ✓ | ✓ | ✓ | ✓ |  |  |  |  |
-|  | `reddit_account` |  |  |  | ✓ | ✓ | ✓ |  |  |  |  |
-| [**Telegram**](docs/telegram.md) |  |  | ✓ | ✓ |  | ✓ |  | ✓ |  | ✓ |  |
-|  | `telegram_bot` |  |  |  |  | ✓ |  | ✓ |  | ✓ |  |
-| [**Threads**](docs/threads.md) |  | ✓ |  | ✓ | ✓ | ✓ | ✓ |  | ✓ |  |  |
-|  | `threads_account` |  |  |  | ✓ | ✓ | ✓ |  | ✓ |  |  |
-| [**TikTok**](docs/tiktok.md) |  | ✓ |  | ✓ | ✓ | ✓ |  |  | ✓ | ✓ |  |
-|  | `tiktok_account` |  |  |  | ✓ | ✓ |  |  | ✓ |  |  |
-| [**WhatsApp Business**](docs/whatsapp.md) |  | ✓ |  | ✓ |  |  |  | ✓ |  | ✓ |  |
-|  | `whatsapp_number` |  |  |  |  |  |  | ✓ |  | ✓ |  |
-| [**X**](docs/x.md) |  | ✓ |  | ✓ | ✓ | ✓ | ✓ |  | ✓ |  | ✓ |
-|  | `x_account` |  |  |  | ✓ | ✓ | ✓ |  | ✓ |  |  |
-| [**YouTube**](docs/youtube.md) |  | ✓ |  | ✓ | ✓ | ✓ | ✓ |  | ✓ |  | ✓ |
-|  | `youtube_channel` |  |  |  | ✓ | ✓ | ✓ |  | ✓ |  |  |
+| Red | Activo | Soporte | Login | Credencial | Activos | Publicaciones | Publicar | Comentarios | Mensajes | Métricas | Webhooks | Perfiles públicos |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| [**Bluesky**](docs/bluesky.md) |  | experimental |  | ✓ | ✓ | ✓ | ✓ | ✓ |  | ✓ |  | ✓ |
+|  | `bluesky_account` |  |  |  |  | ✓ | ✓ | ✓ |  | ✓ |  |  |
+| [**Discord**](docs/discord.md) |  | experimental | ✓ |  | ✓ |  | ✓ |  |  |  |  |  |
+|  | `discord_guild` |  |  |  |  |  | ✓ |  |  |  |  |  |
+| [**Discord (webhook)**](docs/discord.md) |  | experimental |  | ✓ | ✓ |  | ✓ |  |  |  |  |  |
+|  | `discord_webhook` |  |  |  |  |  | ✓ |  |  |  |  |  |
+| [**Google Business Profile**](docs/google-business.md) |  | experimental | ✓ |  | ✓ | ✓ | ✓ | ✓ |  | ✓ |  |  |
+|  | `google_business_location` |  |  |  |  | ✓ | ✓ | ✓ |  | ✓ |  |  |
+| [**Instagram (login propio)**](docs/instagram.md) |  | experimental | ✓ |  | ✓ | ✓ | ✓ | ✓ |  | ✓ |  |  |
+|  | `instagram_account` |  |  |  |  | ✓ | ✓ | ✓ |  | ✓ |  |  |
+| [**LinkedIn**](docs/linkedin.md) |  | experimental | ✓ |  | ✓ | ✓ | ✓ | ✓ |  | ✓ |  |  |
+|  | `linkedin_member` |  |  |  |  |  | ✓ |  |  |  |  |  |
+|  | `linkedin_organization` |  |  |  |  | ✓ | ✓ | ✓ |  | ✓ |  |  |
+| [**Mastodon**](docs/mastodon.md) |  | experimental | ✓ |  | ✓ | ✓ | ✓ | ✓ |  | ✓ |  | ✓ |
+|  | `mastodon_account` |  |  |  |  | ✓ | ✓ | ✓ |  | ✓ |  |  |
+| [**Meta**](docs/meta.md) |  | experimental | ✓ |  | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
+|  | `facebook_page` |  |  |  |  | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |  |
+|  | `instagram_account` |  |  |  |  | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |  |
+| [**Pinterest**](docs/pinterest.md) |  | experimental | ✓ |  | ✓ | ✓ | ✓ |  |  | ✓ |  |  |
+|  | `pinterest_account` |  |  |  |  | ✓ | ✓ |  |  | ✓ |  |  |
+| [**Pixelfed**](docs/mastodon.md) |  | experimental | ✓ |  | ✓ | ✓ | ✓ | ✓ |  | ✓ |  |  |
+|  | `pixelfed_account` |  |  |  |  | ✓ | ✓ | ✓ |  | ✓ |  |  |
+| [**Reddit**](docs/reddit.md) |  | experimental | ✓ |  | ✓ | ✓ | ✓ | ✓ |  |  |  |  |
+|  | `reddit_account` |  |  |  |  | ✓ | ✓ | ✓ |  |  |  |  |
+| [**Telegram**](docs/telegram.md) |  | experimental |  | ✓ | ✓ |  | ✓ |  | ✓ |  | ✓ |  |
+|  | `telegram_bot` |  |  |  |  |  | ✓ |  | ✓ |  | ✓ |  |
+| [**Threads**](docs/threads.md) |  | experimental | ✓ |  | ✓ | ✓ | ✓ | ✓ |  | ✓ |  |  |
+|  | `threads_account` |  |  |  |  | ✓ | ✓ | ✓ |  | ✓ |  |  |
+| [**TikTok**](docs/tiktok.md) |  | experimental | ✓ |  | ✓ | ✓ | ✓ |  |  | ✓ | ✓ |  |
+|  | `tiktok_account` |  |  |  |  | ✓ | ✓ |  |  | ✓ |  |  |
+| [**WhatsApp Business**](docs/whatsapp.md) |  | experimental | ✓ |  | ✓ |  |  |  | ✓ |  | ✓ |  |
+|  | `whatsapp_number` |  |  |  |  |  |  |  | ✓ |  | ✓ |  |
+| [**X**](docs/x.md) |  | experimental | ✓ |  | ✓ | ✓ | ✓ | ✓ |  | ✓ |  | ✓ |
+|  | `x_account` |  |  |  |  | ✓ | ✓ | ✓ |  | ✓ |  |  |
+| [**YouTube**](docs/youtube.md) |  | experimental | ✓ |  | ✓ | ✓ | ✓ | ✓ |  | ✓ |  | ✓ |
+|  | `youtube_channel` |  |  |  |  | ✓ | ✓ | ✓ |  | ✓ |  |  |
 <!-- matriz:fin -->
 
 Instagram está dos veces: a través de una página de Facebook (dentro de Meta, con todo) o con su login

@@ -2,12 +2,14 @@
 
 from __future__ import annotations
 
+from datetime import date
+
 from omnisocial.adapters.providers.telegram.config import TELEGRAM, TELEGRAM_BOT, TelegramOptions
 from omnisocial.domain.errors import ErrorKind
 from omnisocial.domain.messaging import MessagingLimits, ReplyWindow
 from omnisocial.domain.provider import Capability
 from omnisocial.domain.publishing import PublishLimits
-from omnisocial.domain.spec import ErrorTable, NetworkSpec, Pace
+from omnisocial.domain.spec import ApiPin, ErrorTable, NetworkSpec, Pace
 
 BOT_CAPABILITIES = frozenset({Capability.PUBLISHING, Capability.MESSAGING, Capability.WEBHOOKS})
 
@@ -70,6 +72,9 @@ SPEC = NetworkSpec(
     assets={TELEGRAM_BOT: BOT_CAPABILITIES},
     errors=ERRORS,
     docs="docs/telegram.md",
+    api=ApiPin(
+        "Bot API 10.5", reviewed=date(2026, 11, 24), changelog="https://core.telegram.org/bots/api-changelog"
+    ),
     publishing={TELEGRAM_BOT: BOT_LIMITS},
     pace=PACE,
 )

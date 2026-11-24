@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from datetime import date
+
 from omnisocial.adapters.providers.pinterest.config import (
     API_BASE,
     AUTHORIZE_URL,
@@ -13,7 +15,7 @@ from omnisocial.domain.errors import ErrorKind
 from omnisocial.domain.lookup import LookupSpec
 from omnisocial.domain.provider import Capability
 from omnisocial.domain.publishing import PublishLimits
-from omnisocial.domain.spec import ErrorTable, NetworkSpec, OAuthSpec, Pace
+from omnisocial.domain.spec import ApiPin, ErrorTable, NetworkSpec, OAuthSpec, Pace
 
 ACCOUNT_CAPABILITIES = frozenset({Capability.CONTENT, Capability.INSIGHTS, Capability.PUBLISHING})
 
@@ -78,6 +80,9 @@ SPEC = NetworkSpec(
     errors=ERRORS,
     oauth=oauth_spec(),
     docs="docs/pinterest.md",
+    api=ApiPin(
+        "v5", reviewed=date(2026, 11, 24), changelog="https://developers.pinterest.com/docs/changelog/"
+    ),
     publishing={PINTEREST_ACCOUNT: ACCOUNT_LIMITS},
     lookups={PINTEREST_ACCOUNT: (BOARDS, BOARD_SECTIONS)},
     pace=PACE,

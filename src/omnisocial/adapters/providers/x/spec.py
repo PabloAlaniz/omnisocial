@@ -2,11 +2,13 @@
 
 from __future__ import annotations
 
+from datetime import date
+
 from omnisocial.adapters.providers.x.config import API_BASE, AUTHORIZE_URL, X_ACCOUNT, X, XOptions
 from omnisocial.domain.errors import ErrorKind
 from omnisocial.domain.provider import Capability
 from omnisocial.domain.publishing import PublishLimits, TextCount
-from omnisocial.domain.spec import ErrorTable, NetworkSpec, OAuthSpec
+from omnisocial.domain.spec import ApiPin, ErrorTable, NetworkSpec, OAuthSpec
 
 ACCOUNT_CAPABILITIES = frozenset(
     {Capability.CONTENT, Capability.COMMENTS, Capability.INSIGHTS, Capability.PUBLISHING}
@@ -82,5 +84,6 @@ SPEC = NetworkSpec(
     errors=ERRORS,
     oauth=oauth_spec(),
     docs="docs/x.md",
+    api=ApiPin("v2", reviewed=date(2026, 11, 24), changelog="https://docs.x.com/changelog"),
     publishing={X_ACCOUNT: ACCOUNT_LIMITS},
 )

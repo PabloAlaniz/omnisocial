@@ -1,0 +1,88 @@
+name: En vivo
+
+# Cada red contra su API real, con una cuenta de prueba. Una red sin su secreto se saltea.
+# Cómo se enciende cada una: docs/pruebas-en-vivo.md
+
+on:
+  schedule:
+    - cron: "17 5 * * *"
+  workflow_dispatch:
+    inputs:
+      escribir:
+        description: "Además de leer, publicar un texto y borrarlo"
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+concurrency:
+  group: en-vivo
+  cancel-in-progress: false
+
+jobs:
+  red:
+    name: ${{ matrix.red }}
+    # Los secretos están en el repositorio principal: en un fork no hay nada que probar.
+    if: github.repository == 'PabloAlaniz/omnisocial'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      max-parallel: 4
+      matrix:
+        red:
+          - meta
+          - instagram
+          - tiktok
+          - youtube
+          - linkedin
+          - x
+          - threads
+          - bluesky
+          - mastodon
+          - pixelfed
+          - pinterest
+          - reddit
+          - google_business
+          - whatsapp
+          - telegram
+          - discord
+          - discord_webhook
+    env:
+      ARMADO: ${{ secrets[format('OMNISOCIAL_LIVE_{0}', matrix.red)] }}
+      RED: ${{ matrix.red }}
+      OMNISOCIAL_LIVE_WRITE: ${{ inputs.escribir && '1' || '0' }}
+      OMNISOCIAL_LIVE_REPORT: ${{ github.workspace }}/en-vivo.jsonl
+    steps:
+      - name: ¿Está encendida?
+        id: encendida
+        run: |
+          if [ -n "$ARMADO" ]; then echo "si=true" >> "$GITHUB_OUTPUT"; else
+            echo "Sin el secreto de $RED: no se prueba." >> "$GITHUB_STEP_SUMMARY"
+          fi
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        if: steps.encendida.outputs.si == 'true'
+        with: { persist-credentials: false }
+      - uses: astral-sh/setup-uv@1c37ad07a6a961277cf70c0d37d6f313000f5884 # v10.3.0
+        if: steps.encendida.outputs.si == 'true'
+        with: { python-version: "3.13" }
+      - if: steps.encendida.outputs.si == 'true'
+        run: uv sync --locked
+      - name: Probar
+        if: steps.encendida.outputs.si == 'true'
+        run: |
+          # El armado llega por una variable con el nombre de la red, que es la que lee la prueba.
+          nombre="OMNISOCIAL_LIVE_$(echo "$RED" | tr '[:lower:]' '[:upper:]')"
+          export "$nombre=$ARMADO"
+          uv run pytest -m live --no-cov -q tests/live/test_en_vivo.py
+      - name: Resumen
+        if: always() && steps.encendida.outputs.si == 'true'
+        run: uv run python scripts/en_vivo.py "$OMNISOCIAL_LIVE_REPORT" >> "$GITHUB_STEP_SUMMARY"
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        if: always() && steps.encendida.outputs.si == 'true'
+        with:
+          name: en-vivo-${{ matrix.red }}
+          path: en-vivo.jsonl
+          if-no-files-found: ignore
+          retention-days: 30

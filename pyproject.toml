@@ -174,6 +174,8 @@ ban-relative-imports = "all"
     "SLF001",
 ]
 "tests/integration/**" = ["S101", "TID251", "S608"]
+# Las pruebas en vivo leen sus credenciales del entorno y miran el reloj.
+"tests/live/**" = ["TID251"]
 # Herramientas del repositorio: se corren sueltas, no son un paquete.
 "scripts/*.py" = ["INP001"]
 

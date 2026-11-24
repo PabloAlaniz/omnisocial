@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from datetime import date
+
 from omnisocial.adapters.providers.discord.config import (
     AUTHORIZE_URL,
     DISCORD,
@@ -15,7 +17,7 @@ from omnisocial.domain.errors import ErrorKind
 from omnisocial.domain.lookup import LookupSpec
 from omnisocial.domain.provider import Capability
 from omnisocial.domain.publishing import PublishLimits
-from omnisocial.domain.spec import ErrorTable, NetworkSpec, OAuthSpec, Pace
+from omnisocial.domain.spec import ApiPin, ErrorTable, NetworkSpec, OAuthSpec, Pace
 
 GUILD_CAPABILITIES = frozenset({Capability.PUBLISHING})
 WEBHOOK_CAPABILITIES = frozenset({Capability.PUBLISHING})
@@ -98,6 +100,9 @@ SPEC = NetworkSpec(
     errors=ERRORS,
     oauth=oauth_spec(api_base="https://discord.com/api/v10", permissions=0),
     docs="docs/discord.md",
+    api=ApiPin(
+        "v10", reviewed=date(2026, 11, 24), changelog="https://discord.com/developers/docs/change-log"
+    ),
     publishing={DISCORD_GUILD: GUILD_LIMITS},
     lookups={DISCORD_GUILD: (CHANNELS,)},
     pace=PACE,
@@ -110,6 +115,9 @@ WEBHOOK_SPEC = NetworkSpec(
     assets={DISCORD_WEBHOOK_CHANNEL: WEBHOOK_CAPABILITIES},
     errors=WEBHOOK_ERRORS,
     docs="docs/discord.md",
+    api=ApiPin(
+        "v10", reviewed=date(2026, 11, 24), changelog="https://discord.com/developers/docs/change-log"
+    ),
     publishing={DISCORD_WEBHOOK_CHANNEL: WEBHOOK_LIMITS},
     pace=PACE,
 )

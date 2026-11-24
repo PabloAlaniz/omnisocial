@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from datetime import date
+
 from omnisocial.adapters.providers.mastodon.config import (
     MASTODON,
     MASTODON_ACCOUNT,
@@ -12,7 +14,7 @@ from omnisocial.adapters.providers.mastodon.config import (
 from omnisocial.domain.errors import ErrorKind
 from omnisocial.domain.provider import Capability
 from omnisocial.domain.publishing import PublishLimits
-from omnisocial.domain.spec import ErrorTable, NetworkSpec
+from omnisocial.domain.spec import ApiPin, ErrorTable, NetworkSpec
 
 ACCOUNT_CAPABILITIES = frozenset(
     {Capability.CONTENT, Capability.COMMENTS, Capability.INSIGHTS, Capability.PUBLISHING}
@@ -76,6 +78,7 @@ SPEC = NetworkSpec(
     assets={MASTODON_ACCOUNT: ACCOUNT_CAPABILITIES},
     errors=ERRORS,
     docs="docs/mastodon.md",
+    api=ApiPin("v1 y v2", reviewed=date(2026, 11, 24), changelog="https://docs.joinmastodon.org/"),
     publishing={MASTODON_ACCOUNT: MASTODON_LIMITS},
 )
 
@@ -86,6 +89,7 @@ PIXELFED_SPEC = NetworkSpec(
     assets={PIXELFED_ACCOUNT: ACCOUNT_CAPABILITIES},
     errors=ERRORS,
     docs="docs/mastodon.md",
+    api=ApiPin("v1 y v2", reviewed=date(2026, 11, 24), changelog="https://docs.joinmastodon.org/"),
     publishing={PIXELFED_ACCOUNT: PIXELFED_LIMITS},
 )
 

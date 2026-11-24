@@ -16,7 +16,7 @@ from pathlib import Path
 
 from omnisocial.adapters import providers
 from omnisocial.domain.provider import Capability
-from omnisocial.domain.spec import NetworkSpec
+from omnisocial.domain.spec import NetworkSpec, SupportLevel
 
 README = Path(__file__).resolve().parent.parent / "README.md"
 START = "<!-- matriz:inicio (generada por scripts/matriz.py, no editar a mano) -->"
@@ -36,6 +36,14 @@ COLUMNS = {
 }
 
 
+SUPPORT = {
+    SupportLevel.VERIFIED: "verificada",
+    SupportLevel.COMMUNITY: "comunitaria",
+    SupportLevel.EXPERIMENTAL: "experimental",
+}
+"""Qué quiere decir cada nivel: `docs/niveles-de-soporte.md`."""
+
+
 def specs() -> list[NetworkSpec]:
     found = []
     for module in pkgutil.iter_modules(providers.__path__):
@@ -50,21 +58,21 @@ def specs() -> list[NetworkSpec]:
     return sorted(found, key=lambda spec: spec.name.lower())
 
 
-def _row(first: str, second: str, capabilities: frozenset[Capability]) -> str:
+def _row(names: tuple[str, str, str], capabilities: frozenset[Capability]) -> str:
     marks = ["✓" if capability in capabilities else "" for capability in COLUMNS]
-    return "| " + " | ".join([first, second, *marks]) + " |"
+    return "| " + " | ".join([*names, *marks]) + " |"
 
 
 def render(networks: list[NetworkSpec]) -> str:
     missing = set(Capability) - set(COLUMNS)
     if missing:
         raise ValueError(f"Falta el título de columna de: {sorted(missing)}")
-    header = ["Red", "Activo", *COLUMNS.values()]
+    header = ["Red", "Activo", "Soporte", *COLUMNS.values()]
     lines = ["| " + " | ".join(header) + " |", "|" + "---|" * len(header)]
     for spec in networks:
         name = f"[**{spec.name}**]({spec.docs})" if spec.docs else f"**{spec.name}**"
-        lines.append(_row(name, "", spec.capabilities))
-        lines.extend(_row("", f"`{kind}`", spec.assets[kind]) for kind in sorted(spec.assets))
+        lines.append(_row((name, "", SUPPORT[spec.support]), spec.capabilities))
+        lines.extend(_row(("", f"`{kind}`", ""), spec.assets[kind]) for kind in sorted(spec.assets))
     return "\n".join(lines)
 
 

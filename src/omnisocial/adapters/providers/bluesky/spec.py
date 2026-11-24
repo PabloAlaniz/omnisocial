@@ -2,11 +2,13 @@
 
 from __future__ import annotations
 
+from datetime import date
+
 from omnisocial.adapters.providers.bluesky.config import BLUESKY, BLUESKY_ACCOUNT, BlueskyOptions
 from omnisocial.domain.errors import ErrorKind
 from omnisocial.domain.provider import Capability
 from omnisocial.domain.publishing import PublishLimits
-from omnisocial.domain.spec import ErrorTable, NetworkSpec
+from omnisocial.domain.spec import ApiPin, ErrorTable, NetworkSpec
 
 ACCOUNT_CAPABILITIES = frozenset(
     {Capability.CONTENT, Capability.COMMENTS, Capability.INSIGHTS, Capability.PUBLISHING}
@@ -62,5 +64,10 @@ SPEC = NetworkSpec(
     assets={BLUESKY_ACCOUNT: ACCOUNT_CAPABILITIES},
     errors=ERRORS,
     docs="docs/bluesky.md",
+    api=ApiPin(
+        "lexicons de app.bsky y com.atproto",
+        reviewed=date(2026, 11, 24),
+        changelog="https://docs.bsky.app/blog",
+    ),
     publishing={BLUESKY_ACCOUNT: ACCOUNT_LIMITS},
 )

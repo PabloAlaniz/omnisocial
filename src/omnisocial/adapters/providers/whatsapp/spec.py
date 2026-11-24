@@ -2,14 +2,14 @@
 
 from __future__ import annotations
 
-from datetime import timedelta
+from datetime import date, timedelta
 
 from omnisocial.adapters.providers.whatsapp.config import WHATSAPP, WHATSAPP_NUMBER
 from omnisocial.domain.errors import ErrorKind
 from omnisocial.domain.lookup import LookupSpec
 from omnisocial.domain.messaging import MessagingLimits, ReplyWindow
 from omnisocial.domain.provider import Capability
-from omnisocial.domain.spec import ErrorTable, NetworkSpec, OAuthSpec
+from omnisocial.domain.spec import ApiPin, ErrorTable, NetworkSpec, OAuthSpec
 
 NUMBER_CAPABILITIES = frozenset({Capability.MESSAGING, Capability.WEBHOOKS})
 
@@ -72,5 +72,10 @@ SPEC = NetworkSpec(
         "https://www.facebook.com/v26.0/dialog/oauth", "https://graph.facebook.com/v26.0/oauth/access_token"
     ),
     docs="docs/whatsapp.md",
+    api=ApiPin(
+        "v26.0",
+        reviewed=date(2026, 11, 24),
+        changelog="https://developers.facebook.com/docs/graph-api/changelog",
+    ),
     lookups={WHATSAPP_NUMBER: (TEMPLATES,)},
 )

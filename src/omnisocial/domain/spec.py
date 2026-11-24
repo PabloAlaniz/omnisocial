@@ -9,6 +9,8 @@ from __future__ import annotations
 
 from collections.abc import Mapping
 from dataclasses import dataclass, field
+from datetime import date
+from enum import StrEnum
 
 from omnisocial.domain.errors import (
     ErrorKind,
@@ -97,6 +99,31 @@ class OAuthSpec:
     """Cada renovación devuelve un token de renovación nuevo y el anterior deja de servir."""
 
 
+class SupportLevel(StrEnum):
+    """Cuánto respaldo tiene una red. Lo muestra la matriz del README."""
+
+    VERIFIED = "verified"
+    """Se prueba seguido contra la API real, con una cuenta de prueba, y tiene quién la mantenga."""
+    COMMUNITY = "community"
+    """Alguien la usa en producción y avisa cuando se rompe, pero no se prueba sola contra la API real."""
+    EXPERIMENTAL = "experimental"
+    """Escrita contra la documentación y probada con respuestas simuladas. Nadie confirmó que funcione
+    con la API real."""
+
+
+@dataclass(frozen=True, slots=True)
+class ApiPin:
+    """La versión de la API de la red contra la que está escrito el adaptador."""
+
+    version: str
+    reviewed: date
+    """La última vez que alguien comparó el adaptador con la documentación de esa versión."""
+    sunset: date | None = None
+    """Cuándo la red la retira, si lo anunció."""
+    changelog: str | None = None
+    """Dónde anuncia la red sus versiones y sus retiros."""
+
+
 @dataclass(frozen=True, slots=True)
 class Pace:
     """El ritmo que la red tolera de una misma app. Lo respeta `PacedTransport`, dentro de un proceso."""
@@ -136,6 +163,9 @@ class NetworkSpec:
     sede): se piden una vez, sin recorrer publicaciones."""
     pace: Pace | None = None
     """El ritmo que la red tolera. `None`: no declara uno."""
+    support: SupportLevel = SupportLevel.EXPERIMENTAL
+    api: ApiPin | None = None
+    """La versión de la API que usa el adaptador. `None`: la elige quien configura, o la red no tiene."""
 
     def __post_init__(self) -> None:
         for kind, capabilities in self.assets.items():

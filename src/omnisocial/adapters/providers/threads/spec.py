@@ -2,11 +2,13 @@
 
 from __future__ import annotations
 
+from datetime import date
+
 from omnisocial.adapters.providers.threads.config import THREADS, THREADS_ACCOUNT, ThreadsOptions
 from omnisocial.domain.errors import ErrorKind
 from omnisocial.domain.provider import Capability
 from omnisocial.domain.publishing import PublishLimits, TextCount
-from omnisocial.domain.spec import ErrorTable, NetworkSpec
+from omnisocial.domain.spec import ApiPin, ErrorTable, NetworkSpec
 
 ACCOUNT_CAPABILITIES = frozenset(
     {Capability.CONTENT, Capability.COMMENTS, Capability.INSIGHTS, Capability.PUBLISHING}
@@ -60,5 +62,10 @@ SPEC = NetworkSpec(
     assets={THREADS_ACCOUNT: ACCOUNT_CAPABILITIES},
     errors=ERRORS,
     docs="docs/threads.md",
+    api=ApiPin(
+        "v1.0",
+        reviewed=date(2026, 11, 24),
+        changelog="https://developers.facebook.com/docs/threads/changelog",
+    ),
     publishing={THREADS_ACCOUNT: ACCOUNT_LIMITS},
 )
