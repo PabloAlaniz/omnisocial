@@ -17,6 +17,7 @@ body:
         - X
         - Threads
         - Instagram con login propio
+        - Bluesky
         - El núcleo, no una red
     validations:
       required: true
@@ -26,6 +27,7 @@ body:
       label: Capacidad
       options:
         - login
+        - credentials
         - assets
         - content
         - publishing

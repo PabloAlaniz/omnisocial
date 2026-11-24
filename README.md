@@ -31,6 +31,8 @@ Redes disponibles, y qué puede hacer cada una y cada tipo de activo:
 <!-- matriz:inicio (generada por scripts/matriz.py, no editar a mano) -->
 | Red | Activo | Login | Credencial | Activos | Publicaciones | Publicar | Comentarios | Mensajes | Métricas | Webhooks | Perfiles públicos |
 |---|---|---|---|---|---|---|---|---|---|---|---|
+| [**Bluesky**](docs/bluesky.md) |  |  | ✓ | ✓ | ✓ | ✓ | ✓ |  | ✓ |  | ✓ |
+|  | `bluesky_account` |  |  |  | ✓ | ✓ | ✓ |  | ✓ |  |  |
 | [**Instagram (login propio)**](docs/instagram.md) |  | ✓ |  | ✓ | ✓ | ✓ | ✓ |  | ✓ |  |  |
 |  | `instagram_account` |  |  |  | ✓ | ✓ | ✓ |  | ✓ |  |  |
 | [**LinkedIn**](docs/linkedin.md) |  | ✓ |  | ✓ | ✓ | ✓ | ✓ |  | ✓ |  |  |
@@ -74,7 +76,7 @@ pip install "omnisocial[httpx,postgres,crypto,starlette]"
 | `starlette` | Las rutas del callback y de los webhooks (sirve en FastAPI).|
 
 Cada red se carga recién cuando se importa su módulo (`omnisocial.meta`, `omnisocial.tiktok`,
-`omnisocial.youtube`, `omnisocial.linkedin`, `omnisocial.x`, `omnisocial.threads`, `omnisocial.instagram`): quien usa una
+`omnisocial.youtube`, `omnisocial.linkedin`, `omnisocial.x`, `omnisocial.threads`, `omnisocial.instagram`, `omnisocial.bluesky`): quien usa una
 sola no ejecuta el código de las otras, y ninguna suma dependencias obligatorias.
 
 ## Armado
@@ -359,6 +361,7 @@ Para esto **no hace falta una app propia**: `MetaConfig(api_version="v24.0")` si
 - [X: API v2, pago por uso y lo que conviene saber](docs/x.md)
 - [Threads: login, publicar en etapas y lo que conviene saber](docs/threads.md)
 - [Instagram con login propio](docs/instagram.md)
+- [Bluesky: contraseñas de aplicación y lo que conviene saber](docs/bluesky.md)
 - [Lo que vale para todas las redes](docs/redes-pendientes.md)
 - [Sumar una red](docs/nueva-red.md)
 - [Hoja de ruta: diez sprints](docs/hoja-de-ruta.md)
