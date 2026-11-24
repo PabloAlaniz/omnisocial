@@ -13,6 +13,7 @@ from omnisocial.adapters.stores.memory import (
     InMemoryConnectionRepository,
     InMemoryPublicationRepository,
     InMemoryQuotaLedger,
+    InMemoryServerAppStore,
 )
 from omnisocial.adapters.system import SystemClock
 from omnisocial.application.quota import QuotaBudget
@@ -31,7 +32,7 @@ from omnisocial.application.results import (
 from omnisocial.application.use_cases.refreshing import RefreshReport
 from omnisocial.application.use_cases.webhooks import OnEvents, RoutedEvent, WebhookReceived
 from omnisocial.domain.asset import Asset, DiscoveredAsset
-from omnisocial.domain.authorization import Purpose
+from omnisocial.domain.authorization import CredentialField, Purpose, ServerApp
 from omnisocial.domain.connection import Connection, ConnectionChange, ConnectionStatus
 from omnisocial.domain.content import Comment, CommentAction, Post
 from omnisocial.domain.errors import (
@@ -73,6 +74,7 @@ from omnisocial.domain.publishing import (
     PublishOptions,
 )
 from omnisocial.domain.redirect import ReturnUrlPolicy
+from omnisocial.domain.server import normalize_server
 from omnisocial.domain.spec import NetworkSpec
 from omnisocial.domain.token import Token, TokenKind
 from omnisocial.domain.webhooks import EventAction, EventKind, SocialEvent
@@ -95,6 +97,7 @@ __all__ = [
     "ConnectionChange",
     "ConnectionStatus",
     "Conversation",
+    "CredentialField",
     "DiscoveredAsset",
     "Done",
     "Draft",
@@ -111,6 +114,7 @@ __all__ = [
     "InMemoryConnectionRepository",
     "InMemoryPublicationRepository",
     "InMemoryQuotaLedger",
+    "InMemoryServerAppStore",
     "InsightsRead",
     "LoggedIn",
     "Media",
@@ -149,6 +153,7 @@ __all__ = [
     "ReplyWindow",
     "ReturnUrlPolicy",
     "RoutedEvent",
+    "ServerApp",
     "SocialEvent",
     "SystemClock",
     "TimeWindow",
@@ -158,5 +163,6 @@ __all__ = [
     "UnknownProvider",
     "ValidToken",
     "WebhookReceived",
+    "normalize_server",
     "parse_handle",
 ]

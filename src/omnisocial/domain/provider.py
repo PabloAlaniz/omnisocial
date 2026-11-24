@@ -21,5 +21,7 @@ class Capability(StrEnum):
     WEBHOOKS = "webhooks"
     PUBLISHING = "publishing"
     """Publicar en un activo, retomar una publicación en curso y borrarla."""
+    CREDENTIALS = "credentials"
+    """Conectar una cuenta con una credencial (una contraseña de aplicación, por ejemplo), sin OAuth."""
     PUBLIC_PROFILES = "public_profiles"
     """Leer el perfil público de cuentas que no se administran."""

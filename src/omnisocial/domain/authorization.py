@@ -27,6 +27,28 @@ def pkce_challenge(verifier: str) -> str:
 
 
 @dataclass(frozen=True, slots=True)
+class CredentialField:
+    """Un dato que la persona carga para conectar con una credencial."""
+
+    name: str
+    secret: bool = False
+    """Hay que ocultarlo al escribirlo y no guardarlo ni mostrarlo después."""
+    required: bool = True
+
+
+@dataclass(frozen=True, slots=True)
+class ServerApp:
+    """La app registrada en un servidor de una red federada. Cada servidor da su propia clave y secreto."""
+
+    provider: ProviderId
+    server: str
+    redirect_uri: str
+    """La app queda atada a la URL de retorno con la que se registró."""
+    client_id: str
+    client_secret: str = field(repr=False)
+
+
+@dataclass(frozen=True, slots=True)
 class AuthorizationRequest:
     state: str
     provider: ProviderId
@@ -38,6 +60,8 @@ class AuthorizationRequest:
     owner: str | None = None
     return_url: str | None = None
     code_verifier: str | None = field(default=None, repr=False)
+    server: str | None = None
+    """En una red federada, el servidor donde la persona autoriza."""
 
     def is_expired(self, now: datetime) -> bool:
         return now >= self.expires_at

@@ -95,7 +95,8 @@ EXTRA_SPECS = (INSTAGRAM_SPEC,)
 SPEC = NetworkSpec(
     id=META,
     name="Meta",
-    capabilities=frozenset(Capability),
+    # Todas menos conectar con una credencial: el token de un usuario de sistema se registra aparte.
+    capabilities=frozenset(Capability) - {Capability.CREDENTIALS},
     assets={FACEBOOK_PAGE: PAGE_CAPABILITIES, INSTAGRAM_ACCOUNT: INSTAGRAM_CAPABILITIES},
     errors=ERRORS,
     docs="docs/meta.md",

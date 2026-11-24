@@ -11,9 +11,10 @@ from omnisocial.application.ports import (
     ConnectionRepository,
     PublicationRepository,
     QuotaLedger,
+    ServerAppStore,
 )
 from omnisocial.domain.asset import Asset
-from omnisocial.domain.authorization import AuthorizationRequest, Purpose
+from omnisocial.domain.authorization import AuthorizationRequest, Purpose, ServerApp
 from omnisocial.domain.connection import Connection, ConnectionStatus
 from omnisocial.domain.identity import Identity
 from omnisocial.domain.provider import Capability, ProviderId
@@ -199,3 +200,21 @@ async def quota_contract(ledger: QuotaLedger) -> None:
     assert await ledger.spend("otra", "2026-11-23", 1, limit=100)
     assert not await ledger.spend("nueva", "2026-11-23", 101, limit=100)
     assert await ledger.spent("nueva", "2026-11-23") == 0
+
+
+async def server_app_contract(store: ServerAppStore) -> None:
+    first = ServerApp(P, "mastodon.social", "https://api/cb", "id-1", "secreto-1")
+    assert await store.get(P, "mastodon.social", "https://api/cb") is None
+    assert await store.add(first) == first
+    assert await store.get(P, "mastodon.social", "https://api/cb") == first
+    # Si dos procesos registran a la vez, los dos se quedan con la primera.
+    late = ServerApp(P, "mastodon.social", "https://api/cb", "id-2", "secreto-2")
+    assert await store.add(late) == first
+    # Otro servidor, otra URL de retorno u otra red son apps distintas.
+    for other in (
+        ServerApp(P, "hachyderm.io", "https://api/cb", "id-3", "s"),
+        ServerApp(P, "mastodon.social", "https://otra/cb", "id-4", "s"),
+        ServerApp(ProviderId("otra"), "mastodon.social", "https://api/cb", "id-5", "s"),
+    ):
+        assert await store.add(other) == other
+    assert "secreto-1" not in repr(first)

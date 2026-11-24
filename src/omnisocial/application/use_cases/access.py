@@ -101,15 +101,15 @@ class GetValidToken:
         due = token.needs_refresh(now) if margin is None else token.needs_refresh(now, margin)
         if not due:
             return None
-        oauth = self._registry.get(connection.provider).oauth
-        if oauth is None or not oauth.can_refresh(token):
+        refresher = self._registry.get(connection.provider).refresher
+        if refresher is None or not refresher.can_refresh(token):
             return (
                 connection.mark(ConnectionStatus.EXPIRED, "el token venció", now)
                 if token.is_expired(now)
                 else None
             )
         try:
-            fresh = await oauth.refresh(token)
+            fresh = await refresher.refresh(token)
         except TokenRejected as error:
             return connection.mark(ConnectionStatus.INVALID, str(error), now)
         return connection.with_token(fresh, now)

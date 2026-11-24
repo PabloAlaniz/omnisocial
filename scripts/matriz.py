@@ -24,6 +24,7 @@ END = "<!-- matriz:fin -->"
 
 COLUMNS = {
     Capability.LOGIN: "Login",
+    Capability.CREDENTIALS: "Credencial",
     Capability.ASSETS: "Activos",
     Capability.CONTENT: "Publicaciones",
     Capability.PUBLISHING: "Publicar",

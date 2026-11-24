@@ -17,7 +17,7 @@ from typing import Protocol
 from omniwebhook import Verifier
 
 from omnisocial.domain.asset import Asset, DiscoveredAsset
-from omnisocial.domain.authorization import AuthorizationRequest, Purpose
+from omnisocial.domain.authorization import AuthorizationRequest, CredentialField, Purpose, ServerApp
 from omnisocial.domain.connection import Connection, ConnectionChange
 from omnisocial.domain.content import Comment, CommentAction, Post
 from omnisocial.domain.handles import Handle, Network
@@ -61,6 +61,69 @@ class OAuthClient(Protocol):
     async def refresh(self, token: Token) -> Token:
         """Renueva el token. Lanza `TokenRejected` si la red ya no lo acepta."""
         ...
+
+    async def revoke(self, token: Token) -> None: ...
+
+
+class ServerOAuth(Protocol):
+    """OAuth en una red federada: la persona elige el servidor, y cada servidor es una app distinta.
+
+    Reemplaza a `OAuthClient` en esas redes. La identidad la lee un `IdentityReader` aparte, con el
+    servidor que el token lleva anotado.
+    """
+
+    @property
+    def supports_pkce(self) -> bool: ...
+
+    def default_scopes(self, purpose: Purpose) -> tuple[str, ...]: ...
+
+    async def authorization_url(
+        self, server: str, *, state: str, redirect_uri: str, scopes: Sequence[str], code_challenge: str | None
+    ) -> str:
+        """Puede llamar al servidor: en algunas redes la app se registra ahí la primera vez."""
+        ...
+
+    async def exchange_code(
+        self, server: str, *, code: str, redirect_uri: str, code_verifier: str | None
+    ) -> Token:
+        """El token vuelve con `server` anotado."""
+        ...
+
+    def can_refresh(self, token: Token) -> bool: ...
+
+    async def refresh(self, token: Token) -> Token: ...
+
+    async def revoke(self, token: Token) -> None: ...
+
+
+class CredentialLogin(Protocol):
+    """Conectar con una credencial que la persona genera en la red, sin pasar por un diálogo de OAuth."""
+
+    @property
+    def fields(self) -> Sequence[CredentialField]:
+        """Lo que hay que pedirle a la persona."""
+        ...
+
+    async def login(self, credentials: Mapping[str, str]) -> Token:
+        """Cambia la credencial por un token. Lanza `TokenRejected` si la red no la acepta.
+
+        La credencial no se guarda: se guarda el token.
+        """
+        ...
+
+    def can_refresh(self, token: Token) -> bool: ...
+
+    async def refresh(self, token: Token) -> Token: ...
+
+    async def revoke(self, token: Token) -> None: ...
+
+
+class TokenRefresher(Protocol):
+    """Lo que tienen en común las tres formas de conectar: renovar y revocar."""
+
+    def can_refresh(self, token: Token) -> bool: ...
+
+    async def refresh(self, token: Token) -> Token: ...
 
     async def revoke(self, token: Token) -> None: ...
 
@@ -248,6 +311,17 @@ class QuotaLedger(Protocol):
         ...
 
     async def spent(self, key: str, period: str) -> int: ...
+
+
+class ServerAppStore(Protocol):
+    """Las apps registradas en cada servidor de una red federada."""
+
+    async def get(self, provider: ProviderId, server: str, redirect_uri: str) -> ServerApp | None: ...
+
+    async def add(self, app: ServerApp) -> ServerApp:
+        """Guarda la app si ese servidor no tenía una para esa URL de retorno. Devuelve la que quedó
+        guardada: si dos procesos registran a la vez, los dos usan la misma."""
+        ...
 
 
 class AuthorizationStateStore(Protocol):

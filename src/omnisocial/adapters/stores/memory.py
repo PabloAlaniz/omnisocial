@@ -15,9 +15,10 @@ from omnisocial.application.ports import (
     ConnectionRepository,
     PublicationRepository,
     QuotaLedger,
+    ServerAppStore,
 )
 from omnisocial.domain.asset import Asset
-from omnisocial.domain.authorization import AuthorizationRequest
+from omnisocial.domain.authorization import AuthorizationRequest, ServerApp
 from omnisocial.domain.connection import Connection
 from omnisocial.domain.provider import ProviderId
 from omnisocial.domain.publishing import Publication
@@ -175,3 +176,16 @@ class InMemoryQuotaLedger(QuotaLedger):
     @override
     async def spent(self, key: str, period: str) -> int:
         return self._used.get((key, period), 0)
+
+
+class InMemoryServerAppStore(ServerAppStore):
+    def __init__(self) -> None:
+        self._apps: dict[tuple[ProviderId, str, str], ServerApp] = {}
+
+    @override
+    async def get(self, provider: ProviderId, server: str, redirect_uri: str) -> ServerApp | None:
+        return self._apps.get((provider, server, redirect_uri))
+
+    @override
+    async def add(self, app: ServerApp) -> ServerApp:
+        return self._apps.setdefault((app.provider, app.server, app.redirect_uri), app)

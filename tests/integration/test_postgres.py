@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from dataclasses import replace
 from typing import Any
 
 import pytest
@@ -13,6 +14,7 @@ from omnisocial.adapters.stores.postgres import (
     PostgresConnectionRepository,
     PostgresPublicationRepository,
     PostgresQuotaLedger,
+    PostgresServerAppStore,
 )
 from omnisocial.domain.redirect import ReturnUrlPolicy
 from omnisocial.entrypoints.hub import Omnisocial
@@ -24,6 +26,7 @@ from tests.adapters.stores.contract import (
     publication_contract,
     quota_contract,
     request,
+    server_app_contract,
     state_contract,
 )
 from tests.fakes import FakeClock, FakeNetwork, incoming, sign
@@ -47,6 +50,23 @@ async def test_estados(pool: Pool, cipher: AesGcmTokenCipher) -> None:
 
 async def test_publicaciones(pool: Pool) -> None:
     await publication_contract(PostgresPublicationRepository(pool))
+
+
+async def test_apps_por_servidor(pool: Pool, cipher: AesGcmTokenCipher) -> None:
+    await server_app_contract(PostgresServerAppStore(pool, cipher))
+    async with pool.connection() as conn:
+        cur = await conn.execute("SELECT client_secret FROM omnisocial_server_apps")
+        assert "secreto-1" not in repr(await cur.fetchall())
+
+
+async def test_el_servidor_del_token_se_guarda_con_el(pool: Pool, cipher: AesGcmTokenCipher) -> None:
+    connections = PostgresConnectionRepository(pool, cipher)
+    federated = connection("c9", subject="u9")
+    token = replace(federated.token, server="mastodon.social")
+    await connections.add(replace(federated, token=token))
+    stored = await connections.get("c9")
+    assert stored is not None
+    assert stored.token.server == "mastodon.social"
 
 
 async def test_cuota(pool: Pool) -> None:

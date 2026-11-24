@@ -6,6 +6,7 @@ from omnisocial.adapters.stores.memory import (
     InMemoryConnectionRepository,
     InMemoryPublicationRepository,
     InMemoryQuotaLedger,
+    InMemoryServerAppStore,
 )
 from omnisocial.application.quota import QuotaBudget
 from tests.adapters.stores.contract import (
@@ -15,6 +16,7 @@ from tests.adapters.stores.contract import (
     publication_contract,
     quota_contract,
     request,
+    server_app_contract,
     state_contract,
 )
 from tests.fakes import FakeClock
@@ -34,6 +36,10 @@ async def test_estados() -> None:
 
 async def test_publicaciones() -> None:
     await publication_contract(InMemoryPublicationRepository())
+
+
+async def test_apps_por_servidor() -> None:
+    await server_app_contract(InMemoryServerAppStore())
 
 
 async def test_cuota() -> None:

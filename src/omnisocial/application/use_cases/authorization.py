@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from collections.abc import Callable, Sequence
+from collections.abc import Callable, Mapping, Sequence
 from contextlib import suppress
 from dataclasses import dataclass
 from datetime import timedelta
@@ -32,6 +32,7 @@ from omnisocial.domain.connection import Connection, ConnectionStatus
 from omnisocial.domain.errors import ProviderError, TokenRejected
 from omnisocial.domain.provider import Capability
 from omnisocial.domain.redirect import ReturnUrlPolicy
+from omnisocial.domain.server import normalize_server
 from omnisocial.domain.token import Token
 
 RedirectUriFor = Callable[[str], str]
@@ -71,13 +72,18 @@ class StartAuthorization:
         owner: str | None = None,
         return_url: str | None = None,
         scopes: Sequence[str] | None = None,
+        server: str | None = None,
     ) -> AuthorizationStarted | Refused:
+        """`server`: en una red federada, el servidor donde está la cuenta (`mastodon.social`)."""
         provider = self._registry.get(provider_id)
-        oauth = provider.require_oauth()
+        oauth = provider.server_oauth or provider.require_oauth()
         if purpose is Purpose.CONNECT and not owner:
             return Refused(Refusal.OWNER_REQUIRED)
         if return_url is not None and not self._settings.return_urls.allows(return_url):
             return Refused(Refusal.RETURN_URL_NOT_ALLOWED)
+        host = _server_for(provider, server)
+        if isinstance(host, Refused):
+            return host
 
         now = self._clock.now()
         request = AuthorizationRequest(
@@ -91,15 +97,32 @@ class StartAuthorization:
             owner=owner,
             return_url=return_url,
             code_verifier=self._secrets.token(48) if oauth.supports_pkce else None,
+            server=host,
         )
         await self._states.put(request)
-        url = oauth.authorization_url(
-            state=request.state,
-            redirect_uri=request.redirect_uri,
-            scopes=request.scopes,
-            code_challenge=request.code_challenge,
-        )
-        return AuthorizationStarted(url=url, state=request.state)
+        return AuthorizationStarted(url=await self._url(provider, request), state=request.state)
+
+    @staticmethod
+    async def _url(provider: Provider, request: AuthorizationRequest) -> str:
+        details = {
+            "state": request.state,
+            "redirect_uri": request.redirect_uri,
+            "scopes": request.scopes,
+            "code_challenge": request.code_challenge,
+        }
+        if provider.server_oauth is not None and request.server is not None:
+            return await provider.server_oauth.authorization_url(request.server, **details)  # type: ignore[arg-type]
+        return provider.require_oauth().authorization_url(**details)  # type: ignore[arg-type]
+
+
+def _server_for(provider: Provider, server: str | None) -> str | Refused | None:
+    """El servidor validado, `None` si la red no es federada, o la negativa que corresponde."""
+    if provider.server_oauth is None:
+        return None
+    if not server:
+        return Refused(Refusal.SERVER_REQUIRED)
+    host = normalize_server(server)
+    return host if host is not None else Refused(Refusal.INVALID_SERVER, detail=server)
 
 
 class ConnectionStore:
@@ -225,12 +248,10 @@ class CompleteAuthorization:
         request, valid_code = checked
 
         provider = self._registry.get(request.provider)
-        oauth = provider.require_oauth()
-        token = await oauth.exchange_code(
-            code=valid_code, redirect_uri=request.redirect_uri, code_verifier=request.code_verifier
-        )
+        token = await self._exchange(provider, request, valid_code)
         if request.purpose is Purpose.LOGIN:
-            return LoggedIn(identity=await oauth.identity(token), token=token, return_url=request.return_url)
+            identity = await provider.require_identity().identity(token)
+            return LoggedIn(identity=identity, token=token, return_url=request.return_url)
         if request.owner is None:  # pragma: no cover - StartAuthorization lo exige para CONNECT
             return Refused(Refusal.OWNER_REQUIRED, return_url=request.return_url)
         connected = await self._store.store(provider, owner=request.owner, token=token)
@@ -239,6 +260,19 @@ class CompleteAuthorization:
             assets=connected.assets,
             return_url=request.return_url,
             reconnected=connected.reconnected,
+        )
+
+    @staticmethod
+    async def _exchange(provider: Provider, request: AuthorizationRequest, code: str) -> Token:
+        if provider.server_oauth is not None and request.server is not None:
+            return await provider.server_oauth.exchange_code(
+                request.server,
+                code=code,
+                redirect_uri=request.redirect_uri,
+                code_verifier=request.code_verifier,
+            )
+        return await provider.require_oauth().exchange_code(
+            code=code, redirect_uri=request.redirect_uri, code_verifier=request.code_verifier
         )
 
     def _check(
@@ -287,6 +321,39 @@ class RegisterSystemConnection:
         return await self._store.store(provider, owner=owner, token=token, discovered=discovered)
 
 
+class ConnectWithCredentials:
+    """Conecta una cuenta con una credencial que la persona generó en la red (una contraseña de
+    aplicación, por ejemplo), para las redes que no usan un diálogo de OAuth.
+
+    La credencial se cambia por un token y se descarta: lo que se guarda es el token.
+    """
+
+    def __init__(self, *, registry: ProviderRegistry, store: ConnectionStore) -> None:
+        self._registry = registry
+        self._store = store
+
+    async def execute(
+        self, provider_id: str, *, owner: str, credentials: Mapping[str, str]
+    ) -> Connected | Refused:
+        provider = self._registry.get(provider_id)
+        login = provider.require_credentials()
+        if not owner:
+            return Refused(Refusal.OWNER_REQUIRED)
+        missing = [f.name for f in login.fields if f.required and not credentials.get(f.name)]
+        if missing:
+            return Refused(Refusal.CREDENTIALS_REQUIRED, detail=", ".join(missing))
+        try:
+            token = await login.login(credentials)
+        except TokenRejected as error:
+            return Refused(Refusal.PROVIDER_DENIED, detail=str(error))
+        except ProviderError as error:
+            refused = refusal_for(error, Capability.CREDENTIALS)
+            if refused is None:
+                raise
+            return refused
+        return await self._store.store(provider, owner=owner, token=token)
+
+
 class Disconnect:
     """Revoca en la red (si se puede) y marca la conexión como revocada."""
 
@@ -309,10 +376,10 @@ class Disconnect:
         connection = await self._connections.get(connection_id)
         if connection is None:
             return Refused(Refusal.NOT_FOUND)
-        oauth = self._registry.get(connection.provider).oauth
-        if revoke_remote and oauth is not None and connection.is_usable:
+        refresher = self._registry.get(connection.provider).refresher
+        if revoke_remote and refresher is not None and connection.is_usable:
             with suppress(TokenRejected):  # si ya no servía, el resultado es el mismo
-                await oauth.revoke(connection.token)
+                await refresher.revoke(connection.token)
         revoked = connection.mark(ConnectionStatus.REVOKED, "desconectada", self._clock.now())
         while not await self._connections.save(revoked, expected_version=connection.version):
             current = await self._connections.get(connection_id)

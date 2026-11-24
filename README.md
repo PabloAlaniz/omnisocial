@@ -29,24 +29,24 @@ esas reglas de cada red:
 Redes disponibles, y qué puede hacer cada una y cada tipo de activo:
 
 <!-- matriz:inicio (generada por scripts/matriz.py, no editar a mano) -->
-| Red | Activo | Login | Activos | Publicaciones | Publicar | Comentarios | Mensajes | Métricas | Webhooks | Perfiles públicos |
-|---|---|---|---|---|---|---|---|---|---|---|
-| [**Instagram (login propio)**](docs/instagram.md) |  | ✓ | ✓ | ✓ | ✓ | ✓ |  | ✓ |  |  |
-|  | `instagram_account` |  |  | ✓ | ✓ | ✓ |  | ✓ |  |  |
-| [**LinkedIn**](docs/linkedin.md) |  | ✓ | ✓ | ✓ | ✓ | ✓ |  | ✓ |  |  |
-|  | `linkedin_member` |  |  |  | ✓ |  |  |  |  |  |
-|  | `linkedin_organization` |  |  | ✓ | ✓ | ✓ |  | ✓ |  |  |
-| [**Meta**](docs/meta.md) |  | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
-|  | `facebook_page` |  |  | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |  |
-|  | `instagram_account` |  |  | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |  |
-| [**Threads**](docs/threads.md) |  | ✓ | ✓ | ✓ | ✓ | ✓ |  | ✓ |  |  |
-|  | `threads_account` |  |  | ✓ | ✓ | ✓ |  | ✓ |  |  |
-| [**TikTok**](docs/tiktok.md) |  | ✓ | ✓ | ✓ | ✓ |  |  | ✓ | ✓ |  |
-|  | `tiktok_account` |  |  | ✓ | ✓ |  |  | ✓ |  |  |
-| [**X**](docs/x.md) |  | ✓ | ✓ | ✓ | ✓ | ✓ |  | ✓ |  | ✓ |
-|  | `x_account` |  |  | ✓ | ✓ | ✓ |  | ✓ |  |  |
-| [**YouTube**](docs/youtube.md) |  | ✓ | ✓ | ✓ | ✓ | ✓ |  | ✓ |  | ✓ |
-|  | `youtube_channel` |  |  | ✓ | ✓ | ✓ |  | ✓ |  |  |
+| Red | Activo | Login | Credencial | Activos | Publicaciones | Publicar | Comentarios | Mensajes | Métricas | Webhooks | Perfiles públicos |
+|---|---|---|---|---|---|---|---|---|---|---|---|
+| [**Instagram (login propio)**](docs/instagram.md) |  | ✓ |  | ✓ | ✓ | ✓ | ✓ |  | ✓ |  |  |
+|  | `instagram_account` |  |  |  | ✓ | ✓ | ✓ |  | ✓ |  |  |
+| [**LinkedIn**](docs/linkedin.md) |  | ✓ |  | ✓ | ✓ | ✓ | ✓ |  | ✓ |  |  |
+|  | `linkedin_member` |  |  |  |  | ✓ |  |  |  |  |  |
+|  | `linkedin_organization` |  |  |  | ✓ | ✓ | ✓ |  | ✓ |  |  |
+| [**Meta**](docs/meta.md) |  | ✓ |  | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
+|  | `facebook_page` |  |  |  | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |  |
+|  | `instagram_account` |  |  |  | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |  |
+| [**Threads**](docs/threads.md) |  | ✓ |  | ✓ | ✓ | ✓ | ✓ |  | ✓ |  |  |
+|  | `threads_account` |  |  |  | ✓ | ✓ | ✓ |  | ✓ |  |  |
+| [**TikTok**](docs/tiktok.md) |  | ✓ |  | ✓ | ✓ | ✓ |  |  | ✓ | ✓ |  |
+|  | `tiktok_account` |  |  |  | ✓ | ✓ |  |  | ✓ |  |  |
+| [**X**](docs/x.md) |  | ✓ |  | ✓ | ✓ | ✓ | ✓ |  | ✓ |  | ✓ |
+|  | `x_account` |  |  |  | ✓ | ✓ | ✓ |  | ✓ |  |  |
+| [**YouTube**](docs/youtube.md) |  | ✓ |  | ✓ | ✓ | ✓ | ✓ |  | ✓ |  | ✓ |
+|  | `youtube_channel` |  |  |  | ✓ | ✓ | ✓ |  | ✓ |  |  |
 <!-- matriz:fin -->
 
 Instagram está dos veces: a través de una página de Facebook (dentro de Meta, con todo) o con su login

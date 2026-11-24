@@ -24,10 +24,11 @@ from omnisocial.application.ports import (
     ConnectionRepository,
     PublicationRepository,
     QuotaLedger,
+    ServerAppStore,
     TokenCipher,
 )
 from omnisocial.domain.asset import Asset
-from omnisocial.domain.authorization import AuthorizationRequest, Purpose
+from omnisocial.domain.authorization import AuthorizationRequest, Purpose, ServerApp
 from omnisocial.domain.connection import Connection, ConnectionStatus
 from omnisocial.domain.identity import Identity
 from omnisocial.domain.provider import Capability, ProviderId
@@ -99,6 +100,15 @@ CREATE TABLE IF NOT EXISTS omnisocial_publications (
 );
 CREATE INDEX IF NOT EXISTS omnisocial_publications_owner ON omnisocial_publications (owner, created_at);
 
+CREATE TABLE IF NOT EXISTS omnisocial_server_apps (
+    provider      text NOT NULL,
+    server        text NOT NULL,
+    redirect_uri  text NOT NULL,
+    client_id     text NOT NULL,
+    client_secret text NOT NULL,
+    PRIMARY KEY (provider, server, redirect_uri)
+);
+
 CREATE TABLE IF NOT EXISTS omnisocial_quota (
     key    text NOT NULL,
     period text NOT NULL,
@@ -116,7 +126,11 @@ async def create_schema(pool: AsyncConnectionPool[Any]) -> None:
 
 
 def _seal(cipher: TokenCipher, token: Token, context: str) -> str:
-    secret = {"access_token": token.access_token, "refresh_token": token.refresh_token}
+    secret = {
+        "access_token": token.access_token,
+        "refresh_token": token.refresh_token,
+        "server": token.server,
+    }
     return cipher.encrypt(json.dumps(secret), context=context)
 
 
@@ -128,6 +142,7 @@ def _open(cipher: TokenCipher, row: dict[str, Any], context: str) -> Token:
         refresh_token=secret.get("refresh_token"),
         expires_at=row["token_expires_at"],
         scopes=frozenset(row.get("token_scopes") or ()),
+        server=secret.get("server"),
     )
 
 
@@ -369,6 +384,7 @@ def _request_to_json(request: AuthorizationRequest) -> str:
             "owner": request.owner,
             "return_url": request.return_url,
             "code_verifier": request.code_verifier,
+            "server": request.server,
         }
     )
 
@@ -386,6 +402,7 @@ def _request_from_json(raw: str) -> AuthorizationRequest:
         owner=data["owner"],
         return_url=data["return_url"],
         code_verifier=data["code_verifier"],
+        server=data.get("server"),
     )
 
 
@@ -543,3 +560,44 @@ class PostgresQuotaLedger(QuotaLedger):
             )
             row = await cur.fetchone()
             return int(row[0]) if row else 0
+
+
+class PostgresServerAppStore(ServerAppStore):
+    """Las apps registradas en cada servidor de una red federada. El secreto va cifrado."""
+
+    def __init__(self, pool: AsyncConnectionPool[Any], cipher: TokenCipher) -> None:
+        self._pool = pool
+        self._cipher = cipher
+
+    @staticmethod
+    def _context(provider: str, server: str, redirect_uri: str) -> str:
+        return f"omnisocial|server_app|{provider}|{server}|{redirect_uri}"
+
+    @override
+    async def get(self, provider: ProviderId, server: str, redirect_uri: str) -> ServerApp | None:
+        async with self._pool.connection() as conn:
+            cur = await conn.execute(
+                "SELECT client_id, client_secret FROM omnisocial_server_apps "
+                "WHERE provider = %s AND server = %s AND redirect_uri = %s",
+                [provider, server, redirect_uri],
+            )
+            row = await cur.fetchone()
+        if row is None:
+            return None
+        secret = self._cipher.decrypt(row[1], context=self._context(provider, server, redirect_uri))
+        return ServerApp(provider, server, redirect_uri, row[0], secret)
+
+    @override
+    async def add(self, app: ServerApp) -> ServerApp:
+        sealed = self._cipher.encrypt(
+            app.client_secret, context=self._context(app.provider, app.server, app.redirect_uri)
+        )
+        async with self._pool.connection() as conn:
+            await conn.execute(
+                "INSERT INTO omnisocial_server_apps "
+                "(provider, server, redirect_uri, client_id, client_secret) "
+                "VALUES (%s, %s, %s, %s, %s) ON CONFLICT DO NOTHING",
+                [app.provider, app.server, app.redirect_uri, app.client_id, sealed],
+            )
+        stored = await self.get(app.provider, app.server, app.redirect_uri)
+        return stored or app

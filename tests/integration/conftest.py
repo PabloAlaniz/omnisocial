@@ -21,7 +21,7 @@ async def pool() -> AsyncIterator[AsyncConnectionPool[Any]]:
             await conn.execute(
                 "DROP TABLE IF EXISTS omnisocial_assets, omnisocial_connections, "
                 "omnisocial_authorization_states, omnisocial_publications, omnisocial_quota, "
-                "omniwebhook_events"
+                "omnisocial_server_apps, omniwebhook_events"
             )
         await create_schema(pool)
         yield pool

@@ -11,12 +11,15 @@ from omnisocial.application.ports import (
     AssetDirectory,
     CommentGateway,
     ContentReader,
+    CredentialLogin,
     IdentityReader,
     InsightsReader,
     MessagingGateway,
     OAuthClient,
     ProfileLookup,
     Publisher,
+    ServerOAuth,
+    TokenRefresher,
     WebhookParser,
 )
 from omnisocial.domain.errors import CapabilityNotSupported, UnknownProvider
@@ -42,6 +45,10 @@ class Provider:
     webhooks: WebhookParser | None = None
     profiles: ProfileLookup | None = None
     publisher: Publisher | None = None
+    server_oauth: ServerOAuth | None = None
+    """OAuth en una red federada, donde la persona elige el servidor. Va en lugar de `oauth`."""
+    credentials: CredentialLogin | None = None
+    """Conectar con una credencial, sin OAuth."""
     identity: IdentityReader | None = None
     """Quién es el dueño de un token sin pasar por OAuth. Si falta, se usa el del OAuth."""
     spec: NetworkSpec | None = None
@@ -50,7 +57,8 @@ class Provider:
     @property
     def capabilities(self) -> frozenset[Capability]:
         present = {
-            Capability.LOGIN: self.oauth,
+            Capability.LOGIN: self.oauth or self.server_oauth,
+            Capability.CREDENTIALS: self.credentials,
             Capability.ASSETS: self.assets,
             Capability.CONTENT: self.content,
             Capability.COMMENTS: self.comments,
@@ -94,6 +102,14 @@ class Provider:
         if reader is None:
             raise CapabilityNotSupported(self.id, Capability.LOGIN)
         return reader
+
+    def require_credentials(self) -> CredentialLogin:
+        return self._require(self.credentials, Capability.CREDENTIALS)
+
+    @property
+    def refresher(self) -> TokenRefresher | None:
+        """Quien renueva y revoca los tokens de esta red, sea cual sea la forma de conectar."""
+        return self.oauth or self.server_oauth or self.credentials
 
     def require_publisher(self) -> Publisher:
         return self._require(self.publisher, Capability.PUBLISHING)

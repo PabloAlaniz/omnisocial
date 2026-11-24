@@ -12,18 +12,21 @@ from omnisocial.application.ports import (
     Clock,
     CommentGateway,
     ContentReader,
+    CredentialLogin,
     IdentityReader,
     InsightsReader,
     MessagingGateway,
     OAuthClient,
     ProfileLookup,
     Publisher,
+    ServerAppStore,
+    ServerOAuth,
     WebhookParser,
 )
 from omnisocial.application.quota import QuotaBudget
 from omnisocial.application.registry import ENTRY_POINT_GROUP, Provider, load_entry_point
 from omnisocial.domain.asset import Asset, DiscoveredAsset
-from omnisocial.domain.authorization import Purpose
+from omnisocial.domain.authorization import CredentialField, Purpose, ServerApp
 from omnisocial.domain.errors import (
     ErrorKind,
     NotPublished,
@@ -56,6 +59,8 @@ __all__ = [
     "Clock",
     "CommentGateway",
     "ContentReader",
+    "CredentialField",
+    "CredentialLogin",
     "DiscoveredAsset",
     "Draft",
     "ErrorKind",
@@ -88,6 +93,9 @@ __all__ = [
     "QuotaBudget",
     "QuotaExhausted",
     "RateLimited",
+    "ServerApp",
+    "ServerAppStore",
+    "ServerOAuth",
     "StandardOAuth",
     "SystemClock",
     "TextCount",

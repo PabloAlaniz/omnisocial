@@ -13,7 +13,7 @@ from tests.fakes import FakeNetwork
 
 def test_capacidades_segun_lo_que_trae() -> None:
     full = FakeNetwork().provider()
-    assert full.capabilities == frozenset(Capability)
+    assert full.capabilities == frozenset(Capability) - {Capability.CREDENTIALS}
     bare = Provider(ProviderId("vacia"))
     assert bare.capabilities == frozenset()
     for require in (

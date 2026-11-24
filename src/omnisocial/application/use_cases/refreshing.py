@@ -70,5 +70,5 @@ class RefreshExpiring:
     def _can_refresh(self, connection: Connection) -> bool:
         if connection.provider not in self._registry:
             return False
-        oauth = self._registry.get(connection.provider).oauth
-        return oauth is not None and oauth.can_refresh(connection.token)
+        refresher = self._registry.get(connection.provider).refresher
+        return refresher is not None and refresher.can_refresh(connection.token)

@@ -26,6 +26,7 @@ from omnisocial.application.use_cases.authorization import (
     AuthorizationSettings,
     CompleteAuthorization,
     ConnectionStore,
+    ConnectWithCredentials,
     Disconnect,
     RedirectUriFor,
     RegisterSystemConnection,
@@ -69,6 +70,7 @@ class Omnisocial:
     start_authorization: StartAuthorization
     complete_authorization: CompleteAuthorization
     register_system_connection: RegisterSystemConnection
+    connect_with_credentials: ConnectWithCredentials
     disconnect: Disconnect
     get_valid_token: GetValidToken
     resolve_asset_access: ResolveAssetAccess
@@ -136,6 +138,7 @@ class Omnisocial:
                 registry=registry, states=states, clock=clock, store=store
             ),
             register_system_connection=RegisterSystemConnection(registry=registry, store=store),
+            connect_with_credentials=ConnectWithCredentials(registry=registry, store=store),
             disconnect=Disconnect(
                 registry=registry, connections=connections, assets=assets, clock=clock, watch=watch
             ),
