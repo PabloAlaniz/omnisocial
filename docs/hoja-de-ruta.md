@@ -21,7 +21,7 @@ contrato común, tiene su página en `docs/` y aparece en la matriz de capacidad
 | 5 ✓ | Salud de las conexiones | Threads, Instagram con login propio |
 | 6 ✓ | Redes abiertas y federadas | Bluesky, Mastodon, Pixelfed |
 | 7 ✓ | Publicaciones con campos propios | Pinterest, Reddit, Google Business Profile |
-| 8 | Mensajería y comunidades | WhatsApp Business, Telegram, Discord |
+| 8 ✓ | Mensajería y comunidades | WhatsApp Business, Telegram, Discord |
 | 9 | Operar en producción | — |
 | 10 | Versión 1.0 | Snapchat, Twitch (según demanda) |
 
@@ -157,6 +157,11 @@ avisos de reseñas nuevas de Google (salen solo por Cloud Pub/Sub) y el ritmo co
   respeta.
 
 ## Sprint 8. Mensajería y comunidades: WhatsApp Business, Telegram y Discord
+
+**Hecho** ([ADR 0013](adr/0013-mensajes-sin-historial-y-bandeja.md), [whatsapp.md](whatsapp.md),
+[telegram.md](telegram.md), [discord.md](discord.md)). Quedaron afuera recibir mensajes de Discord (solo
+se entregan por una conexión permanente), bajar adjuntos, crear plantillas de WhatsApp, el alta de un
+número, y guardar la bandeja, que es de la app.
 
 - **WhatsApp Business**: mensajes con la ventana de 24 horas que ya modela `ReplyWindow`, plantillas para
   escribir fuera de la ventana, y webhooks.

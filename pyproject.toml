@@ -11,7 +11,7 @@ license = "MIT"
 license-files = ["LICENSE"]
 requires-python = ">=3.11"
 authors = [{ name = "Pablo Alaniz" }]
-keywords = ["social", "oauth", "graph-api", "facebook", "instagram", "tiktok", "youtube", "linkedin", "x", "twitter", "threads", "bluesky", "mastodon", "pixelfed", "fediverse", "pinterest", "reddit", "google-business-profile", "insights", "messaging", "comments", "webhooks"]
+keywords = ["social", "oauth", "graph-api", "facebook", "instagram", "tiktok", "youtube", "linkedin", "x", "twitter", "threads", "bluesky", "mastodon", "pixelfed", "fediverse", "pinterest", "reddit", "google-business-profile", "whatsapp", "telegram", "discord", "inbox", "insights", "messaging", "comments", "webhooks"]
 classifiers = [
     "Development Status :: 2 - Pre-Alpha",
     "Intended Audience :: Developers",

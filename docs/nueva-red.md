@@ -193,6 +193,24 @@ Si la red pide pocos pedidos a la vez o espaciados, se declara en `NetworkSpec.p
 envuelve el transporte con `paced(transport, pace)`. Conviene que `pace` sea un parámetro de la fábrica,
 para que quien despliega lo ajuste y las pruebas lo saquen.
 
+### Mensajes
+
+El `MessagingGateway` declara lo que acepta con `limits_for(asset)` (`MessagingLimits`): el largo del
+texto, cuántos adjuntos, si tiene plantillas y si deja leer las conversaciones. `send` recibe un
+`OutboundMessage` que ya entra en esos límites ([ADR 0013](adr/0013-mensajes-sin-historial-y-bandeja.md)).
+
+- **Si la red no deja leer las conversaciones**, `history=False`: el núcleo no llama a `list_conversations`
+  ni a `list_messages`, y quien manda dice a quién. Los mensajes entran por el `WebhookParser`.
+- **Un evento de mensaje** lleva `conversation_external_id` (lo que hay que guardar para responder),
+  `actor_name`, `attachments` y, si es sobre algo enviado, `status`.
+- **Si el aviso no dice de qué cuenta es**, el adaptador pone el id en la URL al registrarla y lo lee de
+  `query` en `parse`. En ese caso el secreto tiene que quedar atado a ese id, para que el de una cuenta
+  no sirva para otra.
+
+Si una capacidad se atiende con una credencial de la app y no con el token de la conexión (el token de un
+bot), un rechazo de esa credencial no se lanza como `TokenRejected`: no es la conexión la que murió. El
+arnés lo declara en `app_token_capabilities()`.
+
 ### Perfiles públicos de otra fuente
 
 `ProfileLookup` sirve también para una fuente que no es la API oficial de una red (un servicio propio, por

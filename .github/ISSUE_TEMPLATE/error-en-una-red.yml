@@ -23,6 +23,9 @@ body:
         - Pinterest
         - Reddit
         - Google Business Profile
+        - WhatsApp Business
+        - Telegram
+        - Discord
         - El núcleo, no una red
     validations:
       required: true

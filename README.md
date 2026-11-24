@@ -33,6 +33,10 @@ Redes disponibles, y qué puede hacer cada una y cada tipo de activo:
 |---|---|---|---|---|---|---|---|---|---|---|---|
 | [**Bluesky**](docs/bluesky.md) |  |  | ✓ | ✓ | ✓ | ✓ | ✓ |  | ✓ |  | ✓ |
 |  | `bluesky_account` |  |  |  | ✓ | ✓ | ✓ |  | ✓ |  |  |
+| [**Discord**](docs/discord.md) |  | ✓ |  | ✓ |  | ✓ |  |  |  |  |  |
+|  | `discord_guild` |  |  |  |  | ✓ |  |  |  |  |  |
+| [**Discord (webhook)**](docs/discord.md) |  |  | ✓ | ✓ |  | ✓ |  |  |  |  |  |
+|  | `discord_webhook` |  |  |  |  | ✓ |  |  |  |  |  |
 | [**Google Business Profile**](docs/google-business.md) |  | ✓ |  | ✓ | ✓ | ✓ | ✓ |  | ✓ |  |  |
 |  | `google_business_location` |  |  |  | ✓ | ✓ | ✓ |  | ✓ |  |  |
 | [**Instagram (login propio)**](docs/instagram.md) |  | ✓ |  | ✓ | ✓ | ✓ | ✓ |  | ✓ |  |  |
@@ -51,10 +55,14 @@ Redes disponibles, y qué puede hacer cada una y cada tipo de activo:
 |  | `pixelfed_account` |  |  |  | ✓ | ✓ | ✓ |  | ✓ |  |  |
 | [**Reddit**](docs/reddit.md) |  | ✓ |  | ✓ | ✓ | ✓ | ✓ |  |  |  |  |
 |  | `reddit_account` |  |  |  | ✓ | ✓ | ✓ |  |  |  |  |
+| [**Telegram**](docs/telegram.md) |  |  | ✓ | ✓ |  | ✓ |  | ✓ |  | ✓ |  |
+|  | `telegram_bot` |  |  |  |  | ✓ |  | ✓ |  | ✓ |  |
 | [**Threads**](docs/threads.md) |  | ✓ |  | ✓ | ✓ | ✓ | ✓ |  | ✓ |  |  |
 |  | `threads_account` |  |  |  | ✓ | ✓ | ✓ |  | ✓ |  |  |
 | [**TikTok**](docs/tiktok.md) |  | ✓ |  | ✓ | ✓ | ✓ |  |  | ✓ | ✓ |  |
 |  | `tiktok_account` |  |  |  | ✓ | ✓ |  |  | ✓ |  |  |
+| [**WhatsApp Business**](docs/whatsapp.md) |  | ✓ |  | ✓ |  |  |  | ✓ |  | ✓ |  |
+|  | `whatsapp_number` |  |  |  |  |  |  | ✓ |  | ✓ |  |
 | [**X**](docs/x.md) |  | ✓ |  | ✓ | ✓ | ✓ | ✓ |  | ✓ |  | ✓ |
 |  | `x_account` |  |  |  | ✓ | ✓ | ✓ |  | ✓ |  |  |
 | [**YouTube**](docs/youtube.md) |  | ✓ |  | ✓ | ✓ | ✓ | ✓ |  | ✓ |  | ✓ |
@@ -87,7 +95,8 @@ pip install "omnisocial[httpx,postgres,crypto,starlette]"
 
 Cada red se carga recién cuando se importa su módulo (`omnisocial.meta`, `omnisocial.tiktok`,
 `omnisocial.youtube`, `omnisocial.linkedin`, `omnisocial.x`, `omnisocial.threads`, `omnisocial.instagram`, `omnisocial.bluesky`, `omnisocial.mastodon`, `omnisocial.pixelfed`, `omnisocial.pinterest`, `omnisocial.reddit`,
-`omnisocial.google_business`): quien usa una
+`omnisocial.google_business`, `omnisocial.whatsapp`, `omnisocial.telegram`, `omnisocial.discord`,
+`omnisocial.discord_webhook`): quien usa una
 sola no ejecuta el código de las otras, y ninguna suma dependencias obligatorias.
 
 ## Armado
@@ -205,6 +214,9 @@ async def encolar(events: Sequence[RoutedEvent]) -> None:
 | Firma inválida o ausente                | 401       | no se llama                 |
 | Sin secreto configurado                 | 500       | no se llama                 |
 
+Un aviso de mensaje trae la conversación (`conversation_external_id`), los adjuntos y, si es sobre algo que
+se mandó, hasta dónde llegó (`status`: enviado, entregado, leído o fallido).
+
 La deduplicación es por entrega: si una entrega trae varios eventos y `on_events` falla, se reprocesa
 entera. Conviene que lo que haga `on_events` sea idempotente por evento.
 
@@ -249,6 +261,45 @@ conversations = await social.list_conversations.execute(instagram.id)
 sent = await social.send_message.execute(instagram.id, conversation_id=conv_id, text="Hola")
 # Refused(OUTSIDE_REPLY_WINDOW) si pasaron más de 24 horas desde el último mensaje de la persona.
 ```
+
+### Mensajes donde la red no guarda historial
+
+WhatsApp y Telegram no dejan leer las conversaciones: los mensajes llegan por avisos, y para responder
+hay que decir a quién. La app lo sabe porque guardó el aviso:
+
+```python
+from omnisocial import OutboundMessage, Recipient, TemplateRef
+
+to = Recipient(event.conversation_external_id, last_inbound_at=event.occurred_at)
+await social.send_message.execute(number.id, text="¡Hola!", to=to)
+await social.send_message.execute(
+    number.id, message=OutboundMessage("Mirá", attachments=(Media(MediaKind.IMAGE, url),)), to=to
+)
+# Fuera de la ventana solo sale una plantilla aprobada por la red.
+template = OutboundMessage(template=TemplateRef("recordatorio", "es_AR"))
+await social.send_message.execute(number.id, message=template, to=to)
+```
+
+Un mensaje que no entra en lo que acepta la red vuelve `Refused(INVALID_MESSAGE)` sin llamarla.
+
+### La bandeja
+
+Comentarios, mensajes y reseñas, de cualquier red, con la misma forma:
+
+```python
+from omnisocial import InboxKind, inbox_item_from_event
+
+inbox = await social.read_inbox.execute(page.id, since=ayer)
+for item in inbox.value.items:  # de lo más nuevo a lo más viejo
+    item.kind, item.author_name, item.text, item.rating, item.thread_external_id
+
+item = inbox_item_from_event(routed.event)  # lo mismo, desde un aviso; None si no es algo que escribieron
+```
+
+`read_inbox` sirve para ponerse al día: hace una llamada por publicación y otra por conversación. Lo que
+llega después conviene recibirlo por avisos. Lo que no se pudo leer (un permiso que falta) viene en
+`inbox.value.skipped`, y lo demás igual llega. La librería no guarda la bandeja ni sabe qué se respondió:
+eso es de la app.
 
 Los tokens se renuevan solos cuando la red lo permite. Si la red rechaza un token, la conexión queda
 marcada como inválida y todas las operaciones devuelven `Refused(CONNECTION_INVALID)` hasta que alguien
@@ -394,6 +445,7 @@ Para esto **no hace falta una app propia**: `MetaConfig(api_version="v24.0")` si
 - [Salud de las conexiones](docs/adr/0010-salud-de-las-conexiones.md)
 - [Redes federadas y conexión por credencial](docs/adr/0011-redes-federadas-y-credenciales.md)
 - [Consultas auxiliares y ritmo por red](docs/adr/0012-consultas-auxiliares-y-ritmo.md)
+- [Mensajes sin historial y bandeja unificada](docs/adr/0013-mensajes-sin-historial-y-bandeja.md)
 - [Meta: permisos, revisión de la app y lo que conviene saber](docs/meta.md)
 - [TikTok: Login Kit, Display API y lo que conviene saber](docs/tiktok.md)
 - [YouTube: Data API v3, cuota y lo que conviene saber](docs/youtube.md)
@@ -406,6 +458,9 @@ Para esto **no hace falta una app propia**: `MetaConfig(api_version="v24.0")` si
 - [Pinterest: tableros, pines y lo que conviene saber](docs/pinterest.md)
 - [Reddit: comunidades, títulos y lo que conviene saber](docs/reddit.md)
 - [Google Business Profile: sedes, novedades, reseñas y lo que conviene saber](docs/google-business.md)
+- [WhatsApp Business: la ventana de 24 horas, las plantillas y lo que conviene saber](docs/whatsapp.md)
+- [Telegram: bots, canales y lo que conviene saber](docs/telegram.md)
+- [Discord: por bot o por webhook, y lo que conviene saber](docs/discord.md)
 - [Lo que vale para todas las redes](docs/redes-pendientes.md)
 - [Sumar una red](docs/nueva-red.md)
 - [Hoja de ruta: diez sprints](docs/hoja-de-ruta.md)
