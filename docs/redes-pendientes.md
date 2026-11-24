@@ -1,26 +1,7 @@
-# Redes pendientes: YouTube, X y LinkedIn
+# Redes pendientes: X y LinkedIn
 
 Todavía no tienen adaptador. Esto junta lo que ya se sabe de cada una, aprendido en producción, para que
 quien las sume no tropiece de nuevo con lo mismo. Cómo se suma una red: [nueva-red.md](nueva-red.md).
-
-## YouTube (Data API v3)
-
-**Capacidades posibles:** `login` (Google OAuth, `youtube.readonly`), `assets` (el canal), `content`
-(videos), `comments` (lectura de hilos), `insights` (suscriptores; las series históricas son de YouTube
-Analytics API) y `public_profiles` con una clave de API, sin mirador.
-
-- **La cuota manda.** Son 10.000 unidades por día. `channels.list` cuesta 1; `search.list`, 100. Para los
-  videos de un canal: `channels` → la playlist de subidas (`contentDetails.relatedPlaylists.uploads`) →
-  `playlistItems` (1 unidad) → `videos` de a 50 ids. Nunca `search` para listar.
-- **Buscar canales:** por id (`UC…`, hasta 50 separados por coma), por `forHandle` (`@marca`) o por
-  `forUsername` (los nombres viejos). `search` solo como último recurso y solo ante un "no existe" real, nunca
-  ante un error de red. Un `@handle` cuesta dos llamadas: resolver y traer.
-- **Un 403 no siempre es la credencial.** Puede ser la cuota agotada o una clave inválida; lo dice
-  `error.errors[0].reason`. En comentarios, un 403 suele querer decir que el video los tiene desactivados.
-- **No compartir el cliente oficial de Google entre tareas concurrentes.** Reusa un socket que no es seguro
-  entre hilos y corrompe el TLS ("SSL record layer failure"). Con httpx directo no pasa.
-- **OAuth de Google:** al reconectar una cuenta, Google no vuelve a mandar el refresh token; hay que conservar
-  el anterior. Un refresh vencido responde 400 `invalid_grant`, que es terminal.
 
 ## X (API v2)
 

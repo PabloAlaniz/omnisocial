@@ -139,6 +139,15 @@ El `Publisher` recibe un borrador que ya entra y devuelve un `Outcome`:
 Un error antes de publicar se lanza con la tabla de errores, como en cualquier capacidad. Lo que la red
 rechaza por el contenido va como `INVALID_REQUEST`: vuelve `Refused(CONTENT_REJECTED)`.
 
+Si la red recibe archivos (`media_by_file=True`), el adaptador los lee por partes con `MediaFile.read` y
+los manda con `content=` en el transporte. Cuando una subida se abandona antes de que la red haya creado
+nada, lanza `NotPublished`: el núcleo devuelve `Refused(NOT_PUBLISHED)` y libera la clave. Si no puede
+afirmarlo (se perdió la respuesta al último paso), lanza un `ProviderError` común y la publicación queda en
+duda.
+
+Si la red tiene una cuota diaria para toda la app, el cliente la cuenta con un `QuotaBudget` antes de cada
+llamada y lanza `QuotaExhausted` cuando no entra. Ver `adapters/providers/youtube/client.py`.
+
 El pedido que publica no lleva `retry_safe`: el transporte no lo repite solo. Las opciones propias de la
 red son un `PublishOptions` que se declara en `PublishLimits.options`.
 

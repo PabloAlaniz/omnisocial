@@ -12,6 +12,7 @@ body:
       options:
         - Meta (Facebook, Instagram)
         - TikTok
+        - YouTube
         - El núcleo, no una red
     validations:
       required: true

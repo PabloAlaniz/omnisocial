@@ -16,7 +16,7 @@ contrato común, tiene su página en `docs/` y aparece en la matriz de capacidad
 |--------|------|----------------|
 | 1 ✓ | Cimientos para muchas redes | — |
 | 2 ✓ | Publicar | Meta y TikTok publican |
-| 3 | Video largo y cuotas | YouTube |
+| 3 ✓ | Video largo y cuotas | YouTube |
 | 4 | Redes profesionales y pagas | LinkedIn, X |
 | 5 | Salud de las conexiones | Threads, Instagram con login propio |
 | 6 | Redes abiertas y federadas | Bluesky, Mastodon, Pixelfed |
@@ -75,6 +75,11 @@ publicación la lleva sola de `pendiente` a `publicada`. La decisión está en e
   exige para publicar.
 
 ## Sprint 3. Video largo y cuotas: YouTube
+
+**Hecho.** Quedaron afuera, porque no hacían falta para lo esencial: los avisos de videos nuevos (un
+mecanismo propio, con XML y firma SHA-1), las series históricas de YouTube Analytics, la miniatura propia y
+el primer comentario. Ver [docs/youtube.md](youtube.md) y el
+[ADR 0009](adr/0009-cuota-y-subida-por-partes.md).
 
 - Login con Google, el canal como activo, videos, comentarios, métricas y perfiles públicos con clave de
   API. Lo aprendido ya está en [redes-pendientes.md](redes-pendientes.md).
