@@ -41,8 +41,9 @@ Redes disponibles, y qué puede hacer cada una y cada tipo de activo:
 La fila de la red dice lo que ofrece; la de cada activo, lo que ese activo habilita. TikTok no tiene
 comentarios ni mensajes porque su API no los ofrece.
 
-La arquitectura está pensada para sumar otras sin tocar el núcleo: ver [Sumar una red](docs/nueva-red.md) y
-lo que ya se sabe de [YouTube, X y LinkedIn](docs/redes-pendientes.md).
+La arquitectura está pensada para sumar otras sin tocar el núcleo. Un comando crea el esqueleto de una red
+que ya pasa el contrato común: ver [Sumar una red](docs/nueva-red.md), [cómo contribuir](CONTRIBUTING.md), la
+[hoja de ruta](docs/hoja-de-ruta.md) y lo que ya se sabe de [YouTube, X y LinkedIn](docs/redes-pendientes.md).
 
 ## Instalación
 
@@ -206,6 +207,10 @@ marcada como inválida y todas las operaciones devuelven `Refused(CONNECTION_INV
 vuelva a conectar. Si al token le falta un permiso, la operación devuelve `Refused(MISSING_PERMISSION)` y la
 conexión sigue sana.
 
+Lo mismo cuando la red pide bajar el ritmo o la app se quedó sin cuota: vuelve
+`Refused(RATE_LIMITED, retry_after=...)` o `Refused(QUOTA_EXHAUSTED)`, y la conexión no se toca. Cada red
+declara qué significa cada uno de sus códigos de error, y el núcleo decide igual para todas.
+
 ## Cuentas ajenas
 
 Los perfiles públicos se buscan por nombre o por URL. Instagram solo los muestra a través de una cuenta
@@ -253,12 +258,14 @@ Para esto **no hace falta una app propia**: `MetaConfig(api_version="v24.0")` si
 - [Reglas estáticas de diseño](docs/adr/0004-reglas-estaticas-de-diseno.md)
 - [Perfiles públicos y mirador](docs/adr/0005-perfiles-publicos-y-mirador.md)
 - [Cada red paga lo suyo](docs/adr/0006-cada-red-paga-lo-suyo.md)
+- [Descripción y contrato de una red](docs/adr/0007-descripcion-y-contrato-de-una-red.md)
 - [Meta: permisos, revisión de la app y lo que conviene saber](docs/meta.md)
 - [TikTok: Login Kit, Display API y lo que conviene saber](docs/tiktok.md)
 - [Redes pendientes: YouTube, X y LinkedIn](docs/redes-pendientes.md)
 - [Sumar una red](docs/nueva-red.md)
 - [Hoja de ruta: diez sprints](docs/hoja-de-ruta.md)
 - [Cómo se publica una versión](docs/publicar.md)
+- [Cómo contribuir](CONTRIBUTING.md)
 
 ## Desarrollo
 
@@ -267,6 +274,8 @@ uv sync
 uv run pytest                 # unitarios, con cobertura
 uv run pytest -m integration  # contra PostgreSQL (OMNISOCIAL_PG_URL)
 uv run ruff check . && uv run mypy && uv run lint-imports
+uv run python scripts/nueva_red.py mired --nombre "Mi Red"  # el esqueleto de una red nueva
+uv run python scripts/matriz.py                             # la matriz de capacidades del README
 ```
 
 ## Licencia

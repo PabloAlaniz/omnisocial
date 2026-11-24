@@ -1,0 +1,38 @@
+name: Red nueva
+description: Pedir una red que todavía no tiene adaptador, o contar lo que se sabe de su API.
+labels: ["red nueva"]
+body:
+  - type: input
+    id: red
+    attributes:
+      label: Red
+      placeholder: YouTube
+    validations:
+      required: true
+  - type: checkboxes
+    id: capacidades
+    attributes:
+      label: Qué necesitás de ella
+      options:
+        - label: Login
+        - label: Leer publicaciones
+        - label: Publicar
+        - label: Comentarios
+        - label: Mensajes
+        - label: Métricas
+        - label: Webhooks
+        - label: Perfiles públicos de otras cuentas
+  - type: textarea
+    id: api
+    attributes:
+      label: Lo que se sabe de su API
+      description: >-
+        Documentación oficial, si es paga o pide revisión de la app, límites y cuotas, y cualquier tropiezo
+        que conozcas. Todo lo que ahorre trabajo a quien la sume.
+  - type: checkboxes
+    id: aporte
+    attributes:
+      label: ¿Podés aportar?
+      options:
+        - label: Puedo escribir el adaptador
+        - label: Puedo probarlo con una cuenta real

@@ -3,7 +3,7 @@
 El objetivo es que omnisocial sea la referencia para conectar redes sociales desde Python: muchas redes,
 las mismas reglas, y que sumar una red nueva sea barato para quien no conoce el núcleo.
 
-Hoy hay dos redes (Meta y TikTok), ocho capacidades y ninguna de ellas publica. El plan va en este orden:
+Al empezar había dos redes (Meta y TikTok), ocho capacidades y ninguna de ellas publicaba. El plan va en este orden:
 primero lo que abarata cada red nueva, después publicar, después las redes, y al final lo que hace falta
 para sostenerlas y prometer estabilidad.
 
@@ -14,7 +14,7 @@ contrato común, tiene su página en `docs/` y aparece en la matriz de capacidad
 
 | Sprint | Tema | Redes que suma |
 |--------|------|----------------|
-| 1 | Cimientos para muchas redes | — |
+| 1 ✓ | Cimientos para muchas redes | — |
 | 2 | Publicar | Meta y TikTok publican |
 | 3 | Video largo y cuotas | YouTube |
 | 4 | Redes profesionales y pagas | LinkedIn, X |
@@ -29,7 +29,10 @@ Al terminar: 16 redes o más, contra las 2 de hoy.
 
 ## Sprint 1. Cimientos para muchas redes
 
-Lo que hoy se copia de Meta a mano tiene que ser una herramienta.
+**Hecho.** Lo que se copiaba de Meta a mano ahora es una herramienta. La decisión está en el
+[ADR 0007](adr/0007-descripcion-y-contrato-de-una-red.md). Quedó para más adelante declarar las cabeceras
+de límite de uso: entran con la concurrencia por red (sprint 7) y los límites compartidos (sprint 9), que
+son quienes las van a usar.
 
 - **Contrato común para adaptadores** (`omnisocial.testing`): una batería de pruebas por capacidad que
   cualquier red corre contra respuestas grabadas, como ya existe para los almacenes

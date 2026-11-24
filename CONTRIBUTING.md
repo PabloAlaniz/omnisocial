@@ -1,0 +1,67 @@
+# Contribuir
+
+Gracias por querer sumar. Lo que más ayuda:
+
+- **Una red nueva**, o una capacidad que le falta a una red que ya está.
+- **Un error en una red**: una respuesta de la API que el adaptador traduce mal, un código de error mal
+  clasificado, un límite que cambió.
+- **Lo que aprendiste de una API** y no está en la documentación oficial. Va en la página de la red, en
+  `docs/`.
+
+Antes de un cambio grande al núcleo (un puerto nuevo, un cambio en el dominio), abrí un issue para
+conversarlo: el núcleo es chico a propósito.
+
+## Preparar el entorno
+
+```bash
+uv sync
+uv run pytest                 # unitarios, con cobertura
+uv run pytest -m integration  # contra PostgreSQL (OMNISOCIAL_PG_URL)
+uv run ruff format . && uv run ruff check . && uv run mypy && uv run lint-imports
+```
+
+Todo eso corre en CI y tiene que pasar. Las reglas de diseño (capas, funciones chicas, nada de leer el reloj
+o el entorno fuera de los adaptadores de sistema) están en el
+[ADR 0004](docs/adr/0004-reglas-estaticas-de-diseno.md).
+
+## Sumar una red
+
+```bash
+uv run python scripts/nueva_red.py mired --nombre "Mi Red"
+```
+
+Crea una red de solo login que ya pasa el contrato común, con lo que falta marcado como `PENDIENTE`. El
+paso a paso está en [docs/nueva-red.md](docs/nueva-red.md).
+
+Una red está terminada cuando:
+
+- [ ] Declara su descripción (`spec.py`): capacidades, tipos de activo, OAuth y tabla de errores.
+- [ ] Pasa el contrato común (`tests/adapters/<red>/test_contract.py`) con respuestas copiadas de la API
+      real, sin datos personales ni tokens.
+- [ ] Prueba la traducción de cada capacidad con respuestas grabadas. Ningún test llama a la red.
+- [ ] No suma dependencias obligatorias ni importa a otra red ([ADR 0006](docs/adr/0006-cada-red-paga-lo-suyo.md)).
+- [ ] Tiene su página en `docs/`: cómo crear la app, permisos y revisión, límites, errores y lo que
+      conviene saber.
+- [ ] Aparece en la matriz del README (`uv run python scripts/matriz.py`) y en la lista de redes de la
+      plantilla de issues.
+
+Si la red necesita una biblioteca pesada o tiene su propio ritmo de versiones, puede vivir en un paquete
+aparte y registrarse por entry point. El contrato y el transporte falso viajan en `omnisocial.testing` para
+eso.
+
+## Corregir un error en una red
+
+Lo más útil es la respuesta de la API que lo provoca. Sumala como caso de prueba (sin tokens ni datos
+personales) y después corregí el adaptador. Si el problema es que un error se clasifica mal (una conexión
+sana que queda inválida, por ejemplo), el arreglo suele ser una línea en la tabla `ERRORS` de la red.
+
+## Commits y versiones
+
+Los mensajes siguen [Conventional Commits](https://www.conventionalcommits.org/es/), en español:
+`feat(tiktok): …`, `fix(meta): …`, `docs: …`. De ahí salen el número de versión y el CHANGELOG
+([cómo se publica](docs/publicar.md)). Un cambio incompatible lleva `!` y explica cómo migrar.
+
+## Seguridad
+
+Una vulnerabilidad no va en un issue público: ver [SECURITY.md](SECURITY.md). En issues, pruebas y
+documentación no van tokens, secretos ni datos de cuentas reales.

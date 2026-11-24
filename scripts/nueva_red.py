@@ -38,7 +38,8 @@ Lo que sigue:
   2. uv run ruff check --fix . && uv run ruff format . && uv run mypy && uv run lint-imports
   3. uv run pytest tests/adapters/$id
   4. uv run python scripts/matriz.py    # suma la red a la matriz del README
-  5. Sumar la página a la lista de documentación del README.
+  5. Sumar la página a la lista de documentación del README y la red a la lista de
+     .github/ISSUE_TEMPLATE/error-en-una-red.yml.
 """
 
 
