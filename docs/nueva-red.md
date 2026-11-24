@@ -139,6 +139,10 @@ El `Publisher` recibe un borrador que ya entra y devuelve un `Outcome`:
 Un error antes de publicar se lanza con la tabla de errores, como en cualquier capacidad. Lo que la red
 rechaza por el contenido va como `INVALID_REQUEST`: vuelve `Refused(CONTENT_REJECTED)`.
 
+Si la red tiene hilos, `PublishLimits.max_thread` dice cuántas partes después de la primera. El adaptador
+crea cada parte como respuesta a la anterior; si una falla después de la primera, devuelve
+`PUBLISHED_WITH_ERROR` con el id del primer post.
+
 Si la red recibe archivos (`media_by_file=True`), el adaptador los lee por partes con `MediaFile.read` y
 los manda con `content=` en el transporte. Cuando una subida se abandona antes de que la red haya creado
 nada, lanza `NotPublished`: el núcleo devuelve `Refused(NOT_PUBLISHED)` y libera la clave. Si no puede

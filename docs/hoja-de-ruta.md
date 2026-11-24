@@ -17,7 +17,7 @@ contrato común, tiene su página en `docs/` y aparece en la matriz de capacidad
 | 1 ✓ | Cimientos para muchas redes | — |
 | 2 ✓ | Publicar | Meta y TikTok publican |
 | 3 ✓ | Video largo y cuotas | YouTube |
-| 4 (en curso) | Redes profesionales y pagas | LinkedIn ✓, X |
+| 4 ✓ | Redes profesionales y pagas | LinkedIn, X |
 | 5 | Salud de las conexiones | Threads, Instagram con login propio |
 | 6 | Redes abiertas y federadas | Bluesky, Mastodon, Pixelfed |
 | 7 | Publicaciones con campos propios | Pinterest, Reddit, Google Business Profile |
@@ -94,7 +94,12 @@ el primer comentario. Ver [docs/youtube.md](youtube.md) y el
 **LinkedIn está hecho** ([docs/linkedin.md](linkedin.md)): login, el perfil y las páginas como activos,
 publicar en los dos, y publicaciones, comentarios y métricas de las páginas. Quedó afuera avisar cuando la
 versión de la API está por ser retirada (hoy se documenta y el error lo dice claro) y los contadores por
-publicación. **Falta X**, y con ella los hilos y la prueba de tokens de renovación que rotan.
+publicación.
+
+**X está hecho** ([docs/x.md](x.md)): login con PKCE, posts, respuestas, contadores, perfiles públicos y
+publicar posts e hilos con medios. Con X llegaron al núcleo los hilos, el largo de texto con peso y la
+prueba de que perder la carrera con un token de renovación que rota no invalida la conexión. Quedaron
+afuera los mensajes privados y los avisos de actividad.
 
 - **LinkedIn**: login, páginas de empresa, publicaciones y comentarios. La versión de la API es
   configuración obligatoria y se avisa cuando está por ser retirada. Se comprueban los permisos otorgados
