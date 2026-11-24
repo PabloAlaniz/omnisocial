@@ -31,9 +31,12 @@ from omnisocial.domain.connection import Connection, ConnectionStatus
 from omnisocial.domain.content import Comment, CommentAction, Post
 from omnisocial.domain.errors import (
     CapabilityNotSupported,
+    ErrorKind,
     OmnisocialError,
     PermissionMissing,
     ProviderError,
+    QuotaExhausted,
+    RateLimited,
     TokenRejected,
     UnknownProvider,
 )
@@ -51,6 +54,7 @@ from omnisocial.domain.metrics import (
 from omnisocial.domain.profile import PublicProfile
 from omnisocial.domain.provider import Capability, ProviderId
 from omnisocial.domain.redirect import ReturnUrlPolicy
+from omnisocial.domain.spec import NetworkSpec
 from omnisocial.domain.token import Token, TokenKind
 from omnisocial.domain.webhooks import EventAction, EventKind, SocialEvent
 from omnisocial.domain.window import TimeWindow
@@ -72,6 +76,7 @@ __all__ = [
     "Conversation",
     "DiscoveredAsset",
     "Done",
+    "ErrorKind",
     "EventAction",
     "EventKind",
     "Handle",
@@ -87,6 +92,7 @@ __all__ = [
     "MetricPoint",
     "MetricSeries",
     "Network",
+    "NetworkSpec",
     "Omnisocial",
     "OmnisocialError",
     "OnEvents",
@@ -99,6 +105,8 @@ __all__ = [
     "ProviderRegistry",
     "PublicProfile",
     "Purpose",
+    "QuotaExhausted",
+    "RateLimited",
     "Refusal",
     "Refused",
     "ReplyWindow",

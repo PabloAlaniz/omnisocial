@@ -18,6 +18,10 @@ CONNECT_SCOPES: tuple[str, ...] = ("user.info.basic", "user.info.profile", "user
 app. Ver `docs/tiktok.md`."""
 
 
+AUTHORIZE_URL = "https://www.tiktok.com/v2/auth/authorize/"
+API_BASE = "https://open.tiktokapis.com/v2"
+
+
 @dataclass(frozen=True, slots=True)
 class TikTokConfig:
     client_key: str
@@ -26,8 +30,8 @@ class TikTokConfig:
     """Secretos anteriores, para no perder avisos firmados con ellos mientras se rota."""
     login_scopes: tuple[str, ...] = LOGIN_SCOPES
     connect_scopes: tuple[str, ...] = CONNECT_SCOPES
-    authorize_url: str = "https://www.tiktok.com/v2/auth/authorize/"
-    api_base: str = "https://open.tiktokapis.com/v2"
+    authorize_url: str = AUTHORIZE_URL
+    api_base: str = API_BASE
     page_size: int = 20
     """Videos por página. TikTok acepta hasta 20."""
     webhook_tolerance_seconds: int = 300

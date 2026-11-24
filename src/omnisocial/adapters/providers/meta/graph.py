@@ -9,22 +9,14 @@ from datetime import UTC, datetime
 
 from omnisocial.adapters.http.transport import HttpResponse, HttpTransport, Params
 from omnisocial.adapters.providers.meta.config import META, MetaConfig
-from omnisocial.domain.errors import PermissionMissing, ProviderError, TokenRejected
+from omnisocial.adapters.providers.meta.spec import ERRORS, TOKEN_DEAD_CODES
+from omnisocial.domain.errors import ProviderError
 from omnisocial.domain.window import TimeWindow
-
-# Códigos que quieren decir "este token ya no sirve".
-#   190: token vencido, revocado o inválido.
-#   102: alias viejo de la misma condición (sesión inválida).
-# El 2500 queda afuera a propósito: Meta también lo devuelve ante pedidos mal armados.
-TOKEN_DEAD_CODES = frozenset({190, 102})
 
 _SUCCESS = range(200, 300)
 
 PERMISSION_CODE = "10"
 """Falta un permiso para un campo. A veces conviene reintentar sin ese campo."""
-
-# 10: a la app le falta el permiso. 200 a 299: al token le falta un permiso (200 en general, 2xx uno puntual).
-_PERMISSION_CODES = frozenset({10, *range(200, 300)})
 
 
 def parse_time(value: object) -> datetime | None:
@@ -182,12 +174,11 @@ class GraphClient:
         code = as_int(error.get("code"))
         message = as_str(error.get("message")) or response.text[:300] or f"HTTP {response.status}"
         if code in TOKEN_DEAD_CODES:
-            raise TokenRejected(META, f"Meta rechazó el token: {message}", code=str(code))
-        if code in _PERMISSION_CODES:
-            raise PermissionMissing(META, message, status=response.status, code=str(code))
-        raise ProviderError(
+            message = f"Meta rechazó el token: {message}"
+        raise ERRORS.error(
             META,
             message,
             status=response.status,
             code=str(code) if code is not None else None,
+            retry_after=response.retry_after(),
         )

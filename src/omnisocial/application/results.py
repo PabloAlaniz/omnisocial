@@ -13,6 +13,7 @@ from typing import Generic, TypeVar
 
 from omnisocial.domain.asset import Asset
 from omnisocial.domain.connection import Connection
+from omnisocial.domain.errors import PermissionMissing, ProviderError, QuotaExhausted, RateLimited
 from omnisocial.domain.identity import Identity
 from omnisocial.domain.metrics import CanonicalMetric, MetricSeries
 from omnisocial.domain.provider import Capability
@@ -45,6 +46,16 @@ class Refusal(StrEnum):
     """El token es válido pero no administra ningún activo: no se guarda."""
     OUTSIDE_REPLY_WINDOW = "outside_reply_window"
     NO_RECIPIENT = "no_recipient"
+    RATE_LIMITED = "rate_limited"
+    """La red pide bajar el ritmo. `retry_after` trae los segundos que pidió esperar, si lo dijo."""
+    QUOTA_EXHAUSTED = "quota_exhausted"
+    """Se acabó la cuota o el crédito de la app en la red. La conexión sigue sana."""
+
+
+_REFUSAL_BY_ERROR: dict[type[ProviderError], Refusal] = {
+    PermissionMissing: Refusal.MISSING_PERMISSION,
+    QuotaExhausted: Refusal.QUOTA_EXHAUSTED,
+}
 
 
 @dataclass(frozen=True, slots=True)
@@ -53,6 +64,21 @@ class Refused:
     detail: str | None = None
     return_url: str | None = None
     capability: Capability | None = None
+    retry_after: float | None = None
+
+
+def refusal_for(error: ProviderError, capability: Capability) -> Refused | None:
+    """La negativa que corresponde a un error de la red, o `None` si no es una decisión de negocio.
+
+    Permiso faltante, límite de uso y cuota agotada no invalidan la conexión ni se arreglan reintentando en
+    el momento: vuelven como negativa para que la app decida. Lo demás sigue siendo una excepción.
+    """
+    if isinstance(error, RateLimited):
+        return Refused(
+            Refusal.RATE_LIMITED, detail=str(error), capability=capability, retry_after=error.retry_after
+        )
+    reason = _REFUSAL_BY_ERROR.get(type(error))
+    return Refused(reason, detail=str(error), capability=capability) if reason else None
 
 
 # ── Autorización ────────────────────────────────────────────────────────────────────────────────

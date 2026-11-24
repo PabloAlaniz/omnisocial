@@ -7,10 +7,10 @@ from typing import TypeVar
 
 from omnisocial.application.ports import Clock
 from omnisocial.application.registry import Provider, ProviderRegistry
-from omnisocial.application.results import AssetAccess, Done, InsightsRead, Refusal, Refused
+from omnisocial.application.results import AssetAccess, Done, InsightsRead, Refusal, Refused, refusal_for
 from omnisocial.application.use_cases.access import ResolveAssetAccess
 from omnisocial.domain.content import Comment, CommentAction, Post
-from omnisocial.domain.errors import PermissionMissing, TokenRejected
+from omnisocial.domain.errors import ProviderError, TokenRejected
 from omnisocial.domain.messaging import Conversation, Message, last_inbound_at
 from omnisocial.domain.metrics import CanonicalMetric, MetricSeries, Period, select_metrics
 from omnisocial.domain.provider import Capability
@@ -34,8 +34,8 @@ class _AssetOperation:
     async def _run(self, asset_id: str, call: Call[R]) -> R | Refused:
         """Abre el activo y hace la llamada a la red, traduciendo lo que la red decide a resultados.
 
-        Un token rechazado deja la conexión inválida; un permiso faltante vuelve como negativa, porque se
-        resuelve reconectando y no reintentando.
+        Un token rechazado deja la conexión inválida. Un permiso faltante, un límite de uso o la cuota
+        agotada vuelven como negativa: la conexión sigue sana y reintentar en el momento no lo arregla.
         """
         opened = await self._open(asset_id)
         if isinstance(opened, Refused):
@@ -45,8 +45,11 @@ class _AssetOperation:
             return await call(provider, access)
         except TokenRejected as error:
             return await self._access.reject(access, error)
-        except PermissionMissing as error:
-            return Refused(Refusal.MISSING_PERMISSION, detail=str(error), capability=self.capability)
+        except ProviderError as error:
+            refused = refusal_for(error, self.capability)
+            if refused is None:
+                raise
+            return refused
 
     async def _open(self, asset_id: str) -> tuple[Provider, AssetAccess] | Refused:
         access = await self._access.execute(asset_id)

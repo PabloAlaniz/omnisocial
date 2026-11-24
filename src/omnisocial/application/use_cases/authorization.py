@@ -23,11 +23,12 @@ from omnisocial.application.results import (
     LoggedIn,
     Refusal,
     Refused,
+    refusal_for,
 )
 from omnisocial.domain.asset import Asset, DiscoveredAsset
 from omnisocial.domain.authorization import DEFAULT_STATE_TTL, AuthorizationRequest, Purpose
 from omnisocial.domain.connection import Connection, ConnectionStatus
-from omnisocial.domain.errors import PermissionMissing, TokenRejected
+from omnisocial.domain.errors import ProviderError, TokenRejected
 from omnisocial.domain.provider import Capability
 from omnisocial.domain.redirect import ReturnUrlPolicy
 from omnisocial.domain.token import Token
@@ -271,8 +272,11 @@ class RegisterSystemConnection:
             discovered = await provider.assets.discover(token)
         except TokenRejected as error:
             return Refused(Refusal.PROVIDER_DENIED, detail=str(error))
-        except PermissionMissing as error:
-            return Refused(Refusal.MISSING_PERMISSION, detail=str(error), capability=Capability.ASSETS)
+        except ProviderError as error:
+            refused = refusal_for(error, Capability.ASSETS)
+            if refused is None:
+                raise
+            return refused
         if not discovered:
             return Refused(Refusal.NO_ASSETS)
         return await self._store.store(provider, owner=owner, token=token, discovered=discovered)

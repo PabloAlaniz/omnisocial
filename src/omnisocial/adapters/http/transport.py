@@ -26,6 +26,16 @@ class HttpResponse:
         wanted = name.lower()
         return next((value for key, value in self.headers.items() if key.lower() == wanted), None)
 
+    def retry_after(self) -> float | None:
+        """Los segundos de la cabecera `Retry-After`, si la red la mandó como número."""
+        value = self.header("retry-after")
+        if value is None:
+            return None
+        try:
+            return max(0.0, float(value))
+        except ValueError:
+            return None
+
 
 class HttpTransport(Protocol):
     async def request(

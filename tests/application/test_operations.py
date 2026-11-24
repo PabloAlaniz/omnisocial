@@ -2,6 +2,8 @@ from __future__ import annotations
 
 from datetime import timedelta
 
+import pytest
+
 from omnisocial.application.results import (
     AuthorizationStarted,
     Connected,
@@ -13,7 +15,13 @@ from omnisocial.application.results import (
 from omnisocial.domain.asset import DiscoveredAsset
 from omnisocial.domain.authorization import Purpose
 from omnisocial.domain.content import CommentAction
-from omnisocial.domain.errors import PermissionMissing, TokenRejected
+from omnisocial.domain.errors import (
+    PermissionMissing,
+    ProviderError,
+    QuotaExhausted,
+    RateLimited,
+    TokenRejected,
+)
 from omnisocial.domain.messaging import Message
 from omnisocial.domain.metrics import CanonicalMetric, Period
 from omnisocial.domain.provider import Capability, ProviderId
@@ -202,3 +210,26 @@ async def test_un_token_rechazado_en_una_operacion_invalida_la_conexion(world: W
 async def test_invalidar_una_conexion_que_no_existe(world: World) -> None:
     result = await world.social.get_valid_token.invalidate("no-existe", "x")
     assert result == Refused(Refusal.NOT_FOUND)
+
+
+async def test_un_limite_de_uso_vuelve_como_negativa_con_la_espera(world: World) -> None:
+    page = await _page_id(world)
+    world.network.comments.fail_with = RateLimited(ProviderId("falsa"), "despacio", retry_after=30.0)
+    limited = await world.social.list_comments.execute(page, object_id="post-1")
+    assert limited == Refused(
+        Refusal.RATE_LIMITED, detail="despacio", capability=Capability.COMMENTS, retry_after=30.0
+    )
+    world.network.comments.fail_with = QuotaExhausted(ProviderId("falsa"), "sin crédito")
+    exhausted = await world.social.list_comments.execute(page, object_id="post-1")
+    assert isinstance(exhausted, Refused)
+    assert exhausted.reason is Refusal.QUOTA_EXHAUSTED
+    # La conexión sigue sana: el token no tiene la culpa.
+    world.network.comments.fail_with = None
+    assert isinstance(await world.social.list_comments.execute(page, object_id="post-1"), Done)
+
+
+async def test_un_error_que_no_es_una_decision_sigue_siendo_una_excepcion(world: World) -> None:
+    page = await _page_id(world)
+    world.network.comments.fail_with = ProviderError(ProviderId("falsa"), "se cayó", status=500)
+    with pytest.raises(ProviderError, match="se cayó"):
+        await world.social.list_comments.execute(page, object_id="post-1")

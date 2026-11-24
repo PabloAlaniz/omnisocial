@@ -20,6 +20,7 @@ from omnisocial.application.ports import (
 )
 from omnisocial.domain.errors import CapabilityNotSupported, UnknownProvider
 from omnisocial.domain.provider import Capability, ProviderId
+from omnisocial.domain.spec import NetworkSpec
 
 ENTRY_POINT_GROUP = "omnisocial.providers"
 
@@ -41,6 +42,8 @@ class Provider:
     profiles: ProfileLookup | None = None
     identity: IdentityReader | None = None
     """Quién es el dueño de un token sin pasar por OAuth. Si falta, se usa el del OAuth."""
+    spec: NetworkSpec | None = None
+    """La descripción de la red: de ahí salen la matriz de capacidades y el contrato común."""
 
     @property
     def capabilities(self) -> frozenset[Capability]:
