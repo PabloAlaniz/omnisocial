@@ -125,7 +125,7 @@ class StandardOAuth(OAuthClient):
     @override
     async def revoke(self, token: Token) -> None:
         if self._spec.revoke_url is not None:
-            await self._post(self._spec.revoke_url, {"token": token.access_token})
+            await self._post(self._spec.revoke_url, {"token": token.access_token}, revoking=True)
 
     def _token(self, body: Mapping[str, object], *, previous: Token | None = None) -> Token:
         access = _text(body.get("access_token"))
@@ -141,11 +141,16 @@ class StandardOAuth(OAuthClient):
             scopes=granted or (previous.scopes if previous else frozenset()),
         )
 
-    async def _post(self, url: str, form: Mapping[str, str]) -> Mapping[str, object]:
+    async def _post(
+        self, url: str, form: Mapping[str, str], *, revoking: bool = False
+    ) -> Mapping[str, object]:
+        """`revoking`: la revocación puede no llevar credenciales y responder sin cuerpo."""
         credentials = {
             self._spec.client_id_param: self._app.client_id,
             self._spec.client_secret_param: self._app.client_secret,
         }
+        if revoking and not self._spec.revoke_with_credentials:
+            credentials = {}
         response = await self._transport.request(
             "POST",
             url,
@@ -158,7 +163,7 @@ class StandardOAuth(OAuthClient):
         code = _text(body.get("error"))
         if code is not None:
             raise self._error(response, code, _text(body.get("error_description")) or code)
-        if response.status >= _CLIENT_ERROR or not isinstance(response.data, dict):
+        if response.status >= _CLIENT_ERROR or not (revoking or isinstance(response.data, dict)):
             raise self._error(response, None, response.text[:300] or f"HTTP {response.status}")
         return body
 

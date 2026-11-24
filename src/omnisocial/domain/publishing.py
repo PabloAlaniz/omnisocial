@@ -112,6 +112,8 @@ class TextCount(StrEnum):
     CHARACTERS = "characters"
     UTF16 = "utf16"
     """En unidades UTF-16: un emoji fuera del plano básico cuenta dos."""
+    UTF8 = "utf8"
+    """En bytes UTF-8: una letra con tilde cuenta dos."""
 
 
 @dataclass(frozen=True, slots=True)
@@ -170,7 +172,9 @@ class DraftProblem:
 
 
 def text_length(text: str, count: TextCount) -> int:
-    return len(text.encode("utf-16-le")) // 2 if count is TextCount.UTF16 else len(text)
+    if count is TextCount.UTF16:
+        return len(text.encode("utf-16-le")) // 2
+    return len(text.encode()) if count is TextCount.UTF8 else len(text)
 
 
 def public_https_url(url: str) -> bool:
