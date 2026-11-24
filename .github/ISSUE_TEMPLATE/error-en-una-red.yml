@@ -13,6 +13,7 @@ body:
         - Meta (Facebook, Instagram)
         - TikTok
         - YouTube
+        - LinkedIn
         - El núcleo, no una red
     validations:
       required: true

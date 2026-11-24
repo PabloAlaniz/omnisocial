@@ -31,6 +31,9 @@ Redes disponibles, y qué puede hacer cada una y cada tipo de activo:
 <!-- matriz:inicio (generada por scripts/matriz.py, no editar a mano) -->
 | Red | Activo | Login | Activos | Publicaciones | Publicar | Comentarios | Mensajes | Métricas | Webhooks | Perfiles públicos |
 |---|---|---|---|---|---|---|---|---|---|---|
+| [**LinkedIn**](docs/linkedin.md) |  | ✓ | ✓ | ✓ | ✓ | ✓ |  | ✓ |  |  |
+|  | `linkedin_member` |  |  |  | ✓ |  |  |  |  |  |
+|  | `linkedin_organization` |  |  | ✓ | ✓ | ✓ |  | ✓ |  |  |
 | [**Meta**](docs/meta.md) |  | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
 |  | `facebook_page` |  |  | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |  |
 |  | `instagram_account` |  |  | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |  |
@@ -41,11 +44,11 @@ Redes disponibles, y qué puede hacer cada una y cada tipo de activo:
 <!-- matriz:fin -->
 
 La fila de la red dice lo que ofrece; la de cada activo, lo que ese activo habilita. Lo que falta es
-porque la API de la red no lo ofrece (TikTok no tiene comentarios ni mensajes; YouTube no tiene mensajes).
+porque la API de la red no lo ofrece (TikTok no tiene comentarios ni mensajes; YouTube y LinkedIn no tienen mensajes).
 
 La arquitectura está pensada para sumar otras sin tocar el núcleo. Un comando crea el esqueleto de una red
 que ya pasa el contrato común: ver [Sumar una red](docs/nueva-red.md), [cómo contribuir](CONTRIBUTING.md), la
-[hoja de ruta](docs/hoja-de-ruta.md) y lo que ya se sabe de [X y LinkedIn](docs/redes-pendientes.md).
+[hoja de ruta](docs/hoja-de-ruta.md) y lo que ya se sabe de [X](docs/redes-pendientes.md).
 
 ## Instalación
 
@@ -61,7 +64,7 @@ pip install "omnisocial[httpx,postgres,crypto,starlette]"
 | `starlette` | Las rutas del callback y de los webhooks (sirve en FastAPI).|
 
 Cada red se carga recién cuando se importa su módulo (`omnisocial.meta`, `omnisocial.tiktok`,
-`omnisocial.youtube`): quien usa una
+`omnisocial.youtube`, `omnisocial.linkedin`): quien usa una
 sola no ejecuta el código de las otras, y ninguna suma dependencias obligatorias.
 
 ## Armado
@@ -244,7 +247,7 @@ later = await social.check_publication.execute(publication.id)  # retoma una pen
   cantidad y tipo de medios, si admite link o primer comentario). `social.validate_draft` devuelve los
   problemas sin publicar, para mostrarlos mientras alguien escribe.
 - **Los medios van por URL pública (https) o como archivo**, según la red. Meta y TikTok los van a buscar
-  a una URL; YouTube pide el archivo, que se sube por partes sin cargarlo en memoria
+  a una URL; YouTube y LinkedIn piden el archivo, que se sube por partes sin cargarlo en memoria
   (`Media(MediaKind.VIDEO, file=PathFile.open("video.mp4", "video/mp4"))`). Si la subida se corta, vuelve
   `Refused(NOT_PUBLISHED)`: con certeza no salió y se puede reintentar.
 - **En etapas.** Instagram y TikTok procesan los medios antes de publicar: la publicación queda `PENDING` y
@@ -316,7 +319,8 @@ Para esto **no hace falta una app propia**: `MetaConfig(api_version="v24.0")` si
 - [Meta: permisos, revisión de la app y lo que conviene saber](docs/meta.md)
 - [TikTok: Login Kit, Display API y lo que conviene saber](docs/tiktok.md)
 - [YouTube: Data API v3, cuota y lo que conviene saber](docs/youtube.md)
-- [Redes pendientes: X y LinkedIn](docs/redes-pendientes.md)
+- [LinkedIn: perfiles, páginas de empresa y lo que conviene saber](docs/linkedin.md)
+- [Redes pendientes: X](docs/redes-pendientes.md)
 - [Sumar una red](docs/nueva-red.md)
 - [Hoja de ruta: diez sprints](docs/hoja-de-ruta.md)
 - [Cómo se publica una versión](docs/publicar.md)
