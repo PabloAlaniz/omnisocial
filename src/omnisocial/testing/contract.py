@@ -18,6 +18,7 @@ from urllib.parse import parse_qsl, urlsplit
 
 from omniwebhook import AsyncMemoryIdempotencyStore, IncomingRequest
 
+from omnisocial.adapters.http.observing import route_of
 from omnisocial.adapters.http.transport import HttpResponse
 from omnisocial.adapters.stores.memory import (
     InMemoryAssetRepository,
@@ -25,6 +26,7 @@ from omnisocial.adapters.stores.memory import (
     InMemoryConnectionRepository,
 )
 from omnisocial.adapters.system import SystemClock
+from omnisocial.application.observing import Observation, Observer
 from omnisocial.application.ports import (
     AssetDirectory,
     CommentGateway,
@@ -141,7 +143,7 @@ class _World:
 Probe = Callable[[_World, Asset], Awaitable[object]]
 
 
-def _world(harness: NetworkHarness) -> _World:
+def _world(harness: NetworkHarness, observer: Observer | None = None) -> _World:
     provider = harness.provider()
     clock = SystemClock()
     social = Omnisocial.build(
@@ -153,8 +155,52 @@ def _world(harness: NetworkHarness) -> _World:
         redirect_uri_for=lambda _provider: _REDIRECT,
         return_urls=ReturnUrlPolicy.of(_APP),
         clock=clock,
+        observer=observer,
     )
     return _World(harness, provider, social)
+
+
+_SECRET_KEYS = re.compile(r"token|secret|password|jwt|assertion|\bcode\b", re.IGNORECASE)
+_MIN_SECRET = 6
+
+
+def _secrets_in(value: object, *, under_secret_key: bool = False) -> set[str]:
+    """Lo que en un pedido o en una respuesta es un secreto: lo que está bajo una clave con nombre de
+    secreto, a cualquier profundidad."""
+    if isinstance(value, Mapping):
+        found: set[str] = set()
+        for key, inner in value.items():
+            found |= _secrets_in(inner, under_secret_key=bool(_SECRET_KEYS.search(str(key))))
+        return found
+    if isinstance(value, list | tuple):
+        return set().union(*(_secrets_in(item, under_secret_key=under_secret_key) for item in value), set())
+    if under_secret_key and isinstance(value, str) and len(value) >= _MIN_SECRET:
+        return {value}
+    return set()
+
+
+def _secrets(harness: NetworkHarness) -> set[str]:
+    """Todo lo que pasó por el transporte y no puede aparecer en una observación."""
+    found = {value for value in harness.credentials().values() if len(value) >= _MIN_SECRET}
+    for call in harness.transport.calls:
+        found |= _secrets_in(call.json) | _secrets_in(call.form) | _secrets_in(call.params)
+        for name, value in (call.headers or {}).items():
+            if name.lower() == "authorization":
+                # La credencial es lo que sigue al esquema (`Bearer`, `Bot`, `Basic`).
+                found.add(value.split(" ", 1)[-1])
+    for responses in harness.transport.routes.values():
+        for response in responses:
+            if isinstance(response, HttpResponse):
+                found |= _secrets_in(response.data)
+    return {secret for secret in found if len(secret) >= _MIN_SECRET}
+
+
+class _Recorder:
+    def __init__(self) -> None:
+        self.seen: list[Observation] = []
+
+    def operation(self, observation: Observation) -> None:
+        self.seen.append(observation)
 
 
 async def _connect(world: _World) -> Connected:
@@ -259,6 +305,10 @@ _PORTS: Mapping[str, type] = {
     "profiles": ProfileLookup,
     "lookups": LookupReader,
 }
+
+
+def _url(transport: FakeTransport, path: str) -> str:
+    return path if path.startswith("http") else f"{transport.base}{path}"
 
 
 def _run(check: Coroutine[object, object, None]) -> None:
@@ -454,6 +504,36 @@ class ProviderContract:
                 assert isinstance(found, Done), f"{where}: volvió {found!r}."
                 assert found.value, f"{where}: no devolvió ninguna opción."
                 assert all(choice.id and choice.name for choice in found.value), f"{where}: opción vacía."
+
+    # ── Observar ────────────────────────────────────────────────────────────────────────────────
+
+    def test_lo_que_se_observa_no_lleva_secretos(self) -> None:
+        _run(self._observar())
+
+    async def _observar(self) -> None:
+        harness = self.harness()
+        recorder = _Recorder()
+        world = _world(harness, recorder)
+        connected = await _connect(world)
+        # Con la red fallando también se observa, y un error no puede arrastrar un secreto.
+        harness.transport.failing = harness.error(ErrorKind.RATE_LIMITED) or harness.error(
+            ErrorKind.TOKEN_DEAD
+        )
+        for asset in connected.assets:
+            for capability, probe in _PROBES.items():
+                if capability in asset.capabilities:
+                    await probe(world, asset)
+        harness.transport.failing = None
+        assert recorder.seen, "Conectar una cuenta no dejó ninguna observación."
+        assert {seen.provider for seen in recorder.seen} == {str(world.provider.id)}
+        secrets = _secrets(harness)
+        told = repr(recorder.seen)
+        routes = [route_of(_url(harness.transport, call.path)) for call in harness.transport.calls]
+        for secret in secrets:
+            assert secret not in told, "Una observación lleva un secreto."
+            leaked = [route for _, route in routes if secret in route]
+            assert not leaked, f"Una ruta observada lleva un secreto: {leaked[0]}"
+        assert all("?" not in route for _, route in routes), "Una ruta observada lleva la query."
 
     # ── Webhooks ────────────────────────────────────────────────────────────────────────────────
 

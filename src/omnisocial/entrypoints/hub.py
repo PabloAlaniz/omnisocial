@@ -8,7 +8,8 @@ from dataclasses import dataclass
 from omniwebhook import AsyncIdempotencyStore
 
 from omnisocial.adapters.stores.memory import InMemoryPublicationRepository
-from omnisocial.adapters.system import SystemClock, SystemSecrets, UuidGenerator
+from omnisocial.adapters.system import SystemClock, SystemSecrets, UuidGenerator, monotonic
+from omnisocial.application.observing import Observer, observed
 from omnisocial.application.ports import (
     AssetRepository,
     AuthorizationStateStore,
@@ -114,12 +115,16 @@ class Omnisocial:
         secrets: SecretGenerator | None = None,
         publications: PublicationRepository | None = None,
         on_connection_change: ConnectionObserver | None = None,
+        observer: Observer | None = None,
     ) -> Omnisocial:
         """`publications` guarda las publicaciones en curso y las claves de idempotencia. Si falta, quedan en
         memoria: alcanza para probar, pero no sobreviven a un reinicio ni se comparten entre procesos.
 
         `on_connection_change` se llama cuando una conexión deja de servir (venció, la red rechazó el
         token, se desconectó) o vuelve a servir (alguien reconectó), con el cambio ya guardado."""
+        if observer is not None:
+            # Cada llamada a una red avisa: cuál, a qué operación, cómo salió y cuánto tardó.
+            providers = [observed(provider, observer, monotonic) for provider in providers]
         registry = ProviderRegistry(providers)
         clock = clock or SystemClock()
         ids = ids or UuidGenerator()

@@ -11,7 +11,7 @@ NETWORKS = sorted(module.name for module in pkgutil.iter_modules(providers.__pat
 
 
 @pytest.mark.parametrize(
-    "module", [*NETWORKS, "httpx", "crypto", "starlette", "postgres", "network", "testing"]
+    "module", [*NETWORKS, "httpx", "crypto", "starlette", "postgres", "network", "testing", "otel"]
 )
 def test_los_modulos_publicos_exportan_lo_que_declaran(module: str) -> None:
     loaded = importlib.import_module(f"omnisocial.{module}")

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import secrets
+import time
 import uuid
 from datetime import UTC, datetime
 
@@ -27,6 +28,11 @@ class SystemSecrets(SecretGenerator):
     @override
     def token(self, nbytes: int) -> str:
         return secrets.token_urlsafe(nbytes)
+
+
+def monotonic() -> float:
+    """Un reloj que solo avanza, en segundos: para medir cuánto tardó algo."""
+    return time.monotonic()
 
 
 _RANDOM = secrets.SystemRandom()

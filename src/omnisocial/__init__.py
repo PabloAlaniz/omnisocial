@@ -16,6 +16,7 @@ from omnisocial.adapters.stores.memory import (
     InMemoryServerAppStore,
 )
 from omnisocial.adapters.system import SystemClock
+from omnisocial.application.observing import Observation, Observer
 from omnisocial.application.quota import QuotaBudget
 from omnisocial.application.registry import Provider, ProviderRegistry
 from omnisocial.application.results import (
@@ -29,6 +30,7 @@ from omnisocial.application.results import (
     Refused,
     ValidToken,
 )
+from omnisocial.application.use_cases.inbox import Inbox
 from omnisocial.application.use_cases.refreshing import RefreshReport
 from omnisocial.application.use_cases.webhooks import OnEvents, RoutedEvent, WebhookReceived
 from omnisocial.domain.asset import Asset, DiscoveredAsset
@@ -89,7 +91,7 @@ from omnisocial.domain.publishing import (
 )
 from omnisocial.domain.redirect import ReturnUrlPolicy
 from omnisocial.domain.server import normalize_server
-from omnisocial.domain.spec import NetworkSpec
+from omnisocial.domain.spec import NetworkSpec, Pace
 from omnisocial.domain.token import Token, TokenKind
 from omnisocial.domain.webhooks import EventAction, EventKind, SocialEvent
 from omnisocial.domain.window import TimeWindow
@@ -133,6 +135,7 @@ __all__ = [
     "InMemoryPublicationRepository",
     "InMemoryQuotaLedger",
     "InMemoryServerAppStore",
+    "Inbox",
     "InboxItem",
     "InboxKind",
     "InsightsRead",
@@ -149,10 +152,13 @@ __all__ = [
     "Network",
     "NetworkSpec",
     "NotPublished",
+    "Observation",
+    "Observer",
     "Omnisocial",
     "OmnisocialError",
     "OnEvents",
     "OutboundMessage",
+    "Pace",
     "PathFile",
     "Period",
     "PermissionMissing",

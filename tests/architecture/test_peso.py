@@ -12,7 +12,7 @@ import pytest
 from omnisocial.adapters import providers
 
 NETWORKS = sorted(module.name for module in pkgutil.iter_modules(providers.__path__) if module.ispkg)
-OPTIONAL = ("httpx", "cryptography", "psycopg", "psycopg_pool", "starlette")
+OPTIONAL = ("httpx", "cryptography", "psycopg", "psycopg_pool", "starlette", "opentelemetry")
 
 
 def _loaded_after(statement: str) -> set[str]:

@@ -34,6 +34,9 @@ crypto = ["cryptography>=43"]
 postgres = ["psycopg[pool]>=3.2"]
 # Las rutas de `omnisocial.starlette`, también para FastAPI.
 starlette = ["starlette>=0.37"]
+otel = [
+    "opentelemetry-api>=1.27",
+]
 
 [project.urls]
 Homepage = "https://github.com/PabloAlaniz/omnisocial"
@@ -47,6 +50,7 @@ dev = [
     "httpx>=0.28.1",
     "import-linter>=2.17",
     "mypy>=1.13",
+    "opentelemetry-sdk>=1.27",
     "psycopg[binary,pool]>=3.2",
     "pytest>=8.3",
     "pytest-asyncio>=1.0",
@@ -210,4 +214,4 @@ forbidden_modules = ["omnisocial.testing"]
 name = "El núcleo no depende de paquetes opcionales"
 type = "forbidden"
 source_modules = ["omnisocial.domain", "omnisocial.application"]
-forbidden_modules = ["httpx", "starlette", "psycopg", "cryptography"]
+forbidden_modules = ["httpx", "starlette", "psycopg", "cryptography", "opentelemetry"]
