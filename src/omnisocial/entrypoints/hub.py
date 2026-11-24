@@ -13,13 +13,14 @@ from omnisocial.application.ports import (
     AssetRepository,
     AuthorizationStateStore,
     Clock,
+    ConnectionObserver,
     ConnectionRepository,
     IdGenerator,
     PublicationRepository,
     SecretGenerator,
 )
 from omnisocial.application.registry import Provider, ProviderRegistry
-from omnisocial.application.use_cases.access import GetValidToken, ResolveAssetAccess
+from omnisocial.application.use_cases.access import ConnectionWatch, GetValidToken, ResolveAssetAccess
 from omnisocial.application.use_cases.assets import ListAssets, SyncAssets
 from omnisocial.application.use_cases.authorization import (
     AuthorizationSettings,
@@ -44,6 +45,7 @@ from omnisocial.application.use_cases.operations import (
 )
 from omnisocial.application.use_cases.profiles import LookupProfile
 from omnisocial.application.use_cases.publishing import CheckPublication, DeletePost, Publish, ValidateDraft
+from omnisocial.application.use_cases.refreshing import RefreshExpiring
 from omnisocial.application.use_cases.webhooks import HandleWebhook
 from omnisocial.domain.redirect import ReturnUrlPolicy
 
@@ -88,6 +90,7 @@ class Omnisocial:
     publish: Publish
     check_publication: CheckPublication
     delete_post: DeletePost
+    refresh_expiring: RefreshExpiring
 
     @classmethod
     def build(
@@ -104,16 +107,21 @@ class Omnisocial:
         ids: IdGenerator | None = None,
         secrets: SecretGenerator | None = None,
         publications: PublicationRepository | None = None,
+        on_connection_change: ConnectionObserver | None = None,
     ) -> Omnisocial:
         """`publications` guarda las publicaciones en curso y las claves de idempotencia. Si falta, quedan en
-        memoria: alcanza para probar, pero no sobreviven a un reinicio ni se comparten entre procesos."""
+        memoria: alcanza para probar, pero no sobreviven a un reinicio ni se comparten entre procesos.
+
+        `on_connection_change` se llama cuando una conexión deja de servir (venció, la red rechazó el
+        token, se desconectó) o vuelve a servir (alguien reconectó), con el cambio ya guardado."""
         registry = ProviderRegistry(providers)
         clock = clock or SystemClock()
         ids = ids or UuidGenerator()
         secrets = secrets or SystemSecrets()
         publications = publications or InMemoryPublicationRepository()
-        store = ConnectionStore(connections=connections, assets=assets, clock=clock, ids=ids)
-        tokens = GetValidToken(registry=registry, connections=connections, clock=clock)
+        watch = ConnectionWatch(on_connection_change)
+        store = ConnectionStore(connections=connections, assets=assets, clock=clock, ids=ids, watch=watch)
+        tokens = GetValidToken(registry=registry, connections=connections, clock=clock, watch=watch)
         access = ResolveAssetAccess(assets=assets, tokens=tokens, clock=clock)
         return cls(
             registry=registry,
@@ -128,7 +136,9 @@ class Omnisocial:
                 registry=registry, states=states, clock=clock, store=store
             ),
             register_system_connection=RegisterSystemConnection(registry=registry, store=store),
-            disconnect=Disconnect(registry=registry, connections=connections, assets=assets, clock=clock),
+            disconnect=Disconnect(
+                registry=registry, connections=connections, assets=assets, clock=clock, watch=watch
+            ),
             get_valid_token=tokens,
             resolve_asset_access=access,
             sync_assets=SyncAssets(registry=registry, tokens=tokens, assets=assets, ids=ids),
@@ -155,4 +165,7 @@ class Omnisocial:
                 registry=registry, access=access, publications=publications, clock=clock
             ),
             delete_post=DeletePost(registry=registry, access=access),
+            refresh_expiring=RefreshExpiring(
+                registry=registry, connections=connections, tokens=tokens, clock=clock
+            ),
         )

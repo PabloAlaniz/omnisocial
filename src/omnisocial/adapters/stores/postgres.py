@@ -185,6 +185,14 @@ class PostgresConnectionRepository(ConnectionRepository):
             "SELECT * FROM omnisocial_connections WHERE owner = %s ORDER BY created_at, id", [owner]
         )
 
+    @override
+    async def list_expiring(self, before: datetime, *, limit: int) -> Sequence[Connection]:
+        return await self._fetch(
+            "SELECT * FROM omnisocial_connections WHERE status = %s AND token_expires_at <= %s "
+            "ORDER BY token_expires_at, id LIMIT %s",
+            [ConnectionStatus.ACTIVE.value, before, limit],
+        )
+
     def _values(self, c: Connection) -> dict[str, object]:
         return {
             "id": c.id,

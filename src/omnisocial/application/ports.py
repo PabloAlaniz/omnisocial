@@ -10,7 +10,7 @@ Hay dos familias:
 
 from __future__ import annotations
 
-from collections.abc import Mapping, Sequence
+from collections.abc import Awaitable, Callable, Mapping, Sequence
 from datetime import datetime
 from typing import Protocol
 
@@ -18,7 +18,7 @@ from omniwebhook import Verifier
 
 from omnisocial.domain.asset import Asset, DiscoveredAsset
 from omnisocial.domain.authorization import AuthorizationRequest, Purpose
-from omnisocial.domain.connection import Connection
+from omnisocial.domain.connection import Connection, ConnectionChange
 from omnisocial.domain.content import Comment, CommentAction, Post
 from omnisocial.domain.handles import Handle, Network
 from omnisocial.domain.identity import Identity
@@ -186,11 +186,20 @@ class ConnectionRepository(Protocol):
 
     async def list_by_owner(self, owner: str) -> Sequence[Connection]: ...
 
+    async def list_expiring(self, before: datetime, *, limit: int) -> Sequence[Connection]:
+        """Las conexiones activas cuyo token vence antes de ese momento, de la que vence primero a la que
+        vence última. Las que no vencen nunca no entran."""
+        ...
+
     async def add(self, connection: Connection) -> None: ...
 
     async def save(self, connection: Connection, *, expected_version: int) -> bool:
         """Guarda solo si la versión guardada sigue siendo `expected_version`. Devuelve si guardó."""
         ...
+
+
+ConnectionObserver = Callable[[ConnectionChange], Awaitable[None]]
+"""Se llama cuando una conexión deja de servir o vuelve a servir, después de guardar el cambio."""
 
 
 class AssetRepository(Protocol):

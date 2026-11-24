@@ -25,6 +25,7 @@ from omnisocial.application.results import (
     Refused,
     refusal_for,
 )
+from omnisocial.application.use_cases.access import ConnectionWatch
 from omnisocial.domain.asset import Asset, DiscoveredAsset
 from omnisocial.domain.authorization import DEFAULT_STATE_TTL, AuthorizationRequest, Purpose
 from omnisocial.domain.connection import Connection, ConnectionStatus
@@ -114,11 +115,13 @@ class ConnectionStore:
         assets: AssetRepository,
         clock: Clock,
         ids: IdGenerator,
+        watch: ConnectionWatch | None = None,
     ) -> None:
         self._connections = connections
         self._assets = assets
         self._clock = clock
         self._ids = ids
+        self._watch = watch or ConnectionWatch()
 
     async def store(
         self,
@@ -157,6 +160,8 @@ class ConnectionStore:
                     break
                 existing = current
                 connection = existing.reconnect(subject, token, now)
+            # Reconectar una conexión que no servía la recupera, con el mismo id y los mismos activos.
+            await self._watch.changed(existing, connection)
 
         assets: Sequence[Asset] = ()
         if provider.assets is not None:
@@ -292,11 +297,13 @@ class Disconnect:
         connections: ConnectionRepository,
         assets: AssetRepository,
         clock: Clock,
+        watch: ConnectionWatch | None = None,
     ) -> None:
         self._registry = registry
         self._connections = connections
         self._assets = assets
         self._clock = clock
+        self._watch = watch or ConnectionWatch()
 
     async def execute(self, connection_id: str, *, revoke_remote: bool = True) -> Done[Connection] | Refused:
         connection = await self._connections.get(connection_id)
@@ -314,4 +321,5 @@ class Disconnect:
             connection = current
             revoked = connection.mark(ConnectionStatus.REVOKED, "desconectada", self._clock.now())
         await self._assets.replace_for_connection(connection_id, ())
+        await self._watch.changed(connection, revoked)
         return Done(revoked)

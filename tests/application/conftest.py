@@ -10,7 +10,7 @@ from omnisocial.adapters.stores.memory import (
     InMemoryAuthorizationStateStore,
     InMemoryConnectionRepository,
 )
-from omnisocial.application.ports import PublicationRepository
+from omnisocial.application.ports import ConnectionObserver, PublicationRepository
 from omnisocial.domain.redirect import ReturnUrlPolicy
 from omnisocial.entrypoints.hub import Omnisocial
 from tests.fakes import FakeNetwork, FakeSecrets, SequentialIds
@@ -28,6 +28,7 @@ def build_world(
     network: FakeNetwork | None = None,
     *,
     publications: PublicationRepository | None = None,
+    on_connection_change: ConnectionObserver | None = None,
     **provider_kwargs: object,
 ) -> World:
     network = network or FakeNetwork()
@@ -45,6 +46,7 @@ def build_world(
         ids=SequentialIds(),
         secrets=FakeSecrets(),
         publications=publications,
+        on_connection_change=on_connection_change,
     )
     return World(network, connections, assets, social)
 

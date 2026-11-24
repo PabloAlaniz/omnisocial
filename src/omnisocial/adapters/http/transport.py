@@ -6,10 +6,12 @@ from collections.abc import Mapping
 from dataclasses import dataclass, field
 from typing import Protocol
 
+from omnisocial.domain.errors import OmnisocialError
+
 Params = Mapping[str, str | int]
 
 
-class TransportError(Exception):
+class TransportError(OmnisocialError):
     """No hubo respuesta: la conexión falló, se cortó o venció el tiempo de espera."""
 
 

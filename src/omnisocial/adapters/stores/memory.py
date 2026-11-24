@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from collections.abc import Sequence
 from dataclasses import replace
+from datetime import datetime
 
 from typing_extensions import override
 
@@ -44,6 +45,15 @@ class InMemoryConnectionRepository(ConnectionRepository):
     @override
     async def list_by_owner(self, owner: str) -> Sequence[Connection]:
         return [c for c in self._items.values() if c.owner == owner]
+
+    @override
+    async def list_expiring(self, before: datetime, *, limit: int) -> Sequence[Connection]:
+        due = [
+            c
+            for c in self._items.values()
+            if c.is_usable and c.token.expires_at is not None and c.token.expires_at <= before
+        ]
+        return sorted(due, key=lambda c: (c.token.expires_at, c.id))[:limit]
 
     @override
     async def add(self, connection: Connection) -> None:

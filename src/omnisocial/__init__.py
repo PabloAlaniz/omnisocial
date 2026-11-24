@@ -28,10 +28,11 @@ from omnisocial.application.results import (
     Refused,
     ValidToken,
 )
+from omnisocial.application.use_cases.refreshing import RefreshReport
 from omnisocial.application.use_cases.webhooks import OnEvents, RoutedEvent, WebhookReceived
 from omnisocial.domain.asset import Asset, DiscoveredAsset
 from omnisocial.domain.authorization import Purpose
-from omnisocial.domain.connection import Connection, ConnectionStatus
+from omnisocial.domain.connection import Connection, ConnectionChange, ConnectionStatus
 from omnisocial.domain.content import Comment, CommentAction, Post
 from omnisocial.domain.errors import (
     CapabilityNotSupported,
@@ -91,6 +92,7 @@ __all__ = [
     "CommentAction",
     "Connected",
     "Connection",
+    "ConnectionChange",
     "ConnectionStatus",
     "Conversation",
     "DiscoveredAsset",
@@ -141,6 +143,7 @@ __all__ = [
     "QuotaBudget",
     "QuotaExhausted",
     "RateLimited",
+    "RefreshReport",
     "Refusal",
     "Refused",
     "ReplyWindow",

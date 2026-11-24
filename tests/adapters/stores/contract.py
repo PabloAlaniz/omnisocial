@@ -80,6 +80,17 @@ async def connection_contract(repo: ConnectionRepository) -> None:
     await repo.add(connection("c3", owner="otro"))
     assert [c.id for c in await repo.list_by_owner("dueño")] == ["c1", "c2"]
 
+    # Por vencer: solo las activas con vencimiento, de la más urgente a la menos.
+    soon = replace(connection("c4", subject="u4"), token=Token(TokenKind.USER, "x", expires_at=NOW))
+    never = replace(connection("c5", subject="u5"), token=Token(TokenKind.USER, "x"))
+    dead = connection("c6", subject="u6").mark(ConnectionStatus.INVALID, "x", NOW)
+    for extra in (soon, never, dead):
+        await repo.add(extra)
+    in_two_hours = NOW + timedelta(hours=2)
+    assert [c.id for c in await repo.list_expiring(in_two_hours, limit=10)] == ["c4", "c2", "c3"]
+    assert [c.id for c in await repo.list_expiring(in_two_hours, limit=1)] == ["c4"]
+    assert await repo.list_expiring(NOW - timedelta(minutes=1), limit=10) == []
+
 
 async def asset_contract(connections: ConnectionRepository, repo: AssetRepository) -> None:
     await connections.add(connection("c1"))

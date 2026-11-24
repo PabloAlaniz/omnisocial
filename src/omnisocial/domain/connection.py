@@ -22,6 +22,25 @@ class ConnectionStatus(StrEnum):
 
 
 @dataclass(frozen=True, slots=True)
+class ConnectionChange:
+    """Una conexión cambió de estado: dejó de servir, o volvió a servir."""
+
+    connection: Connection
+    """Como quedó."""
+    previous: ConnectionStatus
+
+    @property
+    def lost(self) -> bool:
+        """Servía y ya no: venció, la red rechazó el token o se desconectó."""
+        return self.previous is ConnectionStatus.ACTIVE and not self.connection.is_usable
+
+    @property
+    def recovered(self) -> bool:
+        """No servía y alguien volvió a conectar."""
+        return self.previous is not ConnectionStatus.ACTIVE and self.connection.is_usable
+
+
+@dataclass(frozen=True, slots=True)
 class Connection:
     """Una autorización guardada.
 
