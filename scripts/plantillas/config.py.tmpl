@@ -1,0 +1,29 @@
+"""Configuración de la app de $nombre."""
+
+from __future__ import annotations
+
+from dataclasses import dataclass, field
+
+from omnisocial.network import ProviderId
+
+$const = ProviderId("$id")
+
+# PENDIENTE: las URLs reales de la red.
+AUTHORIZE_URL = "https://$id.ejemplo/oauth/authorize"
+API_BASE = "https://api.$id.ejemplo"
+
+LOGIN_SCOPES: tuple[str, ...] = ("perfil",)
+"""PENDIENTE: lo mínimo para saber quién es la persona."""
+
+CONNECT_SCOPES: tuple[str, ...] = ("perfil",)
+"""PENDIENTE: lo que hace falta para administrar la cuenta. Qué exige cada permiso va en `docs/$id.md`."""
+
+
+@dataclass(frozen=True, slots=True)
+class ${clase}Config:
+    client_id: str
+    client_secret: str = field(repr=False)
+    login_scopes: tuple[str, ...] = LOGIN_SCOPES
+    connect_scopes: tuple[str, ...] = CONNECT_SCOPES
+    authorize_url: str = AUTHORIZE_URL
+    api_base: str = API_BASE

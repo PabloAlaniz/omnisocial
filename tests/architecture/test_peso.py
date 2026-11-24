@@ -3,9 +3,15 @@
 from __future__ import annotations
 
 import json
+import pkgutil
 import subprocess
 import sys
 
+import pytest
+
+from omnisocial.adapters import providers
+
+NETWORKS = sorted(module.name for module in pkgutil.iter_modules(providers.__path__) if module.ispkg)
 OPTIONAL = ("httpx", "cryptography", "psycopg", "psycopg_pool", "starlette")
 
 
@@ -25,8 +31,9 @@ def test_el_paquete_raiz_no_carga_redes_ni_opcionales() -> None:
     assert optional == []
 
 
-def test_una_red_no_carga_a_las_otras() -> None:
-    meta = _loaded_after("import omnisocial.meta")
-    tiktok = _loaded_after("import omnisocial.tiktok")
-    assert not any(m.startswith("omnisocial.adapters.providers.tiktok") for m in meta)
-    assert not any(m.startswith("omnisocial.adapters.providers.meta") for m in tiktok)
+@pytest.mark.parametrize("network", NETWORKS)
+def test_una_red_no_carga_a_las_otras(network: str) -> None:
+    loaded = _loaded_after(f"import omnisocial.{network}")
+    prefix = "omnisocial.adapters.providers."
+    others = sorted(m for m in loaded if m.startswith(prefix) and m.split(".")[3] != network)
+    assert others == []

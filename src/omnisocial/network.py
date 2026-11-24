@@ -6,6 +6,7 @@ que declara, el transporte por el que habla y los errores que lanza. No carga ni
 
 from omnisocial.adapters.http.oauth2 import OAuthApp, StandardOAuth
 from omnisocial.adapters.http.transport import HttpResponse, HttpTransport, Params, TransportError
+from omnisocial.adapters.system import SystemClock
 from omnisocial.application.ports import (
     AssetDirectory,
     Clock,
@@ -19,6 +20,8 @@ from omnisocial.application.ports import (
     WebhookParser,
 )
 from omnisocial.application.registry import ENTRY_POINT_GROUP, Provider, load_entry_point
+from omnisocial.domain.asset import Asset, DiscoveredAsset
+from omnisocial.domain.authorization import Purpose
 from omnisocial.domain.errors import (
     ErrorKind,
     PermissionMissing,
@@ -27,20 +30,25 @@ from omnisocial.domain.errors import (
     RateLimited,
     TokenRejected,
 )
+from omnisocial.domain.identity import Identity
 from omnisocial.domain.provider import Capability, ProviderId
 from omnisocial.domain.spec import ErrorTable, NetworkSpec, OAuthSpec
+from omnisocial.domain.token import Token, TokenKind
 
 __all__ = [
     "ENTRY_POINT_GROUP",
+    "Asset",
     "AssetDirectory",
     "Capability",
     "Clock",
     "CommentGateway",
     "ContentReader",
+    "DiscoveredAsset",
     "ErrorKind",
     "ErrorTable",
     "HttpResponse",
     "HttpTransport",
+    "Identity",
     "IdentityReader",
     "InsightsReader",
     "MessagingGateway",
@@ -54,9 +62,13 @@ __all__ = [
     "Provider",
     "ProviderError",
     "ProviderId",
+    "Purpose",
     "QuotaExhausted",
     "RateLimited",
     "StandardOAuth",
+    "SystemClock",
+    "Token",
+    "TokenKind",
     "TokenRejected",
     "TransportError",
     "WebhookParser",

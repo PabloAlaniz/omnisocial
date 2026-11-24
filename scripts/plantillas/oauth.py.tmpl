@@ -1,0 +1,48 @@
+"""El login de $nombre: el OAuth es el estándar; lo propio es cómo se lee la identidad."""
+
+from __future__ import annotations
+
+from dataclasses import replace
+
+from typing_extensions import override
+
+from omnisocial.adapters.providers.$id.client import ${clase}Client, as_str
+from omnisocial.adapters.providers.$id.config import $const
+from omnisocial.adapters.providers.$id.spec import SPEC, oauth_spec
+from omnisocial.network import (
+    Clock,
+    Identity,
+    IdentityReader,
+    OAuthApp,
+    ProviderError,
+    Purpose,
+    StandardOAuth,
+    Token,
+)
+
+
+class ${clase}Identity(IdentityReader):
+    def __init__(self, client: ${clase}Client) -> None:
+        self._client = client
+
+    @override
+    async def identity(self, token: Token) -> Identity:
+        # PENDIENTE: el endpoint y los campos reales. Se guarda el id estable, no el nombre de usuario.
+        data = await self._client.get("me", token.access_token)
+        external_id = as_str(data.get("id"))
+        if external_id is None:
+            raise ProviderError($const, "$nombre no devolvió el id de la persona.")
+        return Identity(provider=$const, external_id=external_id, name=as_str(data.get("name")))
+
+
+def ${id}_oauth(client: ${clase}Client, clock: Clock) -> StandardOAuth:
+    config = client.config
+    network = replace(SPEC, oauth=oauth_spec(authorize_url=config.authorize_url, api_base=config.api_base))
+    app = OAuthApp(
+        config.client_id,
+        config.client_secret,
+        scopes={Purpose.LOGIN: config.login_scopes, Purpose.CONNECT: config.connect_scopes},
+    )
+    return StandardOAuth(
+        network, app, transport=client.transport, clock=clock, identity=${clase}Identity(client)
+    )
