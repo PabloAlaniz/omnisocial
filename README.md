@@ -4,6 +4,8 @@ Redes sociales con las mismas reglas: login, conexiones, activos, publicaciones,
 privados, métricas y webhooks, con un núcleo común y un adaptador por red.
 
 [![PyPI](https://img.shields.io/pypi/v/omnisocial)](https://pypi.org/project/omnisocial/)
+[![En vivo](https://github.com/PabloAlaniz/omnisocial/actions/workflows/en-vivo.yml/badge.svg)](docs/pruebas-en-vivo.md)
+[![OpenSSF Scorecard](https://api.scorecard.dev/projects/github.com/PabloAlaniz/omnisocial/badge)](https://scorecard.dev/viewer/?uri=github.com/PabloAlaniz/omnisocial)
 
 > La API puede cambiar entre versiones menores hasta la 1.0.
 
@@ -392,6 +394,22 @@ sin aviso, y en las redes que renuevan el mismo token (Threads, por ejemplo) ya 
 para avisarle a la persona antes. `on_connection_change` se llama con el cambio ya guardado; reconectar
 conserva el id de la conexión y el de sus activos.
 
+## Operar en producción
+
+```python
+social = Omnisocial.build(..., observer=OtelObserver())  # cada llamada a una red: cuál, qué, cómo y cuánto
+reddit = reddit_provider(config, transport, rate_limits=PostgresRateLimitStore(pool))  # entre procesos
+```
+
+- **Observar**: un gancho por cada llamada a una red y otro por cada pedido HTTP, con OpenTelemetry como
+  extra (`omnisocial[otel]`). Nunca sale un token, el mensaje de un error ni una ruta con ids.
+- **Límites compartidos**: con un almacén, varios procesos se reparten los turnos de una red y, cuando
+  la red pide esperar, esperan todos.
+- **Qué tan probada está cada red**: la columna "Soporte" de la matriz. Hoy todas son experimentales:
+  están probadas contra respuestas simuladas, no contra la API real.
+
+Ver [operar en producción](docs/operar.md).
+
 ## Cuentas ajenas
 
 Los perfiles públicos se buscan por nombre o por URL. Instagram solo los muestra a través de una cuenta
@@ -446,6 +464,7 @@ Para esto **no hace falta una app propia**: `MetaConfig(api_version="v24.0")` si
 - [Redes federadas y conexión por credencial](docs/adr/0011-redes-federadas-y-credenciales.md)
 - [Consultas auxiliares y ritmo por red](docs/adr/0012-consultas-auxiliares-y-ritmo.md)
 - [Mensajes sin historial y bandeja unificada](docs/adr/0013-mensajes-sin-historial-y-bandeja.md)
+- [Operar en producción](docs/adr/0014-operar-en-produccion.md)
 - [Meta: permisos, revisión de la app y lo que conviene saber](docs/meta.md)
 - [TikTok: Login Kit, Display API y lo que conviene saber](docs/tiktok.md)
 - [YouTube: Data API v3, cuota y lo que conviene saber](docs/youtube.md)
@@ -462,6 +481,9 @@ Para esto **no hace falta una app propia**: `MetaConfig(api_version="v24.0")` si
 - [Telegram: bots, canales y lo que conviene saber](docs/telegram.md)
 - [Discord: por bot o por webhook, y lo que conviene saber](docs/discord.md)
 - [Lo que vale para todas las redes](docs/redes-pendientes.md)
+- [Operar en producción: observar, repartir los límites y saber qué se prueba](docs/operar.md)
+- [Niveles de soporte](docs/niveles-de-soporte.md)
+- [Pruebas en vivo](docs/pruebas-en-vivo.md)
 - [Sumar una red](docs/nueva-red.md)
 - [Hoja de ruta: diez sprints](docs/hoja-de-ruta.md)
 - [Cómo se publica una versión](docs/publicar.md)

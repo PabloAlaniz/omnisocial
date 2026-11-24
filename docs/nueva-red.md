@@ -275,6 +275,22 @@ Con eso se comprueba, pasando por los casos de uso, que:
 **Después, la traducción de cada capacidad**, con respuestas copiadas de la API real (sin tokens ni datos
 personales) y `FakeTransport`. Ver `tests/adapters/tiktok/`. Ningún test llama a la red.
 
+**El nivel de soporte y la versión de API** también van en la descripción:
+
+```python
+SPEC = NetworkSpec(
+    ...,
+    api=ApiPin("v5", reviewed=date(2026, 11, 24), changelog="https://red.ejemplo.com/changelog"),
+)
+```
+
+Una red nueva es `experimental` (es el valor por defecto) hasta que alguien la use con cuentas reales.
+`reviewed` es la última vez que se comparó el adaptador con la documentación de esa versión: una tarea
+avisa cuando pasan seis meses. Ver [niveles de soporte](niveles-de-soporte.md).
+
+El contrato también comprueba que nada de lo que se observa de la red lleve un secreto. Si la red manda
+una clave en la ruta de la URL, no hace falta nada: los tramos que no son un nombre se enmascaran.
+
 ## 5. Documentarla
 
 La página de la red (`docs/<red>.md`) tiene siempre las mismas secciones: qué cubre, armado, cómo crear la

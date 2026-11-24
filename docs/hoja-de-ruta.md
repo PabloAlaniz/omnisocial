@@ -22,7 +22,7 @@ contrato común, tiene su página en `docs/` y aparece en la matriz de capacidad
 | 6 ✓ | Redes abiertas y federadas | Bluesky, Mastodon, Pixelfed |
 | 7 ✓ | Publicaciones con campos propios | Pinterest, Reddit, Google Business Profile |
 | 8 ✓ | Mensajería y comunidades | WhatsApp Business, Telegram, Discord |
-| 9 | Operar en producción | — |
+| 9 ✓ | Operar en producción | — |
 | 10 | Versión 1.0 | Snapchat, Twitch (según demanda) |
 
 Al terminar: 16 redes o más, contra las 2 de hoy.
@@ -171,6 +171,12 @@ número, y guardar la bandeja, que es de la app.
 - **Bandeja unificada**: comentarios, mensajes y reseñas de todas las redes con la misma forma.
 
 ## Sprint 9. Operar en producción
+
+**Hecho** ([ADR 0014](adr/0014-operar-en-produccion.md), [operar.md](operar.md),
+[niveles-de-soporte.md](niveles-de-soporte.md), [pruebas-en-vivo.md](pruebas-en-vivo.md)). Las pruebas en
+vivo quedaron armadas y apagadas: se encienden red por red cargando un secreto, y hasta entonces todas
+las redes son experimentales. Quedaron afuera un estado público fuera de GitHub, guardar los tokens que
+rotan durante las pruebas, y compartir entre procesos el tope de pedidos simultáneos.
 
 - **Observabilidad**: ganchos para trazas y métricas por red y por operación, con OpenTelemetry como extra.
   Los tokens y las cabeceras de autorización nunca llegan a un log o a una traza; hay una prueba que lo

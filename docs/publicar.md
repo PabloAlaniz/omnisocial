@@ -12,6 +12,23 @@
 La versión se escribe en un solo lugar (`.release-please-manifest.json`) y la herramienta la copia a
 `pyproject.toml` y `uv.lock`. Antes de la 1.0, un `feat` sube la versión menor y un `fix`, la de parche.
 
+## Qué acompaña a cada versión
+
+- **Una atestación de origen**: una firma de que el paquete salió de este workflow, en este repositorio y
+  en ese commit. PyPI recibe la suya al publicar, y los archivos de la versión en GitHub llevan otra. Se
+  comprueba con `gh attestation verify omnisocial-X.Y.Z-py3-none-any.whl --repo PabloAlaniz/omnisocial`.
+- **La lista de componentes** (`omnisocial.cdx.json`, en formato CycloneDX): de qué depende el paquete
+  con todos sus extras, con las versiones exactas con que se probó. Va adjunta a la versión en GitHub.
+
+Además, [`scorecard.yml`](../.github/workflows/scorecard.yml) publica cada semana la puntuación de
+prácticas de seguridad del repositorio, y Dependabot propone las actualizaciones de dependencias y de
+acciones. Las acciones van fijadas por commit.
+
+| Dónde | Qué |
+|---|---|
+| GitHub, *Settings → Code security* | Activar *Code scanning*, que es donde Scorecard deja sus resultados |
+| GitHub, *Settings → Branches* | Proteger `main` (revisión y checks obligatorios): es lo que más pesa en la puntuación |
+
 ## Publicación de confianza
 
 Ningún token de publicación está guardado en el repositorio: PyPI comprueba, con una credencial de corta
