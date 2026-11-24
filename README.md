@@ -248,6 +248,7 @@ Para esto **no hace falta una app propia**: `MetaConfig(api_version="v24.0")` si
 - [TikTok: Login Kit, Display API y lo que conviene saber](docs/tiktok.md)
 - [Redes pendientes: YouTube, X y LinkedIn](docs/redes-pendientes.md)
 - [Sumar una red](docs/nueva-red.md)
+- [Hoja de ruta: diez sprints](docs/hoja-de-ruta.md)
 - [Cómo se publica una versión](docs/publicar.md)
 
 ## Desarrollo
