@@ -11,6 +11,7 @@ from omnisocial.application.results import AssetAccess, Done, InsightsRead, Refu
 from omnisocial.application.use_cases.access import ResolveAssetAccess
 from omnisocial.domain.content import Comment, CommentAction, Post
 from omnisocial.domain.errors import ProviderError, TokenRejected
+from omnisocial.domain.lookup import Choice, LookupSpec
 from omnisocial.domain.messaging import Conversation, Message, last_inbound_at
 from omnisocial.domain.metrics import CanonicalMetric, MetricSeries, Period, select_metrics
 from omnisocial.domain.provider import Capability
@@ -74,6 +75,45 @@ class ListPosts(_AssetOperation):
             return Done(await content.list_posts(access.asset, access.token, window=window, limit=limit))
 
         return await self._run(asset_id, call)
+
+
+class ListChoices(_AssetOperation):
+    """Lo que hay que elegir antes de publicar en un activo: tableros, comunidades, etiquetas.
+
+    Qué consultas ofrece cada tipo de activo lo declara la red en su descripción (`spec.lookups`).
+    """
+
+    capability = Capability.PUBLISHING
+
+    async def available(self, asset_id: str) -> Done[tuple[LookupSpec, ...]] | Refused:
+        """Las consultas que ofrece ese activo. Vacío si no hay nada que elegir."""
+        opened = await self._open(asset_id)
+        if isinstance(opened, Refused):
+            return opened
+        provider, access = opened
+        return Done(_lookups(provider, access.asset.kind))
+
+    async def execute(
+        self, asset_id: str, lookup: str, *, query: str | None = None, parent: str | None = None
+    ) -> Done[Sequence[Choice]] | Refused:
+        async def call(provider: Provider, access: AssetAccess) -> Done[Sequence[Choice]] | Refused:
+            declared = next((s for s in _lookups(provider, access.asset.kind) if s.name == lookup), None)
+            if declared is None or provider.lookups is None:
+                return Refused(Refusal.UNKNOWN_LOOKUP, detail=lookup, capability=self.capability)
+            if declared.parent is not None and not parent:
+                return Refused(Refusal.PARENT_REQUIRED, detail=declared.parent, capability=self.capability)
+            found = await provider.lookups.choices(
+                access.asset, access.token, lookup=lookup, query=query or None, parent=parent
+            )
+            return Done(found)
+
+        return await self._run(asset_id, call)
+
+
+def _lookups(provider: Provider, kind: str) -> tuple[LookupSpec, ...]:
+    if provider.spec is None or provider.lookups is None:
+        return ()
+    return provider.spec.lookups.get(kind, ())
 
 
 class ListComments(_AssetOperation):

@@ -22,6 +22,7 @@ from omnisocial.domain.connection import Connection, ConnectionChange
 from omnisocial.domain.content import Comment, CommentAction, Post
 from omnisocial.domain.handles import Handle, Network
 from omnisocial.domain.identity import Identity
+from omnisocial.domain.lookup import Choice
 from omnisocial.domain.messaging import Conversation, Message, ReplyWindow
 from omnisocial.domain.metrics import MetricCatalog, MetricSeries, Period
 from omnisocial.domain.profile import PublicProfile
@@ -202,6 +203,17 @@ class Publisher(Protocol):
         ...
 
     async def delete(self, asset: Asset, token: Token, *, post_id: str) -> None: ...
+
+
+class LookupReader(Protocol):
+    """Lo que hay que elegir antes de publicar: tableros, comunidades, etiquetas."""
+
+    async def choices(
+        self, asset: Asset, token: Token, *, lookup: str, query: str | None, parent: str | None
+    ) -> Sequence[Choice]:
+        """Las opciones de esa consulta. `lookup` es una de las que la red declara para ese tipo de activo;
+        `parent`, la elección de la que depende, si depende de una."""
+        ...
 
 
 class ProfileLookup(Protocol):

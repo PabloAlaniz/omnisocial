@@ -14,6 +14,7 @@ from omnisocial.application.ports import (
     CredentialLogin,
     IdentityReader,
     InsightsReader,
+    LookupReader,
     MessagingGateway,
     OAuthClient,
     ProfileLookup,
@@ -49,6 +50,8 @@ class Provider:
     """OAuth en una red federada, donde la persona elige el servidor. Va en lugar de `oauth`."""
     credentials: CredentialLogin | None = None
     """Conectar con una credencial, sin OAuth."""
+    lookups: LookupReader | None = None
+    """Las consultas auxiliares para publicar. No es una capacidad aparte: acompaña a `publishing`."""
     identity: IdentityReader | None = None
     """Quién es el dueño de un token sin pasar por OAuth. Si falta, se usa el del OAuth."""
     spec: NetworkSpec | None = None

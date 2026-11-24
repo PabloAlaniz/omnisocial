@@ -35,6 +35,7 @@ from omnisocial.application.use_cases.authorization import (
 from omnisocial.application.use_cases.operations import (
     DeleteComment,
     LikeComment,
+    ListChoices,
     ListComments,
     ListConversations,
     ListMessages,
@@ -77,6 +78,7 @@ class Omnisocial:
     sync_assets: SyncAssets
     list_assets: ListAssets
     list_posts: ListPosts
+    list_choices: ListChoices
     list_comments: ListComments
     reply_to_comment: ReplyToComment
     set_comment_hidden: SetCommentHidden
@@ -147,6 +149,7 @@ class Omnisocial:
             sync_assets=SyncAssets(registry=registry, tokens=tokens, assets=assets, ids=ids),
             list_assets=ListAssets(assets=assets),
             list_posts=ListPosts(registry=registry, access=access),
+            list_choices=ListChoices(registry=registry, access=access),
             list_comments=ListComments(registry=registry, access=access),
             reply_to_comment=ReplyToComment(registry=registry, access=access),
             set_comment_hidden=SetCommentHidden(registry=registry, access=access),

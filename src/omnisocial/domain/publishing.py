@@ -150,6 +150,8 @@ class PublishLimits:
     max_video_seconds: int | None = None
     options: type[PublishOptions] | None = None
     """El tipo de las opciones propias que entiende. `None`: no tiene."""
+    options_required: bool = False
+    """Si no se puede publicar sin opciones: hay que decir a dónde va (un tablero, una comunidad)."""
     max_thread: int = 0
     """Cuántas partes puede tener un hilo después de la primera. 0: no hay hilos."""
 
@@ -170,6 +172,7 @@ class DraftIssue(StrEnum):
     LINK_WITH_MEDIA = "link_with_media"
     FIRST_COMMENT_NOT_SUPPORTED = "first_comment_not_supported"
     WRONG_OPTIONS = "wrong_options"
+    OPTIONS_REQUIRED = "options_required"
     THREAD_NOT_SUPPORTED = "thread_not_supported"
     THREAD_TOO_LONG = "thread_too_long"
 
@@ -299,6 +302,11 @@ def _extras(draft: Draft, limits: PublishLimits) -> Iterator[DraftProblem]:
         limits.options is None or not isinstance(draft.options, limits.options)
     ):
         yield DraftProblem(DraftIssue.WRONG_OPTIONS, "Las opciones son de otra red o de otro tipo de activo.")
+    if draft.options is None and limits.options_required and limits.options is not None:
+        yield DraftProblem(
+            DraftIssue.OPTIONS_REQUIRED,
+            f"Este activo no publica sin sus opciones propias (`{limits.options.__name__}`).",
+        )
 
 
 def _thread(draft: Draft, limits: PublishLimits) -> Iterator[DraftProblem]:

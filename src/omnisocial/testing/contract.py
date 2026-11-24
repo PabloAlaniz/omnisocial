@@ -12,7 +12,7 @@ import asyncio
 import re
 from abc import ABC, abstractmethod
 from collections.abc import Awaitable, Callable, Coroutine, Mapping
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from datetime import timedelta
 from urllib.parse import parse_qsl, urlsplit
 
@@ -32,6 +32,7 @@ from omnisocial.application.ports import (
     CredentialLogin,
     IdentityReader,
     InsightsReader,
+    LookupReader,
     MessagingGateway,
     OAuthClient,
     ProfileLookup,
@@ -39,7 +40,14 @@ from omnisocial.application.ports import (
     WebhookParser,
 )
 from omnisocial.application.registry import Provider
-from omnisocial.application.results import AuthorizationStarted, Connected, Refusal, Refused, ValidToken
+from omnisocial.application.results import (
+    AuthorizationStarted,
+    Connected,
+    Done,
+    Refusal,
+    Refused,
+    ValidToken,
+)
 from omnisocial.domain.asset import Asset
 from omnisocial.domain.authorization import Purpose
 from omnisocial.domain.errors import ErrorKind
@@ -52,6 +60,7 @@ from omnisocial.domain.publishing import (
     Media,
     MediaKind,
     PublishLimits,
+    PublishOptions,
     check_draft,
 )
 from omnisocial.domain.redirect import ReturnUrlPolicy
@@ -102,6 +111,14 @@ class NetworkHarness(ABC):
     def credentials(self) -> Mapping[str, str]:
         """En una red que conecta con una credencial, la de la cuenta de prueba."""
         return {}
+
+    def options(self, kind: str) -> PublishOptions | None:  # noqa: ARG002  # lo usa quien lo cambia
+        """Las opciones de un borrador mínimo para ese tipo de activo, si no publica sin ellas."""
+        return None
+
+    def script_lookups(self) -> None:  # noqa: B027  # opcional: la mayoría de las redes no tiene
+        """Deja en `self.transport` lo que la red responde a cada consulta auxiliar que declara, con al
+        menos una opción."""
 
     def unsigned_webhook(self) -> IncomingRequest:
         """Un aviso sin firma. Se cambia solo si la red necesita otra forma de pedido."""
@@ -193,11 +210,12 @@ def _sample(kind: MediaKind, limits: PublishLimits) -> Media:
 def _draft(world: _World, asset: Asset) -> Draft:
     """Un borrador que entra en ese tipo de activo, armado desde los límites que declara."""
     limits = world.harness.spec.publishing[asset.kind]
+    options = world.harness.options(asset.kind)
     if limits.max_videos:
-        return Draft("hola", media=(_sample(MediaKind.VIDEO, limits),))
+        return Draft("hola", media=(_sample(MediaKind.VIDEO, limits),), options=options)
     if limits.max_images:
-        return Draft("hola", media=(_sample(MediaKind.IMAGE, limits),))
-    return Draft("hola")
+        return Draft("hola", media=(_sample(MediaKind.IMAGE, limits),), options=options)
+    return Draft("hola", options=options)
 
 
 async def _publish(world: _World, asset: Asset) -> object:
@@ -225,6 +243,7 @@ _PORTS: Mapping[str, type] = {
     "insights": InsightsReader,
     "webhooks": WebhookParser,
     "profiles": ProfileLookup,
+    "lookups": LookupReader,
 }
 
 
@@ -388,13 +407,37 @@ class ProviderContract:
                 f"Los límites de '{asset.kind}' no dejan pasar ni un borrador mínimo."
             )
             before = len(world.harness.transport.calls)
-            refused = await world.social.publish.execute(asset.id, Draft("x" * (limits.max_text + 1)))
+            long = replace(_draft(world, asset), text="x" * (limits.max_text + 1))
+            refused = await world.social.publish.execute(asset.id, long)
             assert isinstance(refused, Refused), f"'{asset.kind}': un texto demasiado largo no fue rechazado."
             assert refused.reason is Refusal.INVALID_DRAFT
             assert DraftIssue.TEXT_TOO_LONG in [problem.issue for problem in refused.problems]
             assert len(world.harness.transport.calls) == before, (
                 f"'{asset.kind}': se llamó a la red con un borrador que no entraba."
             )
+
+    def test_cada_consulta_auxiliar_declarada_responde(self) -> None:
+        _run(self._consultas())
+
+    async def _consultas(self) -> None:
+        world = _world(self.harness())
+        spec = world.harness.spec
+        assert bool(spec.lookups) == (world.provider.lookups is not None), (
+            "La red declara consultas auxiliares si y solo si trae quien las responde."
+        )
+        if not spec.lookups:
+            return
+        connected = await _connect(world)
+        world.harness.script_lookups()
+        for asset in connected.assets:
+            for lookup in spec.lookups.get(asset.kind, ()):
+                found = await world.social.list_choices.execute(
+                    asset.id, lookup.name, parent="padre" if lookup.parent else None
+                )
+                where = f"'{lookup.name}' de '{asset.kind}'"
+                assert isinstance(found, Done), f"{where}: volvió {found!r}."
+                assert found.value, f"{where}: no devolvió ninguna opción."
+                assert all(choice.id and choice.name for choice in found.value), f"{where}: opción vacía."
 
     # ── Webhooks ────────────────────────────────────────────────────────────────────────────────
 

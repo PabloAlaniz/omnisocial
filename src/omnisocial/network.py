@@ -5,6 +5,7 @@ que declara, el transporte por el que habla y los errores que lanza. No carga ni
 """
 
 from omnisocial.adapters.http.oauth2 import OAuthApp, StandardOAuth
+from omnisocial.adapters.http.pacing import PacedTransport, paced
 from omnisocial.adapters.http.transport import HttpResponse, HttpTransport, Params, TransportError
 from omnisocial.adapters.system import SystemClock
 from omnisocial.application.ports import (
@@ -15,6 +16,7 @@ from omnisocial.application.ports import (
     CredentialLogin,
     IdentityReader,
     InsightsReader,
+    LookupReader,
     MessagingGateway,
     OAuthClient,
     ProfileLookup,
@@ -37,6 +39,7 @@ from omnisocial.domain.errors import (
     TokenRejected,
 )
 from omnisocial.domain.identity import Identity
+from omnisocial.domain.lookup import Choice, LookupSpec
 from omnisocial.domain.provider import Capability, ProviderId
 from omnisocial.domain.publishing import (
     Draft,
@@ -48,7 +51,7 @@ from omnisocial.domain.publishing import (
     PublishOptions,
     TextCount,
 )
-from omnisocial.domain.spec import ErrorTable, NetworkSpec, OAuthSpec
+from omnisocial.domain.spec import ErrorTable, NetworkSpec, OAuthSpec, Pace
 from omnisocial.domain.token import Token, TokenKind
 
 __all__ = [
@@ -56,6 +59,7 @@ __all__ = [
     "Asset",
     "AssetDirectory",
     "Capability",
+    "Choice",
     "Clock",
     "CommentGateway",
     "ContentReader",
@@ -70,6 +74,8 @@ __all__ = [
     "Identity",
     "IdentityReader",
     "InsightsReader",
+    "LookupReader",
+    "LookupSpec",
     "Media",
     "MediaKind",
     "MessagingGateway",
@@ -79,6 +85,8 @@ __all__ = [
     "OAuthClient",
     "OAuthSpec",
     "Outcome",
+    "Pace",
+    "PacedTransport",
     "Params",
     "PermissionMissing",
     "ProfileLookup",
@@ -105,4 +113,5 @@ __all__ = [
     "TransportError",
     "WebhookParser",
     "load_entry_point",
+    "paced",
 ]

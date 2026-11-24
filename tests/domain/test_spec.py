@@ -10,6 +10,7 @@ from omnisocial.domain.errors import (
     RateLimited,
     TokenRejected,
 )
+from omnisocial.domain.lookup import LookupSpec
 from omnisocial.domain.provider import Capability, ProviderId
 from omnisocial.domain.spec import ErrorTable, NetworkSpec
 
@@ -67,3 +68,17 @@ def test_un_activo_no_declara_mas_que_la_red() -> None:
             capabilities=frozenset({Capability.CONTENT}),
             assets={"cuenta": frozenset({Capability.CONTENT, Capability.MESSAGING})},
         )
+
+
+def test_las_consultas_auxiliares_se_declaran_bien() -> None:
+    base = {"id": RED, "name": "Red", "capabilities": frozenset({Capability.ASSETS})}
+    assets = {"cuenta": frozenset({Capability.ASSETS})}
+    boards = LookupSpec("tableros", "Los tableros.")
+    NetworkSpec(**base, assets=assets, lookups={"cuenta": (boards, LookupSpec("s", "…", parent="tableros"))})  # type: ignore[arg-type]
+    for wrong, message in [
+        ({"otra": (boards,)}, "no es un tipo de activo"),
+        ({"cuenta": (boards, boards)}, "repite"),
+        ({"cuenta": (LookupSpec("s", "…", parent="tableros"),)}, "depende de otra"),
+    ]:
+        with pytest.raises(ValueError, match=message):
+            NetworkSpec(**base, assets=assets, lookups=wrong)  # type: ignore[arg-type]

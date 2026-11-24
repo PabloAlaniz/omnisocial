@@ -17,6 +17,7 @@ from omnisocial.domain.content import Comment, CommentAction, Post
 from omnisocial.domain.errors import TokenRejected
 from omnisocial.domain.handles import Handle, Network
 from omnisocial.domain.identity import Identity
+from omnisocial.domain.lookup import Choice, LookupSpec
 from omnisocial.domain.messaging import Conversation, Message, ReplyWindow
 from omnisocial.domain.metrics import (
     CanonicalMetric,
@@ -290,6 +291,12 @@ FAKE_SPEC = NetworkSpec(
     capabilities=frozenset(Capability),
     assets={"pagina": frozenset(Capability)},
     publishing={"pagina": FAKE_LIMITS},
+    lookups={
+        "pagina": (
+            LookupSpec("tableros", "Los tableros de la cuenta.", searchable=True),
+            LookupSpec("secciones", "Las secciones de un tablero.", parent="tableros"),
+        )
+    },
 )
 
 
@@ -328,6 +335,18 @@ class FakePublisher:
 
 
 @dataclass
+class FakeLookups:
+    found: Sequence[Choice] = (Choice("t1", "Recetas"),)
+    calls: list[tuple[str, str | None, str | None]] = field(default_factory=list)
+
+    async def choices(
+        self, asset: Asset, token: Token, *, lookup: str, query: str | None, parent: str | None
+    ) -> Sequence[Choice]:
+        self.calls.append((lookup, query, parent))
+        return self.found
+
+
+@dataclass
 class FakeNetwork:
     clock: FakeClock = field(default_factory=FakeClock)
     oauth: FakeOAuth = field(default_factory=FakeOAuth)
@@ -339,6 +358,7 @@ class FakeNetwork:
     webhooks: FakeWebhooks = field(default_factory=FakeWebhooks)
     profiles: FakeProfiles = field(default_factory=FakeProfiles)
     publisher: FakePublisher = field(default_factory=FakePublisher)
+    lookups: FakeLookups | None = None
 
     def __post_init__(self) -> None:
         self.oauth.clock = self.clock
@@ -361,6 +381,7 @@ class FakeNetwork:
             profiles=pick(Capability.PUBLIC_PROFILES, self.profiles),  # type: ignore[arg-type]
             publisher=pick(Capability.PUBLISHING, self.publisher),  # type: ignore[arg-type]
             identity=identity,  # type: ignore[arg-type]
+            lookups=self.lookups,
             spec=FAKE_SPEC,
         )
 

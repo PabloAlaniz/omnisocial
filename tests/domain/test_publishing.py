@@ -263,3 +263,13 @@ def test_las_partes_de_un_hilo_no_llevan_hilo_ni_comentario_ni_opciones(part: Dr
 )
 def test_el_largo_con_peso(text: str, length: int) -> None:
     assert text_length(text, TextCount.WEIGHTED) == length
+
+
+def test_un_activo_que_no_publica_sin_opciones_las_pide() -> None:
+    @dataclass(frozen=True)
+    class Destino(PublishOptions):
+        tablero: str
+
+    limits = PublishLimits(max_text=100, options=Destino, options_required=True)
+    assert [p.issue for p in check_draft(Draft("hola"), limits)] == [DraftIssue.OPTIONS_REQUIRED]
+    assert check_draft(Draft("hola", options=Destino("t1")), limits) == ()

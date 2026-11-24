@@ -19,6 +19,7 @@ from omnisocial.domain.errors import (
     RateLimited,
     TokenRejected,
 )
+from omnisocial.domain.lookup import LookupSpec
 from omnisocial.domain.provider import Capability, ProviderId
 from omnisocial.domain.publishing import PublishLimits
 
@@ -97,6 +98,22 @@ class OAuthSpec:
 
 
 @dataclass(frozen=True, slots=True)
+class Pace:
+    """El ritmo que la red tolera de una misma app. Lo respeta `PacedTransport`, dentro de un proceso."""
+
+    max_concurrent: int | None = None
+    """Cuántos pedidos pueden estar en curso a la vez. `None`: sin tope."""
+    min_interval: float = 0.0
+    """Segundos entre el comienzo de un pedido y el del siguiente."""
+
+    def __post_init__(self) -> None:
+        if self.max_concurrent is not None and self.max_concurrent < 1:
+            raise ValueError("Hace falta dejar pasar al menos un pedido a la vez.")
+        if self.min_interval < 0:
+            raise ValueError("El intervalo entre pedidos no puede ser negativo.")
+
+
+@dataclass(frozen=True, slots=True)
 class NetworkSpec:
     id: ProviderId
     name: str
@@ -112,6 +129,10 @@ class NetworkSpec:
     """La página de la red, relativa a la raíz del repositorio."""
     publishing: Mapping[str, PublishLimits] = field(default_factory=dict)
     """Qué acepta cada tipo de activo al publicar."""
+    lookups: Mapping[str, tuple[LookupSpec, ...]] = field(default_factory=dict)
+    """Qué consultas auxiliares ofrece cada tipo de activo (tableros, comunidades, etiquetas)."""
+    pace: Pace | None = None
+    """El ritmo que la red tolera. `None`: no declara uno."""
 
     def __post_init__(self) -> None:
         for kind, capabilities in self.assets.items():
@@ -121,3 +142,11 @@ class NetworkSpec:
                 raise ValueError(f"El activo '{kind}' declara capacidades que la red no tiene: {names}.")
             if (Capability.PUBLISHING in capabilities) != (kind in self.publishing):
                 raise ValueError(f"El activo '{kind}' publica si y solo si declara sus límites.")
+        for kind, lookups in self.lookups.items():
+            if kind not in self.assets:
+                raise ValueError(f"Hay consultas para '{kind}', que no es un tipo de activo de la red.")
+            declared = [lookup.name for lookup in lookups]
+            if len(declared) != len(set(declared)):
+                raise ValueError(f"El activo '{kind}' repite el nombre de una consulta.")
+            if any(lookup.parent is not None and lookup.parent not in declared for lookup in lookups):
+                raise ValueError(f"Una consulta de '{kind}' depende de otra que no está declarada.")
