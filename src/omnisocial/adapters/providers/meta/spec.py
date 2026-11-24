@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from omnisocial.adapters.providers.meta.config import FACEBOOK_PAGE, INSTAGRAM_ACCOUNT, META
+from omnisocial.adapters.providers.meta.config import FACEBOOK_PAGE, INSTAGRAM, INSTAGRAM_ACCOUNT, META
 from omnisocial.domain.errors import ErrorKind
 from omnisocial.domain.provider import Capability
 from omnisocial.domain.publishing import PublishLimits
@@ -73,6 +73,24 @@ def _codes() -> dict[str, ErrorKind]:
 
 
 ERRORS = ErrorTable(codes=_codes())
+
+# Instagram con login propio: la misma cuenta profesional, sin pasar por una página de Facebook. No tiene
+# mensajes ni webhooks integrados todavía, y la API no deja ver perfiles ajenos con este login.
+INSTAGRAM_LOGIN_CAPABILITIES = frozenset(
+    {Capability.CONTENT, Capability.COMMENTS, Capability.INSIGHTS, Capability.PUBLISHING}
+)
+INSTAGRAM_SPEC = NetworkSpec(
+    id=INSTAGRAM,
+    name="Instagram (login propio)",
+    capabilities=frozenset({Capability.LOGIN, Capability.ASSETS}) | INSTAGRAM_LOGIN_CAPABILITIES,
+    assets={INSTAGRAM_ACCOUNT: INSTAGRAM_LOGIN_CAPABILITIES},
+    errors=ERRORS,
+    docs="docs/instagram.md",
+    publishing={INSTAGRAM_ACCOUNT: INSTAGRAM_LIMITS},
+)
+
+EXTRA_SPECS = (INSTAGRAM_SPEC,)
+"""Otras redes que viven en este paquete porque comparten el cliente y los adaptadores."""
 
 SPEC = NetworkSpec(
     id=META,

@@ -11,6 +11,7 @@ from omnisocial.adapters.http.transport import HttpResponse, HttpTransport, Para
 from omnisocial.adapters.providers.meta.config import META, MetaConfig
 from omnisocial.adapters.providers.meta.spec import ERRORS, TOKEN_DEAD_CODES
 from omnisocial.domain.errors import ProviderError
+from omnisocial.domain.provider import ProviderId
 from omnisocial.domain.window import TimeWindow
 
 _SUCCESS = range(200, 300)
@@ -76,9 +77,12 @@ def _table_code(code: int | None, subcode: int | None) -> str | None:
 
 
 class GraphClient:
-    def __init__(self, config: MetaConfig, transport: HttpTransport) -> None:
+    def __init__(self, config: MetaConfig, transport: HttpTransport, *, provider: ProviderId = META) -> None:
+        """`provider`: a nombre de qué red van los errores. La misma API sirve a Meta y a Instagram con
+        login propio."""
         self._config = config
         self._transport = transport
+        self._provider = provider
 
     @property
     def config(self) -> MetaConfig:
@@ -175,15 +179,14 @@ class GraphClient:
                 break
         return items
 
-    @staticmethod
-    def _unwrap(response: HttpResponse) -> dict[str, object]:
+    def _unwrap(self, response: HttpResponse) -> dict[str, object]:
         body = as_dict(response.data)
         if response.status in _SUCCESS and "error" not in body:
             if isinstance(response.data, dict):
                 return body
             if response.data is True or response.text.strip() in {"", "true"}:
                 return {"success": True}
-            raise ProviderError(META, "La Graph API no devolvió JSON.", status=response.status)
+            raise ProviderError(self._provider, "La Graph API no devolvió JSON.", status=response.status)
         error = as_dict(body.get("error"))
         code = as_int(error.get("code"))
         subcode = as_int(error.get("error_subcode"))
@@ -191,7 +194,7 @@ class GraphClient:
         if code in TOKEN_DEAD_CODES:
             message = f"Meta rechazó el token: {message}"
         raise ERRORS.error(
-            META,
+            self._provider,
             message,
             status=response.status,
             code=_table_code(code, subcode),

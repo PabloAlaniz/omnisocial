@@ -9,6 +9,10 @@ from omnisocial.domain.provider import ProviderId
 
 META = ProviderId("meta")
 
+INSTAGRAM = ProviderId("instagram")
+"""Instagram con login propio, sin página de Facebook. Es otra red para la librería: otra app, otros
+tokens y otro servidor. Ver `instagram_login.py`."""
+
 FACEBOOK_PAGE = "facebook_page"
 INSTAGRAM_ACCOUNT = "instagram_account"
 

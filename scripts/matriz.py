@@ -3,7 +3,8 @@
     uv run python scripts/matriz.py           # reescribe el bloque del README
     uv run python scripts/matriz.py --check   # falla si el README quedó viejo
 
-Las redes se encuentran solas: cada paquete de `omnisocial.adapters.providers` con un `spec.SPEC`.
+Las redes se encuentran solas: cada paquete de `omnisocial.adapters.providers` con un `spec.SPEC` (y, si
+trae más de una red, `spec.EXTRA_SPECS`).
 """
 
 from __future__ import annotations
@@ -39,10 +40,12 @@ def specs() -> list[NetworkSpec]:
     for module in pkgutil.iter_modules(providers.__path__):
         if not module.ispkg:
             continue
-        spec = importlib.import_module(f"{providers.__name__}.{module.name}.spec").SPEC
-        if not isinstance(spec, NetworkSpec):
-            raise TypeError(f"`{module.name}.spec.SPEC` no es un NetworkSpec.")
-        found.append(spec)
+        loaded = importlib.import_module(f"{providers.__name__}.{module.name}.spec")
+        # Un paquete puede traer más de una red si comparten el cliente (`EXTRA_SPECS`).
+        for spec in (loaded.SPEC, *getattr(loaded, "EXTRA_SPECS", ())):
+            if not isinstance(spec, NetworkSpec):
+                raise TypeError(f"`{module.name}.spec` trae algo que no es un NetworkSpec.")
+            found.append(spec)
     return sorted(found, key=lambda spec: spec.name.lower())
 
 
