@@ -29,11 +29,13 @@ from omnisocial.application.ports import (
     AssetDirectory,
     CommentGateway,
     ContentReader,
+    CredentialLogin,
     IdentityReader,
     InsightsReader,
     MessagingGateway,
     OAuthClient,
     ProfileLookup,
+    ServerOAuth,
     WebhookParser,
 )
 from omnisocial.application.registry import Provider
@@ -93,6 +95,14 @@ class NetworkHarness(ABC):
     def error(self, kind: ErrorKind) -> HttpResponse | None:
         """Cómo responde la red ante esa clase de error, o `None` si la red no tiene esa clase."""
 
+    def server(self) -> str | None:
+        """En una red federada, el servidor donde está la cuenta de prueba."""
+        return None
+
+    def credentials(self) -> Mapping[str, str]:
+        """En una red que conecta con una credencial, la de la cuenta de prueba."""
+        return {}
+
     def unsigned_webhook(self) -> IncomingRequest:
         """Un aviso sin firma. Se cambia solo si la red necesita otra forma de pedido."""
         return IncomingRequest(headers=[], query=[], body=b"{}")
@@ -125,12 +135,24 @@ def _world(harness: NetworkHarness) -> _World:
 
 
 async def _connect(world: _World) -> Connected:
+    """Conecta la cuenta de prueba como lo hace esa red: con una credencial, o autorizando (en su
+    servidor, si es federada)."""
     world.harness.script_connection()
-    started = await world.social.start_authorization.execute(
-        world.provider.id, purpose=Purpose.CONNECT, owner="dueño", return_url=_APP
-    )
-    assert isinstance(started, AuthorizationStarted), f"No se pudo empezar a autorizar: {started}"
-    connected = await world.social.complete_authorization.execute(state=started.state, code="codigo")
+    connected: object
+    if world.provider.credentials is not None:
+        connected = await world.social.connect_with_credentials.execute(
+            world.provider.id, owner="dueño", credentials=world.harness.credentials()
+        )
+    else:
+        started = await world.social.start_authorization.execute(
+            world.provider.id,
+            purpose=Purpose.CONNECT,
+            owner="dueño",
+            return_url=_APP,
+            server=world.harness.server(),
+        )
+        assert isinstance(started, AuthorizationStarted), f"No se pudo empezar a autorizar: {started}"
+        connected = await world.social.complete_authorization.execute(state=started.state, code="codigo")
     assert isinstance(connected, Connected), f"No se pudo conectar: {connected}"
     return connected
 
@@ -193,6 +215,8 @@ _PROBES: Mapping[Capability, Probe] = {
 
 _PORTS: Mapping[str, type] = {
     "oauth": OAuthClient,
+    "server_oauth": ServerOAuth,
+    "credentials": CredentialLogin,
     "identity": IdentityReader,
     "assets": AssetDirectory,
     "content": ContentReader,
@@ -258,6 +282,31 @@ class ProviderContract:
         assert _REDIRECT in values, "La URL no lleva la `redirect_uri`."
         granted = " ".join(values)
         assert all(scope in granted for scope in scopes), "La URL no lleva todos los permisos."
+        assert ("desafio-1" in values) == oauth.supports_pkce, "PKCE: la URL no coincide con `supports_pkce`."
+
+    def test_en_una_red_federada_se_autoriza_en_el_servidor_de_la_persona(self) -> None:
+        _run(self._url_por_servidor())
+
+    async def _url_por_servidor(self) -> None:
+        harness = self.harness()
+        oauth = harness.provider().server_oauth
+        if oauth is None:
+            return
+        server = harness.server()
+        assert server, "Una red federada necesita el servidor de la cuenta de prueba (`server`)."
+        harness.script_connection()
+        url = await oauth.authorization_url(
+            server,
+            state="estado-1",
+            redirect_uri=_REDIRECT,
+            scopes=oauth.default_scopes(Purpose.CONNECT),
+            code_challenge="desafio-1",
+        )
+        parts = urlsplit(url)
+        values = [value for _, value in parse_qsl(parts.query)]
+        assert (parts.scheme, parts.hostname) == ("https", server), "La URL no es la del servidor elegido."
+        assert "estado-1" in values, "La URL no lleva el `state`."
+        assert _REDIRECT in values, "La URL no lleva la `redirect_uri`."
         assert ("desafio-1" in values) == oauth.supports_pkce, "PKCE: la URL no coincide con `supports_pkce`."
 
     # ── Conectar ────────────────────────────────────────────────────────────────────────────────

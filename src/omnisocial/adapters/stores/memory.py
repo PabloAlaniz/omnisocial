@@ -180,12 +180,16 @@ class InMemoryQuotaLedger(QuotaLedger):
 
 class InMemoryServerAppStore(ServerAppStore):
     def __init__(self) -> None:
-        self._apps: dict[tuple[ProviderId, str, str], ServerApp] = {}
+        self._apps: dict[tuple[ProviderId, str], ServerApp] = {}
 
     @override
-    async def get(self, provider: ProviderId, server: str, redirect_uri: str) -> ServerApp | None:
-        return self._apps.get((provider, server, redirect_uri))
+    async def get(self, provider: ProviderId, server: str) -> ServerApp | None:
+        return self._apps.get((provider, server))
 
     @override
     async def add(self, app: ServerApp) -> ServerApp:
-        return self._apps.setdefault((app.provider, app.server, app.redirect_uri), app)
+        return self._apps.setdefault((app.provider, app.server), app)
+
+    @override
+    async def replace(self, app: ServerApp) -> None:
+        self._apps[app.provider, app.server] = app

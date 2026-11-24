@@ -204,17 +204,20 @@ async def quota_contract(ledger: QuotaLedger) -> None:
 
 async def server_app_contract(store: ServerAppStore) -> None:
     first = ServerApp(P, "mastodon.social", "https://api/cb", "id-1", "secreto-1")
-    assert await store.get(P, "mastodon.social", "https://api/cb") is None
+    assert await store.get(P, "mastodon.social") is None
     assert await store.add(first) == first
-    assert await store.get(P, "mastodon.social", "https://api/cb") == first
+    assert await store.get(P, "mastodon.social") == first
     # Si dos procesos registran a la vez, los dos se quedan con la primera.
     late = ServerApp(P, "mastodon.social", "https://api/cb", "id-2", "secreto-2")
     assert await store.add(late) == first
-    # Otro servidor, otra URL de retorno u otra red son apps distintas.
+    # Otro servidor u otra red son apps distintas.
     for other in (
         ServerApp(P, "hachyderm.io", "https://api/cb", "id-3", "s"),
-        ServerApp(P, "mastodon.social", "https://otra/cb", "id-4", "s"),
         ServerApp(ProviderId("otra"), "mastodon.social", "https://api/cb", "id-5", "s"),
     ):
         assert await store.add(other) == other
+    # Cambió la URL de retorno: la app se reemplaza.
+    moved = ServerApp(P, "mastodon.social", "https://nueva/cb", "id-9", "secreto-9")
+    await store.replace(moved)
+    assert await store.get(P, "mastodon.social") == moved
     assert "secreto-1" not in repr(first)

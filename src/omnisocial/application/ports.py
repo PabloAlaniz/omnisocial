@@ -316,11 +316,16 @@ class QuotaLedger(Protocol):
 class ServerAppStore(Protocol):
     """Las apps registradas en cada servidor de una red federada."""
 
-    async def get(self, provider: ProviderId, server: str, redirect_uri: str) -> ServerApp | None: ...
+    async def get(self, provider: ProviderId, server: str) -> ServerApp | None: ...
 
     async def add(self, app: ServerApp) -> ServerApp:
-        """Guarda la app si ese servidor no tenía una para esa URL de retorno. Devuelve la que quedó
-        guardada: si dos procesos registran a la vez, los dos usan la misma."""
+        """Guarda la app si ese servidor no tenía una. Devuelve la que quedó guardada: si dos procesos
+        registran a la vez, los dos usan la misma."""
+        ...
+
+    async def replace(self, app: ServerApp) -> None:
+        """Cambia la app de ese servidor. Hace falta cuando cambió la URL de retorno: la app anterior
+        quedó atada a la vieja."""
         ...
 
 

@@ -106,7 +106,7 @@ CREATE TABLE IF NOT EXISTS omnisocial_server_apps (
     redirect_uri  text NOT NULL,
     client_id     text NOT NULL,
     client_secret text NOT NULL,
-    PRIMARY KEY (provider, server, redirect_uri)
+    PRIMARY KEY (provider, server)
 );
 
 CREATE TABLE IF NOT EXISTS omnisocial_quota (
@@ -570,34 +570,46 @@ class PostgresServerAppStore(ServerAppStore):
         self._cipher = cipher
 
     @staticmethod
-    def _context(provider: str, server: str, redirect_uri: str) -> str:
-        return f"omnisocial|server_app|{provider}|{server}|{redirect_uri}"
+    def _context(provider: str, server: str) -> str:
+        return f"omnisocial|server_app|{provider}|{server}"
+
+    def _values(self, app: ServerApp) -> list[object]:
+        sealed = self._cipher.encrypt(app.client_secret, context=self._context(app.provider, app.server))
+        return [app.provider, app.server, app.redirect_uri, app.client_id, sealed]
 
     @override
-    async def get(self, provider: ProviderId, server: str, redirect_uri: str) -> ServerApp | None:
+    async def get(self, provider: ProviderId, server: str) -> ServerApp | None:
         async with self._pool.connection() as conn:
             cur = await conn.execute(
-                "SELECT client_id, client_secret FROM omnisocial_server_apps "
-                "WHERE provider = %s AND server = %s AND redirect_uri = %s",
-                [provider, server, redirect_uri],
+                "SELECT redirect_uri, client_id, client_secret FROM omnisocial_server_apps "
+                "WHERE provider = %s AND server = %s",
+                [provider, server],
             )
             row = await cur.fetchone()
         if row is None:
             return None
-        secret = self._cipher.decrypt(row[1], context=self._context(provider, server, redirect_uri))
-        return ServerApp(provider, server, redirect_uri, row[0], secret)
+        secret = self._cipher.decrypt(row[2], context=self._context(provider, server))
+        return ServerApp(provider, server, row[0], row[1], secret)
 
     @override
     async def add(self, app: ServerApp) -> ServerApp:
-        sealed = self._cipher.encrypt(
-            app.client_secret, context=self._context(app.provider, app.server, app.redirect_uri)
-        )
         async with self._pool.connection() as conn:
             await conn.execute(
                 "INSERT INTO omnisocial_server_apps "
                 "(provider, server, redirect_uri, client_id, client_secret) "
                 "VALUES (%s, %s, %s, %s, %s) ON CONFLICT DO NOTHING",
-                [app.provider, app.server, app.redirect_uri, app.client_id, sealed],
+                self._values(app),
             )
-        stored = await self.get(app.provider, app.server, app.redirect_uri)
-        return stored or app
+        return await self.get(app.provider, app.server) or app
+
+    @override
+    async def replace(self, app: ServerApp) -> None:
+        async with self._pool.connection() as conn:
+            await conn.execute(
+                "INSERT INTO omnisocial_server_apps "
+                "(provider, server, redirect_uri, client_id, client_secret) "
+                "VALUES (%s, %s, %s, %s, %s) ON CONFLICT (provider, server) DO UPDATE SET "
+                "redirect_uri = EXCLUDED.redirect_uri, client_id = EXCLUDED.client_id, "
+                "client_secret = EXCLUDED.client_secret",
+                self._values(app),
+            )
