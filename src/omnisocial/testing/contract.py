@@ -117,6 +117,11 @@ class NetworkHarness(ABC):
         """Las opciones de un borrador mínimo para ese tipo de activo, si no publica sin ellas."""
         return None
 
+    def app_token_capabilities(self) -> frozenset[Capability]:
+        """Las capacidades que la red atiende con una credencial de la app (el token de un bot) y no con
+        el token de la conexión. Si esa credencial deja de valer, no es la conexión la que murió."""
+        return frozenset()
+
     def script_lookups(self) -> None:  # noqa: B027  # opcional: la mayoría de las redes no tiene
         """Deja en `self.transport` lo que la red responde a cada consulta auxiliar que declara, con al
         menos una opción."""
@@ -379,6 +384,8 @@ class ProviderContract:
         world = _world(self.harness())
         response = world.harness.error(kind)
         if response is None:
+            return
+        if kind is ErrorKind.TOKEN_DEAD and capability in world.harness.app_token_capabilities():
             return
         connected = await _connect(world)
         for asset in connected.assets:
