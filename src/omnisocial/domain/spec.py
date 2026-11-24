@@ -87,6 +87,9 @@ class OAuthSpec:
     client_secret_param: str = "client_secret"  # noqa: S105  # es el nombre del parámetro
     authorize_params: Mapping[str, str] = field(default_factory=dict)
     """Parámetros fijos que la red pide en la URL de autorización (`access_type=offline`, por ejemplo)."""
+    client_auth_basic: bool = False
+    """La app se identifica con una cabecera `Authorization: Basic` en vez de mandar su clave y su secreto
+    en el cuerpo."""
     revoke_with_credentials: bool = True
     """Si la revocación lleva las credenciales de la app, además del token."""
     refresh_rotates: bool = False

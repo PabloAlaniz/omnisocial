@@ -217,3 +217,49 @@ def test_cada_red_dice_de_donde_toma_los_medios() -> None:
     assert issues(Draft("hola", media=(upload,)), RICH) == [DraftIssue.MEDIA_SOURCE_NOT_SUPPORTED]
     # El tamaño de un archivo se conoce: se valida sin que nadie lo declare.
     assert issues(Draft("hola", media=(upload,)), only_files) == [DraftIssue.MEDIA_TOO_BIG]
+
+
+THREADS = PublishLimits(max_text=10, max_images=1, max_thread=2)
+
+
+def test_un_hilo_se_valida_parte_por_parte() -> None:
+    assert check_draft(Draft("uno", thread=(Draft("dos"), Draft("tres", media=(IMAGE,)))), THREADS) == ()
+    assert issues(Draft("uno", thread=(Draft("dos"),)), TEXT_ONLY) == [DraftIssue.THREAD_NOT_SUPPORTED]
+    long = Draft("uno", thread=(Draft("dos"), Draft("tres"), Draft("cuatro")))
+    assert issues(long, THREADS) == [DraftIssue.THREAD_TOO_LONG]
+    [problem] = check_draft(Draft("uno", thread=(Draft("dos"), Draft("x" * 11))), THREADS)
+    assert (problem.issue, problem.part, problem.detail) == (
+        DraftIssue.TEXT_TOO_LONG,
+        3,
+        "Parte 3: El texto mide 11 y el máximo es 10.",
+    )
+    # El problema de la primera parte no dice de qué parte es: es la 1.
+    assert check_draft(Draft("x" * 11), THREADS)[0].part == 1
+
+
+@pytest.mark.parametrize(
+    "part",
+    [Draft("dos", thread=(Draft("tres"),)), Draft("dos", first_comment="x"), Draft("dos", options=Propias())],
+)
+def test_las_partes_de_un_hilo_no_llevan_hilo_ni_comentario_ni_opciones(part: Draft) -> None:
+    limits = PublishLimits(max_text=10, max_thread=3, first_comment=True, options=Propias)
+    problems = check_draft(Draft("uno", thread=(part,)), limits)
+    assert [(p.issue, p.part) for p in problems] == [(DraftIssue.THREAD_NOT_SUPPORTED, 2)]
+
+
+@pytest.mark.parametrize(
+    ("text", "length"),
+    [
+        ("hola", 4),
+        ("año nuevo", 9),
+        # Una URL cuenta 23, mida lo que mida.
+        ("mirá https://ejemplo.com/una/ruta/muy/larga/que/no/termina/nunca?x=1", 5 + 23),
+        ("a https://a.co b http://b.co", 5 + 23 + 23),
+        # Los emojis y la escritura china, japonesa o coreana cuentan dos.
+        ("hola 🎉", 5 + 2),
+        ("日本語", 6),
+        ("“comillas” — raya", 17),
+    ],
+)
+def test_el_largo_con_peso(text: str, length: int) -> None:
+    assert text_length(text, TextCount.WEIGHTED) == length

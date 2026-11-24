@@ -6,6 +6,7 @@ Lo único propio que aporta es cómo se lee la identidad de la persona.
 
 from __future__ import annotations
 
+import base64
 import re
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, field
@@ -149,12 +150,19 @@ class StandardOAuth(OAuthClient):
             self._spec.client_id_param: self._app.client_id,
             self._spec.client_secret_param: self._app.client_secret,
         }
+        headers: dict[str, str] | None = None
         if revoking and not self._spec.revoke_with_credentials:
             credentials = {}
+        elif self._spec.client_auth_basic:
+            pair = f"{self._app.client_id}:{self._app.client_secret}".encode()
+            headers = {"Authorization": f"Basic {base64.b64encode(pair).decode()}"}
+            # La clave va igual en el cuerpo: es pública y hay redes que la piden ahí también.
+            credentials = {self._spec.client_id_param: self._app.client_id}
         response = await self._transport.request(
             "POST",
             url,
             form={**credentials, **form},
+            headers=headers,
             # El código y el token de renovación son de un solo uso: si el primer intento llegó y se perdió
             # la respuesta, el reintento falla con invalid_grant igual. Lo que salva es el 5xx pasajero.
             retry_safe="no publica nada en la cuenta",

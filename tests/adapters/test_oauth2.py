@@ -185,3 +185,24 @@ async def test_errores(response: HttpResponse, error: type[Exception], match: st
         await client(transport).exchange_code(code="c", redirect_uri="r", code_verifier=None)
     if isinstance(raised.value, RateLimited):
         assert raised.value.retry_after == 12.0
+
+
+async def test_la_app_se_puede_identificar_por_cabecera() -> None:
+    transport = FakeTransport()
+    transport.on("POST", TOKEN_URL, {"access_token": "a1"})
+    transport.on("POST", REVOKE_URL, {})
+    oauth = client(transport, client_auth_basic=True, revoke_url=REVOKE_URL)
+    await oauth.exchange_code(code="c", redirect_uri="r", code_verifier="v")
+    call = transport.calls[0]
+    # app:secreto en Base64. El secreto no va en el cuerpo.
+    assert call.headers == {"Authorization": "Basic YXBwOnNlY3JldG8="}
+    assert call.form == {
+        "client_id": "app",
+        "grant_type": "authorization_code",
+        "code": "c",
+        "redirect_uri": "r",
+        "code_verifier": "v",
+    }
+    await oauth.revoke(Token(TokenKind.USER, "a1"))
+    assert transport.calls[1].headers == {"Authorization": "Basic YXBwOnNlY3JldG8="}
+    assert transport.calls[1].form == {"client_id": "app", "token": "a1"}

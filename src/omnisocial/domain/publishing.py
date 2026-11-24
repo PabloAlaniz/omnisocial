@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import ipaddress
+import re
 from collections.abc import Iterator, Mapping
 from dataclasses import dataclass, field, replace
 from datetime import datetime
@@ -101,6 +102,9 @@ class Draft:
     first_comment: str | None = None
     """Un comentario propio que se publica apenas sale la publicación."""
     options: PublishOptions | None = None
+    thread: tuple[Draft, ...] = ()
+    """Lo que sigue en el hilo: cada parte responde a la anterior. Las partes no llevan hilo, primer
+    comentario ni opciones propias."""
 
 
 # ── Los límites ─────────────────────────────────────────────────────────────────────────────────
@@ -114,6 +118,9 @@ class TextCount(StrEnum):
     """En unidades UTF-16: un emoji fuera del plano básico cuenta dos."""
     UTF8 = "utf8"
     """En bytes UTF-8: una letra con tilde cuenta dos."""
+    WEIGHTED = "weighted"
+    """Con peso, como X: una URL cuenta 23 sin importar su largo; los emojis y la escritura china, japonesa
+    o coreana cuentan dos por carácter; el resto, uno. Es una aproximación que nunca cuenta de menos."""
 
 
 @dataclass(frozen=True, slots=True)
@@ -141,6 +148,8 @@ class PublishLimits:
     max_video_seconds: int | None = None
     options: type[PublishOptions] | None = None
     """El tipo de las opciones propias que entiende. `None`: no tiene."""
+    max_thread: int = 0
+    """Cuántas partes puede tener un hilo después de la primera. 0: no hay hilos."""
 
 
 class DraftIssue(StrEnum):
@@ -159,19 +168,38 @@ class DraftIssue(StrEnum):
     LINK_WITH_MEDIA = "link_with_media"
     FIRST_COMMENT_NOT_SUPPORTED = "first_comment_not_supported"
     WRONG_OPTIONS = "wrong_options"
+    THREAD_NOT_SUPPORTED = "thread_not_supported"
+    THREAD_TOO_LONG = "thread_too_long"
 
 
 @dataclass(frozen=True, slots=True)
 class DraftProblem:
     issue: DraftIssue
     detail: str
+    part: int = 1
+    """En qué parte del hilo está el problema. La primera es la 1."""
 
     @override
     def __str__(self) -> str:
         return self.detail
 
 
+_URL = re.compile(r"https?://\S+")
+_URL_WEIGHT = 23
+# Los rangos que pesan uno: latín y otras escrituras alfabéticas, espacios y puntuación general.
+_LIGHT = ((0, 4351), (8192, 8205), (8208, 8223), (8242, 8247))
+
+
+def _weighted(text: str) -> int:
+    urls = _URL.findall(text)
+    rest = _URL.sub("", text)
+    heavy = sum(1 for char in rest if not any(low <= ord(char) <= high for low, high in _LIGHT))
+    return len(urls) * _URL_WEIGHT + len(rest) + heavy
+
+
 def text_length(text: str, count: TextCount) -> int:
+    if count is TextCount.WEIGHTED:
+        return _weighted(text)
     if count is TextCount.UTF16:
         return len(text.encode("utf-16-le")) // 2
     return len(text.encode()) if count is TextCount.UTF8 else len(text)
@@ -266,10 +294,36 @@ def _extras(draft: Draft, limits: PublishLimits) -> Iterator[DraftProblem]:
         yield DraftProblem(DraftIssue.WRONG_OPTIONS, "Las opciones son de otra red o de otro tipo de activo.")
 
 
+def _thread(draft: Draft, limits: PublishLimits) -> Iterator[DraftProblem]:
+    if not draft.thread:
+        return
+    if not limits.max_thread:
+        yield DraftProblem(DraftIssue.THREAD_NOT_SUPPORTED, "Este activo no publica hilos.")
+        return
+    if len(draft.thread) > limits.max_thread:
+        yield DraftProblem(
+            DraftIssue.THREAD_TOO_LONG,
+            f"El hilo tiene {len(draft.thread) + 1} partes y el máximo es {limits.max_thread + 1}.",
+        )
+    for number, item in enumerate(draft.thread, start=2):
+        if item.thread or item.first_comment is not None or item.options is not None:
+            yield DraftProblem(
+                DraftIssue.THREAD_NOT_SUPPORTED,
+                f"La parte {number} no puede llevar hilo, primer comentario ni opciones propias.",
+                part=number,
+            )
+        for problem in _single(item, limits):
+            yield replace(problem, detail=f"Parte {number}: {problem.detail}", part=number)
+
+
+def _single(draft: Draft, limits: PublishLimits) -> Iterator[DraftProblem]:
+    for check in (_text, _media_count, _each_media, _extras):
+        yield from check(draft, limits)
+
+
 def check_draft(draft: Draft, limits: PublishLimits) -> tuple[DraftProblem, ...]:
     """Lo que impide publicar ese borrador en ese tipo de activo. Vacío si se puede. No llama a la red."""
-    checks = (_text, _media_count, _each_media, _extras)
-    return tuple(problem for check in checks for problem in check(draft, limits))
+    return (*_single(draft, limits), *_thread(draft, limits))
 
 
 # ── La publicación ──────────────────────────────────────────────────────────────────────────────
