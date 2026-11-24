@@ -20,7 +20,7 @@ from omnisocial.adapters.providers.google_business.reading import (
 )
 from omnisocial.adapters.providers.google_business.spec import SPEC
 from omnisocial.adapters.system import SystemClock
-from omnisocial.application.ports import Clock
+from omnisocial.application.ports import Clock, RateLimitStore
 from omnisocial.application.registry import Provider
 from omnisocial.domain.metrics import MetricCatalog
 from omnisocial.domain.spec import Pace
@@ -33,11 +33,12 @@ def google_business_provider(
     clock: Clock | None = None,
     catalog: MetricCatalog = DEFAULT_CATALOG,
     pace: Pace | None = SPEC.pace,
+    rate_limits: RateLimitStore | None = None,
 ) -> Provider:
     """Google aprueba cada proyecto antes de darle acceso a estas APIs: hasta entonces su cupo es cero y
     todo responde con un límite de uso. `pace` es el ritmo de los pedidos dentro de este proceso."""
     clock = clock or SystemClock()
-    client = GoogleBusinessClient(config, paced(transport, pace))
+    client = GoogleBusinessClient(config, paced(transport, pace, store=rate_limits, key=GOOGLE_BUSINESS))
     return Provider(
         id=GOOGLE_BUSINESS,
         oauth=google_business_oauth(client, clock),

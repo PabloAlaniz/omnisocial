@@ -2,7 +2,8 @@
 
 from __future__ import annotations
 
-from collections.abc import Sequence
+import time
+from collections.abc import Callable, Sequence
 from dataclasses import replace
 from datetime import datetime
 
@@ -15,6 +16,7 @@ from omnisocial.application.ports import (
     ConnectionRepository,
     PublicationRepository,
     QuotaLedger,
+    RateLimitStore,
     ServerAppStore,
 )
 from omnisocial.domain.asset import Asset
@@ -176,6 +178,25 @@ class InMemoryQuotaLedger(QuotaLedger):
     @override
     async def spent(self, key: str, period: str) -> int:
         return self._used.get((key, period), 0)
+
+
+class InMemoryRateLimitStore(RateLimitStore):
+    """Los turnos, dentro de un proceso. Entre procesos hace falta un almacén compartido."""
+
+    def __init__(self, now: Callable[[], float] = time.monotonic) -> None:
+        self._now = now
+        self._next: dict[str, float] = {}
+
+    @override
+    async def reserve(self, key: str, interval: float) -> float:
+        now = self._now()
+        turn = max(self._next.get(key, now), now)
+        self._next[key] = turn + interval
+        return turn - now
+
+    @override
+    async def pause(self, key: str, seconds: float) -> None:
+        self._next[key] = max(self._next.get(key, 0.0), self._now() + seconds)
 
 
 class InMemoryServerAppStore(ServerAppStore):

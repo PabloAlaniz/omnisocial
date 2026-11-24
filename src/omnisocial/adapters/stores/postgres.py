@@ -24,6 +24,7 @@ from omnisocial.application.ports import (
     ConnectionRepository,
     PublicationRepository,
     QuotaLedger,
+    RateLimitStore,
     ServerAppStore,
     TokenCipher,
 )
@@ -107,6 +108,11 @@ CREATE TABLE IF NOT EXISTS omnisocial_server_apps (
     client_id     text NOT NULL,
     client_secret text NOT NULL,
     PRIMARY KEY (provider, server)
+);
+
+CREATE TABLE IF NOT EXISTS omnisocial_rate_limits (
+    key     text PRIMARY KEY,
+    next_at timestamptz NOT NULL
 );
 
 CREATE TABLE IF NOT EXISTS omnisocial_quota (
@@ -560,6 +566,41 @@ class PostgresQuotaLedger(QuotaLedger):
             )
             row = await cur.fetchone()
             return int(row[0]) if row else 0
+
+
+class PostgresRateLimitStore(RateLimitStore):
+    """Los turnos de cada red, compartidos entre procesos. El reloj es el de la base: así no importa que
+    los procesos no tengan la hora igual."""
+
+    def __init__(self, pool: AsyncConnectionPool[Any]) -> None:
+        self._pool = pool
+
+    @override
+    async def reserve(self, key: str, interval: float) -> float:
+        async with self._pool.connection() as conn:
+            cur = await conn.execute(
+                "INSERT INTO omnisocial_rate_limits (key, next_at) "
+                "VALUES (%(key)s, clock_timestamp() + make_interval(secs => %(interval)s)) "
+                "ON CONFLICT (key) DO UPDATE SET next_at = "
+                "GREATEST(omnisocial_rate_limits.next_at, clock_timestamp()) "
+                "+ make_interval(secs => %(interval)s) "
+                "RETURNING EXTRACT(EPOCH FROM "
+                "(next_at - make_interval(secs => %(interval)s) - clock_timestamp()))",
+                {"key": key, "interval": interval},
+            )
+            row = await cur.fetchone()
+            return max(0.0, float(row[0])) if row else 0.0
+
+    @override
+    async def pause(self, key: str, seconds: float) -> None:
+        async with self._pool.connection() as conn:
+            await conn.execute(
+                "INSERT INTO omnisocial_rate_limits (key, next_at) "
+                "VALUES (%(key)s, clock_timestamp() + make_interval(secs => %(seconds)s)) "
+                "ON CONFLICT (key) DO UPDATE SET next_at = "
+                "GREATEST(omnisocial_rate_limits.next_at, EXCLUDED.next_at)",
+                {"key": key, "seconds": seconds},
+            )
 
 
 class PostgresServerAppStore(ServerAppStore):

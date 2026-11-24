@@ -17,13 +17,13 @@ from omnisocial.adapters.providers.pinterest.reading import (
 )
 from omnisocial.adapters.providers.pinterest.spec import SPEC
 from omnisocial.adapters.system import SystemClock, UuidGenerator
-from omnisocial.application.ports import Clock, IdGenerator
+from omnisocial.application.ports import Clock, IdGenerator, RateLimitStore
 from omnisocial.application.registry import Provider
 from omnisocial.domain.metrics import MetricCatalog
 from omnisocial.domain.spec import Pace
 
 
-def pinterest_provider(
+def pinterest_provider(  # noqa: PLR0913  # es donde se arma la red: recibe todo lo que se puede cambiar
     config: PinterestConfig,
     transport: HttpTransport,
     *,
@@ -31,13 +31,14 @@ def pinterest_provider(
     ids: IdGenerator | None = None,
     catalog: MetricCatalog = DEFAULT_CATALOG,
     pace: Pace | None = SPEC.pace,
+    rate_limits: RateLimitStore | None = None,
 ) -> Provider:
     """`pace` es el ritmo de los pedidos dentro de este proceso; `None` lo saca.
 
     Con acceso de prueba, lo que se crea solo lo ve quien lo creó: para publicar de verdad hace falta
     el acceso estándar."""
     clock = clock or SystemClock()
-    client = PinterestClient(config, paced(transport, pace))
+    client = PinterestClient(config, paced(transport, pace, store=rate_limits, key=PINTEREST))
     return Provider(
         id=PINTEREST,
         oauth=pinterest_oauth(client, clock),

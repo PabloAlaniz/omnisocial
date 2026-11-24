@@ -13,6 +13,7 @@ from omnisocial.adapters.stores.memory import (
     InMemoryConnectionRepository,
     InMemoryPublicationRepository,
     InMemoryQuotaLedger,
+    InMemoryRateLimitStore,
     InMemoryServerAppStore,
 )
 from omnisocial.adapters.system import SystemClock
@@ -134,6 +135,7 @@ __all__ = [
     "InMemoryConnectionRepository",
     "InMemoryPublicationRepository",
     "InMemoryQuotaLedger",
+    "InMemoryRateLimitStore",
     "InMemoryServerAppStore",
     "Inbox",
     "InboxItem",

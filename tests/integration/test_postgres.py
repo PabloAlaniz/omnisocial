@@ -14,6 +14,7 @@ from omnisocial.adapters.stores.postgres import (
     PostgresConnectionRepository,
     PostgresPublicationRepository,
     PostgresQuotaLedger,
+    PostgresRateLimitStore,
     PostgresServerAppStore,
 )
 from omnisocial.domain.redirect import ReturnUrlPolicy
@@ -71,6 +72,19 @@ async def test_el_servidor_del_token_se_guarda_con_el(pool: Pool, cipher: AesGcm
 
 async def test_cuota(pool: Pool) -> None:
     await quota_contract(PostgresQuotaLedger(pool))
+
+
+async def test_los_turnos_se_comparten_y_una_espera_no_acorta_otra(pool: Pool) -> None:
+    limits = PostgresRateLimitStore(pool)
+    assert await limits.reserve("reddit", 2.0) == 0.0
+    # El segundo que pide tiene que esperar lo que dejó el primero.
+    assert 1.5 < await limits.reserve("reddit", 2.0) <= 2.0
+    assert await limits.reserve("pinterest", 2.0) == 0.0
+    await limits.pause("pinterest", 60)
+    await limits.pause("pinterest", 5)
+    assert 59 < await limits.reserve("pinterest", 0) <= 60
+    await limits.pause("nueva", 30)
+    assert 29 < await limits.reserve("nueva", 0) <= 30
 
 
 async def test_los_tokens_quedan_cifrados_en_la_base(pool: Pool, cipher: AesGcmTokenCipher) -> None:

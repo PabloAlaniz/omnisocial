@@ -332,6 +332,24 @@ class QuotaLedger(Protocol):
     async def spent(self, key: str, period: str) -> int: ...
 
 
+class RateLimitStore(Protocol):
+    """Cuándo se le puede volver a pedir algo a una red, compartido entre procesos.
+
+    Guarda un solo dato por clave: el momento del próximo pedido. Con eso se espacian los pedidos de
+    todos los procesos, y cuando la red pide esperar, esperan todos.
+    """
+
+    async def reserve(self, key: str, interval: float) -> float:
+        """Toma el próximo turno de `key` y corre el siguiente `interval` segundos. Devuelve cuántos
+        segundos faltan para ese turno: cero si ya se puede pedir."""
+        ...
+
+    async def pause(self, key: str, seconds: float) -> None:
+        """La red pidió esperar: nadie tiene turno hasta dentro de `seconds`. No acorta una espera
+        mayor que ya estuviera puesta."""
+        ...
+
+
 class ServerAppStore(Protocol):
     """Las apps registradas en cada servidor de una red federada."""
 

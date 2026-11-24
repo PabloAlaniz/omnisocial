@@ -15,7 +15,7 @@ from omnisocial.adapters.providers.telegram.session import (
 from omnisocial.adapters.providers.telegram.spec import SPEC
 from omnisocial.adapters.providers.telegram.webhooks import TelegramWebhookParser, TelegramWebhooks
 from omnisocial.adapters.system import UuidGenerator
-from omnisocial.application.ports import IdGenerator
+from omnisocial.application.ports import IdGenerator, RateLimitStore
 from omnisocial.application.registry import Provider
 from omnisocial.domain.spec import Pace
 
@@ -26,10 +26,11 @@ def telegram_provider(
     *,
     ids: IdGenerator | None = None,
     pace: Pace | None = SPEC.pace,
+    rate_limits: RateLimitStore | None = None,
 ) -> Provider:
     """Cada bot se conecta con su token (`social.connect_with_credentials`). `pace` es el ritmo de los
     pedidos dentro de este proceso."""
-    client = TelegramClient(config, paced(transport, pace))
+    client = TelegramClient(config, paced(transport, pace, store=rate_limits, key=TELEGRAM))
     ids = ids or UuidGenerator()
     return Provider(
         id=TELEGRAM,

@@ -7,6 +7,7 @@ from omnisocial.adapters.stores.postgres import (
     PostgresConnectionRepository,
     PostgresPublicationRepository,
     PostgresQuotaLedger,
+    PostgresRateLimitStore,
     PostgresServerAppStore,
     create_schema,
 )
@@ -18,6 +19,7 @@ __all__ = [
     "PostgresConnectionRepository",
     "PostgresPublicationRepository",
     "PostgresQuotaLedger",
+    "PostgresRateLimitStore",
     "PostgresServerAppStore",
     "create_schema",
 ]
