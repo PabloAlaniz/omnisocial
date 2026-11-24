@@ -82,7 +82,7 @@ el primer comentario. Ver [docs/youtube.md](youtube.md) y el
 [ADR 0009](adr/0009-cuota-y-subida-por-partes.md).
 
 - Login con Google, el canal como activo, videos, comentarios, métricas y perfiles públicos con clave de
-  API. Lo aprendido ya está en [redes-pendientes.md](redes-pendientes.md).
+  API. Lo aprendido está en [youtube.md](youtube.md).
 - Subida reanudable de video; la miniatura que falla después de subir es `publicada con error`, no un
   fracaso.
 - **Presupuesto de cuota**: un puerto que cuenta el costo de cada llamada y corta antes de agotar el día.
