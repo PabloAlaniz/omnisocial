@@ -23,6 +23,7 @@ body:
         - login
         - assets
         - content
+        - publishing
         - comments
         - messaging
         - insights

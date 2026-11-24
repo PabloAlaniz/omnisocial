@@ -15,7 +15,7 @@ contrato común, tiene su página en `docs/` y aparece en la matriz de capacidad
 | Sprint | Tema | Redes que suma |
 |--------|------|----------------|
 | 1 ✓ | Cimientos para muchas redes | — |
-| 2 | Publicar | Meta y TikTok publican |
+| 2 ✓ | Publicar | Meta y TikTok publican |
 | 3 | Video largo y cuotas | YouTube |
 | 4 | Redes profesionales y pagas | LinkedIn, X |
 | 5 | Salud de las conexiones | Threads, Instagram con login propio |
@@ -52,7 +52,11 @@ son quienes las van a usar.
 
 ## Sprint 2. Publicar
 
-La capacidad que falta y la que más se pide.
+**Hecho**, salvo dos cosas que pasan a los sprints donde hay una red que las necesita: los **hilos**
+(sprint 4, con X, y sprint 5, con Threads) y la **subida de archivos por partes** (sprint 3: YouTube no
+acepta otra cosa; Meta y TikTok toman los medios de una URL). El estado `lista` no existe: retomar una
+publicación la lleva sola de `pendiente` a `publicada`. La decisión está en el
+[ADR 0008](adr/0008-publicar.md).
 
 - **Puerto `Publisher`** con un borrador común: texto, medios, hilo, primer comentario y opciones propias
   de la red, tipadas.

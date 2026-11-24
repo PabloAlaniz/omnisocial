@@ -15,6 +15,50 @@
 Las cuentas de Instagram usan el token de su página: en el flujo de Facebook Login no existen tokens
 propios de Instagram.
 
+## Publicar
+
+Hacen falta `pages_manage_posts` (páginas) e `instagram_content_publish` (Instagram), que no están en los
+permisos de conexión por defecto:
+
+```python
+from omnisocial.meta import CONNECT_SCOPES, PUBLISH_SCOPES, MetaConfig
+
+MetaConfig(..., connect_scopes=CONNECT_SCOPES + PUBLISH_SCOPES)
+```
+
+Quien ya estaba conectado tiene que volver a autorizar para darlos, y los activos guardados antes de esta
+versión no tienen la capacidad `publishing`: `social.sync_assets` los actualiza.
+
+| | Página de Facebook | Cuenta de Instagram |
+|---|---|---|
+| Texto | Hasta 63.206 | Hasta 2.200 |
+| Solo texto | Sí | No: siempre con medios |
+| Imágenes | Hasta 10 | Hasta 20 (carrusel) |
+| Videos | 1 | Hasta 20; uno solo sale como reel |
+| Mezclar fotos y videos | No | Sí, en carrusel |
+| Link adjunto | Sí, sin medios | No |
+| Primer comentario | Sí | Sí |
+| Borrar | Sí | No (ver abajo) |
+| Cómo sale | En una llamada | En etapas |
+
+- **Los medios son URLs públicas.** Meta los descarga: una URL firmada que vence antes de que termine no
+  sirve.
+- **Instagram publica en etapas.** Se arma un contenedor, Instagram procesa los medios y recién ahí se
+  publica. Una imagen suele salir en la misma llamada; un video queda `PENDING` y conviene consultarlo una
+  vez por minuto. Un contenedor vence a las 24 horas: si nadie lo retomó, la publicación queda `FAILED`.
+- **Si se pierde la respuesta al publicar en Instagram**, al retomar el contenedor figura como publicado:
+  la publicación queda `PUBLISHED_WITH_ERROR`, sin id, en vez de salir dos veces.
+- **El primer comentario pide otro permiso** (`pages_manage_engagement` o `instagram_manage_comments`, que
+  sí están en los de conexión). Si falla, la publicación queda `PUBLISHED_WITH_ERROR`.
+- **Instagram tiene un tope de publicaciones por API cada 24 horas.** La documentación de Meta da números
+  distintos según la página (50 o 100); el valor real se consulta en `content_publishing_limit`. Cuando se
+  llega, vuelve `Refused(QUOTA_EXHAUSTED)` (código 9, subcódigo 2207042).
+- **Borrar en Instagram existe en la API, pero pide `instagram_manage_contents`** y todavía no se ofrece:
+  `delete_post` devuelve `Refused(ACTION_NOT_OFFERED)`.
+- **El video de una página se crea en otro servidor** (`graph-video.facebook.com`, `MetaConfig.video_url`).
+  Queda publicado aunque Facebook siga procesándolo.
+- **El contenido va en el cuerpo del pedido**, no en la URL: un texto largo no entra en una URL.
+
 ## Tokens
 
 - El código se canjea por un token de usuario de corta duración y enseguida se estira al de **larga

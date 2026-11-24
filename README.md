@@ -15,7 +15,7 @@ esas reglas de cada red:
 - **Un núcleo para todas las redes.** Autorizar, guardar conexiones, renovar tokens con
   compare-and-swap, descubrir activos y enrutar webhooks se hace igual para Meta que para la próxima red.
 - **Capacidades, no herencia.** Cada red implementa solo lo que soporta (`login`, `assets`, `content`,
-  `comments`, `messaging`, `insights`, `webhooks`, `public_profiles`). Si una red no tiene mensajes privados, el caso de uso
+  `publishing`, `comments`, `messaging`, `insights`, `webhooks`, `public_profiles`). Si una red no tiene mensajes privados, el caso de uso
   lo dice con un resultado, no con una excepción a mitad de camino.
 - **Resultados tipados.** Las decisiones de negocio (el `state` venció, la conexión fue revocada, pasó la
   ventana para responder) vuelven como `Refused(reason)`. Las excepciones quedan para lo que el código no
@@ -29,13 +29,13 @@ esas reglas de cada red:
 Redes disponibles, y qué puede hacer cada una y cada tipo de activo:
 
 <!-- matriz:inicio (generada por scripts/matriz.py, no editar a mano) -->
-| Red | Activo | Login | Activos | Publicaciones | Comentarios | Mensajes | Métricas | Webhooks | Perfiles públicos |
-|---|---|---|---|---|---|---|---|---|---|
-| [**Meta**](docs/meta.md) |  | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
-|  | `facebook_page` |  |  | ✓ | ✓ | ✓ | ✓ | ✓ |  |
-|  | `instagram_account` |  |  | ✓ | ✓ | ✓ | ✓ | ✓ |  |
-| [**TikTok**](docs/tiktok.md) |  | ✓ | ✓ | ✓ |  |  | ✓ | ✓ |  |
-|  | `tiktok_account` |  |  | ✓ |  |  | ✓ |  |  |
+| Red | Activo | Login | Activos | Publicaciones | Publicar | Comentarios | Mensajes | Métricas | Webhooks | Perfiles públicos |
+|---|---|---|---|---|---|---|---|---|---|---|
+| [**Meta**](docs/meta.md) |  | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
+|  | `facebook_page` |  |  | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |  |
+|  | `instagram_account` |  |  | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |  |
+| [**TikTok**](docs/tiktok.md) |  | ✓ | ✓ | ✓ | ✓ |  |  | ✓ | ✓ |  |
+|  | `tiktok_account` |  |  | ✓ | ✓ |  |  | ✓ |  |  |
 <!-- matriz:fin -->
 
 La fila de la red dice lo que ofrece; la de cada activo, lo que ese activo habilita. TikTok no tiene
@@ -77,6 +77,7 @@ from omnisocial.postgres import (
     PostgresAssetRepository,
     PostgresAuthorizationStateStore,
     PostgresConnectionRepository,
+    PostgresPublicationRepository,
     create_schema,
 )
 
@@ -99,6 +100,7 @@ social = Omnisocial.build(
     assets=PostgresAssetRepository(pool, cipher),
     states=PostgresAuthorizationStateStore(pool, cipher, SystemClock()),
     webhook_events=AsyncPostgresIdempotencyStore(AsyncPsycopgClient(pool.connection)),
+    publications=PostgresPublicationRepository(pool),
     redirect_uri_for=lambda provider: f"https://api.ejemplo.com/oauth/{provider}/callback",
     return_urls=ReturnUrlPolicy.of("https://app.ejemplo.com"),
 )
@@ -211,6 +213,50 @@ Lo mismo cuando la red pide bajar el ritmo o la app se quedó sin cuota: vuelve
 `Refused(RATE_LIMITED, retry_after=...)` o `Refused(QUOTA_EXHAUSTED)`, y la conexión no se toca. Cada red
 declara qué significa cada uno de sus códigos de error, y el núcleo decide igual para todas.
 
+## Publicar
+
+```python
+from omnisocial import Done, Draft, Media, MediaKind, PublicationStatus, Refusal, Refused
+
+draft = Draft(
+    "Llegó el menú de invierno 🍲",
+    media=(Media(MediaKind.IMAGE, "https://cdn.ejemplo.com/menu.jpg", alt_text="El menú"),),
+    first_comment="Reservas por mensaje privado.",
+)
+result = await social.publish.execute(instagram.id, draft, idempotency_key=f"menu-invierno:{instagram.id}")
+match result:
+    case Done(value=publication) if publication.status is PublicationStatus.PENDING:
+        ...  # la red la está procesando: guardar publication.id y consultarla después
+    case Done(value=publication):
+        ...  # PUBLISHED o PUBLISHED_WITH_ERROR: publication.post_id, publication.url
+    case Refused(reason=Refusal.INVALID_DRAFT, problems=problems):
+        ...  # no entra en ese activo; no se llamó a la red
+    case Refused(reason=reason):
+        ...  # MISSING_PERMISSION, RATE_LIMITED, QUOTA_EXHAUSTED, CONTENT_REJECTED…
+
+later = await social.check_publication.execute(publication.id)  # retoma una pendiente
+```
+
+- **Se valida antes de llamar a la red.** Cada tipo de activo declara lo que acepta (largo del texto,
+  cantidad y tipo de medios, si admite link o primer comentario). `social.validate_draft` devuelve los
+  problemas sin publicar, para mostrarlos mientras alguien escribe.
+- **Los medios van por URL pública (https).** La red los va a buscar; la librería no los descarga.
+- **En etapas.** Instagram y TikTok procesan los medios antes de publicar: la publicación queda `PENDING` y
+  `check_publication` la retoma. Llamarlo dos veces no publica dos veces.
+- **`PUBLISHED_WITH_ERROR`** quiere decir que salió, pero un paso posterior falló (el primer comentario, por
+  ejemplo). No hay que repetirla.
+- **Con `idempotency_key`, repetir el pedido no publica de nuevo**: devuelve la publicación que ya existe. Si
+  la red dijo con certeza que no salió, la clave se libera y se puede reintentar. Si no se sabe qué pasó (la
+  red no respondió), la publicación queda `STARTED`: está en duda, y la librería no la repite sola.
+- **Las opciones propias de una red** van tipadas en `options` (`TikTokOptions(privacy_level=...)`).
+- `social.delete_post` borra donde la red lo permite; si no, `Refused(ACTION_NOT_OFFERED)`.
+
+Las publicaciones en curso se guardan con `publications=PostgresPublicationRepository(pool)` en
+`Omnisocial.build`. Sin eso quedan en memoria: alcanza para probar, pero no sobreviven a un reinicio.
+
+Publicar pide permisos propios, que no están en los de conexión por defecto: ver la página de cada red.
+Cuándo publicar (programar, colas) es de la app; la librería publica cuando se lo piden.
+
 ## Cuentas ajenas
 
 Los perfiles públicos se buscan por nombre o por URL. Instagram solo los muestra a través de una cuenta
@@ -259,6 +305,7 @@ Para esto **no hace falta una app propia**: `MetaConfig(api_version="v24.0")` si
 - [Perfiles públicos y mirador](docs/adr/0005-perfiles-publicos-y-mirador.md)
 - [Cada red paga lo suyo](docs/adr/0006-cada-red-paga-lo-suyo.md)
 - [Descripción y contrato de una red](docs/adr/0007-descripcion-y-contrato-de-una-red.md)
+- [Publicar](docs/adr/0008-publicar.md)
 - [Meta: permisos, revisión de la app y lo que conviene saber](docs/meta.md)
 - [TikTok: Login Kit, Display API y lo que conviene saber](docs/tiktok.md)
 - [Redes pendientes: YouTube, X y LinkedIn](docs/redes-pendientes.md)

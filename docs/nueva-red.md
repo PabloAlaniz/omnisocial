@@ -71,6 +71,7 @@ Cada una es un `Protocol` de `omnisocial.application.ports` (también en `omniso
 | `CommentGateway` | Leer, responder y ocultar comentarios. |
 | `MessagingGateway` | Conversaciones, mensajes, enviar y la ventana para responder. |
 | `InsightsReader` | Métricas por nombre propio, con su catálogo de nombres comunes. |
+| `Publisher` | Publicar un borrador, retomar una publicación en etapas y borrarla. |
 | `WebhookParser` | Saludo de suscripción, esquema de firma (omniwebhook) y traducción de los avisos. |
 | `ProfileLookup` | Perfiles públicos de cuentas ajenas. |
 
@@ -104,6 +105,42 @@ Reglas que el núcleo espera:
 
 Al sumar una capacidad: el componente va al `Provider`, la capacidad a `SPEC.capabilities` (y al tipo de
 activo que la habilita). El contrato falla si una de las dos partes quedó atrás.
+
+### Publicar
+
+Lo que cada tipo de activo acepta se declara en la descripción, y el núcleo valida el borrador antes de
+llamar al adaptador:
+
+```python
+SPEC = NetworkSpec(
+    ...,
+    publishing={
+        TIKTOK_ACCOUNT: PublishLimits(
+            max_text=2200,
+            text_count=TextCount.UTF16,
+            max_images=35,
+            max_videos=1,
+            media_required=True,
+            options=TikTokOptions,
+        )
+    },
+)
+```
+
+El `Publisher` recibe un borrador que ya entra y devuelve un `Outcome`:
+
+- `PUBLISHED`, con el id y la URL, si salió en la llamada.
+- `PENDING`, con lo necesario para retomarla en `resume` (sin tokens: se guarda sin cifrar), si la red
+  publica en etapas. `resume()` tiene que poder llamarse dos veces sin publicar dos veces.
+- `PUBLISHED_WITH_ERROR` si salió y un paso posterior falló. Nunca una excepción después de haber
+  publicado: el núcleo no sabría que salió, y repetir el pedido la duplicaría.
+- `FAILED` si la red la rechazó mientras la procesaba.
+
+Un error antes de publicar se lanza con la tabla de errores, como en cualquier capacidad. Lo que la red
+rechaza por el contenido va como `INVALID_REQUEST`: vuelve `Refused(CONTENT_REJECTED)`.
+
+El pedido que publica no lleva `retry_safe`: el transporte no lo repite solo. Las opciones propias de la
+red son un `PublishOptions` que se declara en `PublishLimits.options`.
 
 ### Perfiles públicos de otra fuente
 
@@ -158,6 +195,8 @@ Con eso se comprueba, pasando por los casos de uso, que:
 - Conectar guarda la conexión y sus activos, y los tokens no aparecen en `repr`.
 - Cada clase de error se traduce igual en toda capacidad y en todo tipo de activo, y solo un token muerto
   invalida la conexión.
+- Un borrador que no entra en un activo se rechaza sin llamar a la red, y los límites declarados dejan
+  pasar al menos un borrador mínimo.
 - Un aviso sin firma no llega a la app.
 
 **Después, la traducción de cada capacidad**, con respuestas copiadas de la API real (sin tokens ni datos
