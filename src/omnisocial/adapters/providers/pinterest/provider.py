@@ -20,6 +20,7 @@ from omnisocial.adapters.system import SystemClock, UuidGenerator
 from omnisocial.application.ports import Clock, IdGenerator
 from omnisocial.application.registry import Provider
 from omnisocial.domain.metrics import MetricCatalog
+from omnisocial.domain.spec import Pace
 
 
 def pinterest_provider(
@@ -29,11 +30,14 @@ def pinterest_provider(
     clock: Clock | None = None,
     ids: IdGenerator | None = None,
     catalog: MetricCatalog = DEFAULT_CATALOG,
+    pace: Pace | None = SPEC.pace,
 ) -> Provider:
-    """Con acceso de prueba, lo que se crea solo lo ve quien lo creó: para publicar de verdad hace falta
+    """`pace` es el ritmo de los pedidos dentro de este proceso; `None` lo saca.
+
+    Con acceso de prueba, lo que se crea solo lo ve quien lo creó: para publicar de verdad hace falta
     el acceso estándar."""
     clock = clock or SystemClock()
-    client = PinterestClient(config, paced(transport, SPEC.pace))
+    client = PinterestClient(config, paced(transport, pace))
     return Provider(
         id=PINTEREST,
         oauth=pinterest_oauth(client, clock),
