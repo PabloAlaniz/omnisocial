@@ -29,7 +29,7 @@ class FakeTransport(HttpTransport):
     última se repite.
 
     `base` es el prefijo de las URLs de la red: las rutas se escriben sin él. Una URL que no empieza con la
-    base se busca entera.
+    base se busca entera. Si la URL trae query y no hay una ruta declarada con ella, vale la ruta sola.
     """
 
     base: str = ""
@@ -64,7 +64,8 @@ class FakeTransport(HttpTransport):
         )
         if self.failing is not None:
             return self.failing
-        queue = self.routes.get((method, path))
+        # Una ruta se puede declarar con su query o sin ella.
+        queue = self.routes.get((method, path)) or self.routes.get((method, path.split("?", 1)[0]))
         if not queue:
             raise AssertionError(f"Sin respuesta para {method} {path}")
         answer = queue.pop(0) if len(queue) > 1 else queue[0]
