@@ -167,6 +167,32 @@ llamada y lanza `QuotaExhausted` cuando no entra. Ver `adapters/providers/youtub
 El pedido que publica no lleva `retry_safe`: el transporte no lo repite solo. Las opciones propias de la
 red son un `PublishOptions` que se declara en `PublishLimits.options`.
 
+**Si hay que elegir a dónde va la publicación** (un tablero, una comunidad), las opciones son
+obligatorias y la red ofrece consultas auxiliares ([ADR 0012](adr/0012-consultas-auxiliares-y-ritmo.md)):
+
+```python
+BOARDS = LookupSpec("boards", "Los tableros de la cuenta.")
+SECTIONS = LookupSpec("board_sections", "Las secciones de un tablero.", parent="boards")
+
+SPEC = NetworkSpec(
+    ...,
+    publishing={ACCOUNT: PublishLimits(..., options=PinOptions, options_required=True)},
+    lookups={ACCOUNT: (BOARDS, SECTIONS)},
+)
+```
+
+- El `LookupReader` va en `Provider.lookups` y devuelve `Choice`: el `id` es lo que después va en las
+  opciones. Recibe solo consultas declaradas, y `parent` ya viene si la consulta depende de otra.
+- Las opciones validan lo suyo al construirse (`__post_init__`): un destino vacío no llega al adaptador.
+- `PublishLimits.video_by_url=False` si la red toma las imágenes de una URL pero pide el video como
+  archivo.
+
+### El ritmo
+
+Si la red pide pocos pedidos a la vez o espaciados, se declara en `NetworkSpec.pace` (`Pace`) y la fábrica
+envuelve el transporte con `paced(transport, pace)`. Conviene que `pace` sea un parámetro de la fábrica,
+para que quien despliega lo ajuste y las pruebas lo saquen.
+
 ### Perfiles públicos de otra fuente
 
 `ProfileLookup` sirve también para una fuente que no es la API oficial de una red (un servicio propio, por
@@ -211,7 +237,8 @@ class TestTikTokCumpleElContrato(ProviderContract):
         return TikTokHarness()
 ```
 
-Una red federada dice además su servidor de prueba (`server()`), y una que conecta con una credencial, la
+Una red que no publica sin opciones las da en `options(kind)`, y una con consultas auxiliares deja sus
+respuestas en `script_lookups()`. Una red federada dice además su servidor de prueba (`server()`), y una que conecta con una credencial, la
 credencial (`credentials()`): el contrato conecta como lo hace esa red.
 
 Con eso se comprueba, pasando por los casos de uso, que:

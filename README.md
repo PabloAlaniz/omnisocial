@@ -33,6 +33,8 @@ Redes disponibles, y qué puede hacer cada una y cada tipo de activo:
 |---|---|---|---|---|---|---|---|---|---|---|---|
 | [**Bluesky**](docs/bluesky.md) |  |  | ✓ | ✓ | ✓ | ✓ | ✓ |  | ✓ |  | ✓ |
 |  | `bluesky_account` |  |  |  | ✓ | ✓ | ✓ |  | ✓ |  |  |
+| [**Google Business Profile**](docs/google-business.md) |  | ✓ |  | ✓ | ✓ | ✓ | ✓ |  | ✓ |  |  |
+|  | `google_business_location` |  |  |  | ✓ | ✓ | ✓ |  | ✓ |  |  |
 | [**Instagram (login propio)**](docs/instagram.md) |  | ✓ |  | ✓ | ✓ | ✓ | ✓ |  | ✓ |  |  |
 |  | `instagram_account` |  |  |  | ✓ | ✓ | ✓ |  | ✓ |  |  |
 | [**LinkedIn**](docs/linkedin.md) |  | ✓ |  | ✓ | ✓ | ✓ | ✓ |  | ✓ |  |  |
@@ -43,8 +45,12 @@ Redes disponibles, y qué puede hacer cada una y cada tipo de activo:
 | [**Meta**](docs/meta.md) |  | ✓ |  | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
 |  | `facebook_page` |  |  |  | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |  |
 |  | `instagram_account` |  |  |  | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |  |
+| [**Pinterest**](docs/pinterest.md) |  | ✓ |  | ✓ | ✓ | ✓ |  |  | ✓ |  |  |
+|  | `pinterest_account` |  |  |  | ✓ | ✓ |  |  | ✓ |  |  |
 | [**Pixelfed**](docs/mastodon.md) |  | ✓ |  | ✓ | ✓ | ✓ | ✓ |  | ✓ |  |  |
 |  | `pixelfed_account` |  |  |  | ✓ | ✓ | ✓ |  | ✓ |  |  |
+| [**Reddit**](docs/reddit.md) |  | ✓ |  | ✓ | ✓ | ✓ | ✓ |  |  |  |  |
+|  | `reddit_account` |  |  |  | ✓ | ✓ | ✓ |  |  |  |  |
 | [**Threads**](docs/threads.md) |  | ✓ |  | ✓ | ✓ | ✓ | ✓ |  | ✓ |  |  |
 |  | `threads_account` |  |  |  | ✓ | ✓ | ✓ |  | ✓ |  |  |
 | [**TikTok**](docs/tiktok.md) |  | ✓ |  | ✓ | ✓ | ✓ |  |  | ✓ | ✓ |  |
@@ -80,7 +86,8 @@ pip install "omnisocial[httpx,postgres,crypto,starlette]"
 | `starlette` | Las rutas del callback y de los webhooks (sirve en FastAPI).|
 
 Cada red se carga recién cuando se importa su módulo (`omnisocial.meta`, `omnisocial.tiktok`,
-`omnisocial.youtube`, `omnisocial.linkedin`, `omnisocial.x`, `omnisocial.threads`, `omnisocial.instagram`, `omnisocial.bluesky`, `omnisocial.mastodon`, `omnisocial.pixelfed`): quien usa una
+`omnisocial.youtube`, `omnisocial.linkedin`, `omnisocial.x`, `omnisocial.threads`, `omnisocial.instagram`, `omnisocial.bluesky`, `omnisocial.mastodon`, `omnisocial.pixelfed`, `omnisocial.pinterest`, `omnisocial.reddit`,
+`omnisocial.google_business`): quien usa una
 sola no ejecuta el código de las otras, y ninguna suma dependencias obligatorias.
 
 ## Armado
@@ -293,6 +300,16 @@ later = await social.check_publication.execute(publication.id)  # retoma una pen
 - **Hilos**, donde la red los tiene: `Draft("Uno", thread=(Draft("Dos"), Draft("Tres")))`. Si se corta a
   mitad de camino, lo que salió queda: `PUBLISHED_WITH_ERROR`, con la parte que falló.
 - **Las opciones propias de una red** van tipadas en `options` (`TikTokOptions(privacy_level=...)`).
+- **Hay redes donde hay que elegir a dónde va**: un pin va a un tablero, una publicación de Reddit a una
+  comunidad. Ahí las opciones son obligatorias, y lo que se puede elegir se le pide a la red:
+
+  ```python
+  boards = await social.list_choices.execute(pinterest.id, "boards")
+  flairs = await social.list_choices.execute(reddit.id, "flairs", parent="cocina")
+  draft = Draft("…", media=(...), options=PinterestOptions(board_id=boards.value[0].id))
+  ```
+
+  `social.list_choices.available(asset_id)` dice qué consultas ofrece un activo.
 - `social.delete_post` borra donde la red lo permite; si no, `Refused(ACTION_NOT_OFFERED)`.
 
 Las publicaciones en curso se guardan con `publications=PostgresPublicationRepository(pool)` en
@@ -376,6 +393,7 @@ Para esto **no hace falta una app propia**: `MetaConfig(api_version="v24.0")` si
 - [Cuota y subida por partes](docs/adr/0009-cuota-y-subida-por-partes.md)
 - [Salud de las conexiones](docs/adr/0010-salud-de-las-conexiones.md)
 - [Redes federadas y conexión por credencial](docs/adr/0011-redes-federadas-y-credenciales.md)
+- [Consultas auxiliares y ritmo por red](docs/adr/0012-consultas-auxiliares-y-ritmo.md)
 - [Meta: permisos, revisión de la app y lo que conviene saber](docs/meta.md)
 - [TikTok: Login Kit, Display API y lo que conviene saber](docs/tiktok.md)
 - [YouTube: Data API v3, cuota y lo que conviene saber](docs/youtube.md)
@@ -385,6 +403,9 @@ Para esto **no hace falta una app propia**: `MetaConfig(api_version="v24.0")` si
 - [Instagram con login propio](docs/instagram.md)
 - [Bluesky: contraseñas de aplicación y lo que conviene saber](docs/bluesky.md)
 - [Mastodon y Pixelfed: una app por servidor y lo que conviene saber](docs/mastodon.md)
+- [Pinterest: tableros, pines y lo que conviene saber](docs/pinterest.md)
+- [Reddit: comunidades, títulos y lo que conviene saber](docs/reddit.md)
+- [Google Business Profile: sedes, novedades, reseñas y lo que conviene saber](docs/google-business.md)
 - [Lo que vale para todas las redes](docs/redes-pendientes.md)
 - [Sumar una red](docs/nueva-red.md)
 - [Hoja de ruta: diez sprints](docs/hoja-de-ruta.md)

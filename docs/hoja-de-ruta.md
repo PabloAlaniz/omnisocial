@@ -20,7 +20,7 @@ contrato común, tiene su página en `docs/` y aparece en la matriz de capacidad
 | 4 ✓ | Redes profesionales y pagas | LinkedIn, X |
 | 5 ✓ | Salud de las conexiones | Threads, Instagram con login propio |
 | 6 ✓ | Redes abiertas y federadas | Bluesky, Mastodon, Pixelfed |
-| 7 | Publicaciones con campos propios | Pinterest, Reddit, Google Business Profile |
+| 7 ✓ | Publicaciones con campos propios | Pinterest, Reddit, Google Business Profile |
 | 8 | Mensajería y comunidades | WhatsApp Business, Telegram, Discord |
 | 9 | Operar en producción | — |
 | 10 | Versión 1.0 | Snapchat, Twitch (según demanda) |
@@ -142,6 +142,11 @@ Mastodon (se usan los de un servidor por defecto).
 - `parse_handle` aprende los nombres con dominio (`@persona@instancia`).
 
 ## Sprint 7. Publicaciones con campos propios: Pinterest, Reddit y Google Business Profile
+
+**Hecho** ([ADR 0012](adr/0012-consultas-auxiliares-y-ritmo.md), [pinterest.md](pinterest.md),
+[reddit.md](reddit.md), [google-business.md](google-business.md)). Quedaron afuera las imágenes y los
+videos en Reddit (su API no documenta cómo subirlos), los mensajes y los perfiles públicos de Reddit, los
+avisos de reseñas nuevas de Google (salen solo por Cloud Pub/Sub) y el ritmo compartido entre procesos.
 
 - **Consultas auxiliares**: algunas redes exigen elegir algo antes de publicar (tablero, comunidad,
   etiqueta, sede). Un puerto para listarlas.

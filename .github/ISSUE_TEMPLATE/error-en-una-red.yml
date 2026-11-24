@@ -20,6 +20,9 @@ body:
         - Bluesky
         - Mastodon
         - Pixelfed
+        - Pinterest
+        - Reddit
+        - Google Business Profile
         - El núcleo, no una red
     validations:
       required: true
