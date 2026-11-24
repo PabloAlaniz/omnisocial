@@ -142,6 +142,9 @@ class PublishLimits:
     """Si toma los medios de una URL pública."""
     media_by_file: bool = False
     """Si acepta que se le suban archivos."""
+    video_by_url: bool | None = None
+    """Si los videos siguen otra regla que las imágenes: `False`, un video solo va como archivo. `None`:
+    la misma regla que las imágenes."""
     link: bool = False
     first_comment: bool = False
     delete: bool = False
@@ -276,7 +279,10 @@ def _each_media(draft: Draft, limits: PublishLimits) -> Iterator[DraftProblem]:
 
 def _source(position: int, media: Media, limits: PublishLimits) -> Iterator[DraftProblem]:
     by_url = media.url is not None
-    if not (limits.media_by_url if by_url else limits.media_by_file):
+    url_allowed = limits.media_by_url
+    if media.kind is MediaKind.VIDEO and limits.video_by_url is not None:
+        url_allowed = limits.video_by_url
+    if not (url_allowed if by_url else limits.media_by_file):
         wanted = "un archivo para subir" if by_url else "una URL pública"
         yield DraftProblem(
             DraftIssue.MEDIA_SOURCE_NOT_SUPPORTED, f"El medio {position} tiene que ser {wanted}."

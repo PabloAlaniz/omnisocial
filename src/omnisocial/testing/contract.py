@@ -200,7 +200,10 @@ async def _insights(world: _World, asset: Asset) -> object:
 
 
 def _sample(kind: MediaKind, limits: PublishLimits) -> Media:
-    if limits.media_by_url:
+    by_url = limits.media_by_url
+    if kind is MediaKind.VIDEO and limits.video_by_url is not None:
+        by_url = limits.video_by_url
+    if by_url:
         extension = "mp4" if kind is MediaKind.VIDEO else "jpg"
         return Media(kind, f"https://cdn.ejemplo.com/medio.{extension}")
     content_type = "video/mp4" if kind is MediaKind.VIDEO else "image/jpeg"
