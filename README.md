@@ -26,11 +26,20 @@ esas reglas de cada red:
 - **Cualquier base, cualquier cliente HTTP.** Son puertos: hay adaptadores en memoria y para PostgreSQL, y
   un transporte con httpx.
 
-Redes disponibles:
+Redes disponibles, y qué puede hacer cada una y cada tipo de activo:
 
-- **Meta**: páginas de Facebook y cuentas profesionales de Instagram. Todas las capacidades.
-- **TikTok**: login, la cuenta, videos, contadores y webhooks. Sin comentarios ni mensajes, porque su API no
-  los ofrece.
+<!-- matriz:inicio (generada por scripts/matriz.py, no editar a mano) -->
+| Red | Activo | Login | Activos | Publicaciones | Comentarios | Mensajes | Métricas | Webhooks | Perfiles públicos |
+|---|---|---|---|---|---|---|---|---|---|
+| [**Meta**](docs/meta.md) |  | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
+|  | `facebook_page` |  |  | ✓ | ✓ | ✓ | ✓ | ✓ |  |
+|  | `instagram_account` |  |  | ✓ | ✓ | ✓ | ✓ | ✓ |  |
+| [**TikTok**](docs/tiktok.md) |  | ✓ | ✓ | ✓ |  |  | ✓ | ✓ |  |
+|  | `tiktok_account` |  |  | ✓ |  |  | ✓ |  |  |
+<!-- matriz:fin -->
+
+La fila de la red dice lo que ofrece; la de cada activo, lo que ese activo habilita. TikTok no tiene
+comentarios ni mensajes porque su API no los ofrece.
 
 La arquitectura está pensada para sumar otras sin tocar el núcleo: ver [Sumar una red](docs/nueva-red.md) y
 lo que ya se sabe de [YouTube, X y LinkedIn](docs/redes-pendientes.md).

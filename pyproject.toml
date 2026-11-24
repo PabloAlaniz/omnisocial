@@ -82,7 +82,7 @@ exclude_also = ["if TYPE_CHECKING:", "@overload", "raise NotImplementedError", "
 [tool.mypy]
 strict = true
 enable_error_code = ["explicit-override", "ignore-without-code", "redundant-expr", "truthy-bool", "possibly-undefined"]
-files = ["src", "tests"]
+files = ["src", "tests", "scripts"]
 
 [tool.ruff]
 line-length = 110
@@ -170,6 +170,8 @@ ban-relative-imports = "all"
     "SLF001",
 ]
 "tests/integration/**" = ["S101", "TID251", "S608"]
+# Herramientas del repositorio: se corren sueltas, no son un paquete.
+"scripts/*.py" = ["INP001"]
 
 # Reglas de arquitectura. Las dependencias apuntan hacia adentro:
 #   entrypoints → adapters → application → domain
