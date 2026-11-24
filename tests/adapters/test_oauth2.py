@@ -197,7 +197,6 @@ async def test_la_app_se_puede_identificar_por_cabecera() -> None:
     # app:secreto en Base64. El secreto no va en el cuerpo.
     assert call.headers == {"Authorization": "Basic YXBwOnNlY3JldG8="}
     assert call.form == {
-        "client_id": "app",
         "grant_type": "authorization_code",
         "code": "c",
         "redirect_uri": "r",
@@ -205,4 +204,4 @@ async def test_la_app_se_puede_identificar_por_cabecera() -> None:
     }
     await oauth.revoke(Token(TokenKind.USER, "a1"))
     assert transport.calls[1].headers == {"Authorization": "Basic YXBwOnNlY3JldG8="}
-    assert transport.calls[1].form == {"client_id": "app", "token": "a1"}
+    assert transport.calls[1].form == {"token": "a1"}

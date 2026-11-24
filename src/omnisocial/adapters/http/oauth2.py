@@ -156,8 +156,7 @@ class StandardOAuth(OAuthClient):
         elif self._spec.client_auth_basic:
             pair = f"{self._app.client_id}:{self._app.client_secret}".encode()
             headers = {"Authorization": f"Basic {base64.b64encode(pair).decode()}"}
-            # La clave va igual en el cuerpo: es pública y hay redes que la piden ahí también.
-            credentials = {self._spec.client_id_param: self._app.client_id}
+            credentials = {}
         response = await self._transport.request(
             "POST",
             url,
