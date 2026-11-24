@@ -22,6 +22,7 @@ from omnisocial.application.ports import (
     AuthorizationStateStore,
     Clock,
     ConnectionRepository,
+    PublicationRepository,
     TokenCipher,
 )
 from omnisocial.domain.asset import Asset
@@ -29,6 +30,7 @@ from omnisocial.domain.authorization import AuthorizationRequest, Purpose
 from omnisocial.domain.connection import Connection, ConnectionStatus
 from omnisocial.domain.identity import Identity
 from omnisocial.domain.provider import Capability, ProviderId
+from omnisocial.domain.publishing import Publication, PublicationStatus
 from omnisocial.domain.token import Token, TokenKind
 
 SCHEMA = """
@@ -77,6 +79,24 @@ CREATE TABLE IF NOT EXISTS omnisocial_authorization_states (
     expires_at timestamptz NOT NULL
 );
 CREATE INDEX IF NOT EXISTS omnisocial_states_expiry ON omnisocial_authorization_states (expires_at);
+
+CREATE TABLE IF NOT EXISTS omnisocial_publications (
+    id              text PRIMARY KEY,
+    asset_id        text NOT NULL,
+    owner           text NOT NULL,
+    provider        text NOT NULL,
+    status          text NOT NULL,
+    idempotency_key text,
+    post_id         text,
+    url             text,
+    error           text,
+    resume          jsonb NOT NULL DEFAULT '{}',
+    version         integer NOT NULL,
+    created_at      timestamptz NOT NULL,
+    updated_at      timestamptz NOT NULL,
+    UNIQUE (asset_id, idempotency_key)
+);
+CREATE INDEX IF NOT EXISTS omnisocial_publications_owner ON omnisocial_publications (owner, created_at);
 """
 
 
@@ -388,3 +408,93 @@ class PostgresAuthorizationStateStore(AuthorizationStateStore):
         if row is None:
             return None
         return _request_from_json(self._cipher.decrypt(row[0], context=self._context(state)))
+
+
+class PostgresPublicationRepository(PublicationRepository):
+    """Las publicaciones en curso y sus claves de idempotencia. No guarda tokens ni el contenido."""
+
+    def __init__(self, pool: AsyncConnectionPool[Any]) -> None:
+        self._pool = pool
+
+    @staticmethod
+    def _row_to_publication(row: dict[str, Any]) -> Publication:
+        return Publication(
+            id=row["id"],
+            asset_id=row["asset_id"],
+            owner=row["owner"],
+            provider=ProviderId(row["provider"]),
+            status=PublicationStatus(row["status"]),
+            created_at=row["created_at"],
+            updated_at=row["updated_at"],
+            idempotency_key=row["idempotency_key"],
+            post_id=row["post_id"],
+            url=row["url"],
+            error=row["error"],
+            resume=dict(row["resume"]),
+            version=row["version"],
+        )
+
+    @staticmethod
+    def _values(p: Publication) -> dict[str, object]:
+        return {
+            "id": p.id,
+            "asset_id": p.asset_id,
+            "owner": p.owner,
+            "provider": p.provider,
+            "status": p.status.value,
+            "idempotency_key": p.idempotency_key,
+            "post_id": p.post_id,
+            "url": p.url,
+            "error": p.error,
+            "resume": Jsonb(dict(p.resume)),
+            "version": p.version,
+            "created_at": p.created_at,
+            "updated_at": p.updated_at,
+        }
+
+    async def _one(self, sql: str, params: Sequence[object]) -> Publication | None:
+        async with self._pool.connection() as conn, conn.cursor(row_factory=dict_row) as cur:
+            await cur.execute(sql, params)
+            row = await cur.fetchone()
+            return self._row_to_publication(row) if row else None
+
+    @override
+    async def get(self, publication_id: str) -> Publication | None:
+        return await self._one("SELECT * FROM omnisocial_publications WHERE id = %s", [publication_id])
+
+    @override
+    async def find_by_key(self, asset_id: str, idempotency_key: str) -> Publication | None:
+        return await self._one(
+            "SELECT * FROM omnisocial_publications WHERE asset_id = %s AND idempotency_key = %s",
+            [asset_id, idempotency_key],
+        )
+
+    @override
+    async def add(self, publication: Publication) -> bool:
+        values = self._values(publication)
+        columns = ", ".join(values)
+        placeholders = ", ".join(f"%({k})s" for k in values)
+        async with self._pool.connection() as conn:
+            cur = await conn.execute(
+                f"INSERT INTO omnisocial_publications ({columns}) VALUES ({placeholders}) "  # noqa: S608
+                "ON CONFLICT (asset_id, idempotency_key) DO NOTHING",
+                values,
+            )
+            return bool(cur.rowcount == 1)
+
+    @override
+    async def save(self, publication: Publication, *, expected_version: int) -> bool:
+        values = self._values(publication)
+        assignments = ", ".join(f"{k} = %({k})s" for k in values if k not in {"id", "created_at"})
+        async with self._pool.connection() as conn:
+            cur = await conn.execute(
+                f"UPDATE omnisocial_publications SET {assignments} "  # noqa: S608
+                "WHERE id = %(id)s AND version = %(expected_version)s",
+                {**values, "expected_version": expected_version},
+            )
+            return bool(cur.rowcount == 1)
+
+    @override
+    async def remove(self, publication_id: str) -> None:
+        async with self._pool.connection() as conn:
+            await conn.execute("DELETE FROM omnisocial_publications WHERE id = %s", [publication_id])

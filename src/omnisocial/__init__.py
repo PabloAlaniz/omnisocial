@@ -10,6 +10,7 @@ from omnisocial.adapters.stores.memory import (
     InMemoryAssetRepository,
     InMemoryAuthorizationStateStore,
     InMemoryConnectionRepository,
+    InMemoryPublicationRepository,
 )
 from omnisocial.adapters.system import SystemClock
 from omnisocial.application.registry import Provider, ProviderRegistry
@@ -53,6 +54,17 @@ from omnisocial.domain.metrics import (
 )
 from omnisocial.domain.profile import PublicProfile
 from omnisocial.domain.provider import Capability, ProviderId
+from omnisocial.domain.publishing import (
+    Draft,
+    DraftIssue,
+    DraftProblem,
+    Media,
+    MediaKind,
+    Publication,
+    PublicationStatus,
+    PublishLimits,
+    PublishOptions,
+)
 from omnisocial.domain.redirect import ReturnUrlPolicy
 from omnisocial.domain.spec import NetworkSpec
 from omnisocial.domain.token import Token, TokenKind
@@ -76,6 +88,9 @@ __all__ = [
     "Conversation",
     "DiscoveredAsset",
     "Done",
+    "Draft",
+    "DraftIssue",
+    "DraftProblem",
     "ErrorKind",
     "EventAction",
     "EventKind",
@@ -85,8 +100,11 @@ __all__ = [
     "InMemoryAssetRepository",
     "InMemoryAuthorizationStateStore",
     "InMemoryConnectionRepository",
+    "InMemoryPublicationRepository",
     "InsightsRead",
     "LoggedIn",
+    "Media",
+    "MediaKind",
     "Message",
     "MetricCatalog",
     "MetricPoint",
@@ -104,6 +122,10 @@ __all__ = [
     "ProviderId",
     "ProviderRegistry",
     "PublicProfile",
+    "Publication",
+    "PublicationStatus",
+    "PublishLimits",
+    "PublishOptions",
     "Purpose",
     "QuotaExhausted",
     "RateLimited",

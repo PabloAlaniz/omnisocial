@@ -43,6 +43,7 @@ from omnisocial.domain.authorization import Purpose
 from omnisocial.domain.errors import ErrorKind
 from omnisocial.domain.metrics import CanonicalMetric, Period
 from omnisocial.domain.provider import Capability
+from omnisocial.domain.publishing import Draft, DraftIssue, Media, MediaKind, check_draft
 from omnisocial.domain.redirect import ReturnUrlPolicy
 from omnisocial.domain.spec import NetworkSpec
 from omnisocial.domain.window import TimeWindow
@@ -151,7 +152,22 @@ async def _insights(world: _World, asset: Asset) -> object:
     )
 
 
+def _draft(world: _World, asset: Asset) -> Draft:
+    """Un borrador que entra en ese tipo de activo, armado desde los límites que declara."""
+    limits = world.harness.spec.publishing[asset.kind]
+    if limits.max_videos:
+        return Draft("hola", media=(Media(MediaKind.VIDEO, "https://cdn.ejemplo.com/video.mp4"),))
+    if limits.max_images:
+        return Draft("hola", media=(Media(MediaKind.IMAGE, "https://cdn.ejemplo.com/foto.jpg"),))
+    return Draft("hola")
+
+
+async def _publish(world: _World, asset: Asset) -> object:
+    return await world.social.publish.execute(asset.id, _draft(world, asset))
+
+
 _PROBES: Mapping[Capability, Probe] = {
+    Capability.PUBLISHING: _publish,
     Capability.CONTENT: _posts,
     Capability.COMMENTS: _comments,
     Capability.MESSAGING: _conversations,
@@ -288,6 +304,32 @@ class ProviderContract:
             )
             if not alive:
                 return
+
+    # ── Publicar ────────────────────────────────────────────────────────────────────────────────
+
+    def test_un_borrador_que_no_entra_no_llega_a_la_red(self) -> None:
+        _run(self._borrador_invalido())
+
+    async def _borrador_invalido(self) -> None:
+        world = _world(self.harness())
+        if Capability.PUBLISHING not in world.harness.spec.capabilities:
+            return
+        connected = await _connect(world)
+        publishers = [a for a in connected.assets if Capability.PUBLISHING in a.capabilities]
+        assert publishers, "La red publica, pero ningún activo descubierto lo habilita."
+        for asset in publishers:
+            limits = world.harness.spec.publishing[asset.kind]
+            assert not check_draft(_draft(world, asset), limits), (
+                f"Los límites de '{asset.kind}' no dejan pasar ni un borrador mínimo."
+            )
+            before = len(world.harness.transport.calls)
+            refused = await world.social.publish.execute(asset.id, Draft("x" * (limits.max_text + 1)))
+            assert isinstance(refused, Refused), f"'{asset.kind}': un texto demasiado largo no fue rechazado."
+            assert refused.reason is Refusal.INVALID_DRAFT
+            assert DraftIssue.TEXT_TOO_LONG in [problem.issue for problem in refused.problems]
+            assert len(world.harness.transport.calls) == before, (
+                f"'{asset.kind}': se llamó a la red con un borrador que no entraba."
+            )
 
     # ── Webhooks ────────────────────────────────────────────────────────────────────────────────
 

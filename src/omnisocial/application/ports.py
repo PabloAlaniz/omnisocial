@@ -26,6 +26,7 @@ from omnisocial.domain.messaging import Conversation, Message, ReplyWindow
 from omnisocial.domain.metrics import MetricCatalog, MetricSeries, Period
 from omnisocial.domain.profile import PublicProfile
 from omnisocial.domain.provider import ProviderId
+from omnisocial.domain.publishing import Draft, Outcome, Publication
 from omnisocial.domain.token import Token
 from omnisocial.domain.webhooks import SocialEvent
 from omnisocial.domain.window import TimeWindow
@@ -121,6 +122,25 @@ class InsightsReader(Protocol):
     ) -> Sequence[MetricSeries]: ...
 
 
+class Publisher(Protocol):
+    """Publicar en un activo. Los límites de cada tipo de activo van en la descripción de la red."""
+
+    async def publish(self, asset: Asset, token: Token, *, draft: Draft) -> Outcome:
+        """Publica un borrador que ya pasó la validación.
+
+        Si la red publica en etapas, devuelve `PENDING` con lo necesario para retomarla en `resume`. Si
+        salió pero un paso posterior falló, `PUBLISHED_WITH_ERROR`: nunca una excepción, porque repetir el
+        pedido duplicaría la publicación.
+        """
+        ...
+
+    async def resume(self, asset: Asset, token: Token, *, resume: Mapping[str, str]) -> Outcome:
+        """Retoma una publicación pendiente. Llamarla dos veces no publica dos veces."""
+        ...
+
+    async def delete(self, asset: Asset, token: Token, *, post_id: str) -> None: ...
+
+
 class ProfileLookup(Protocol):
     """Perfiles públicos de cuentas ajenas, por su nombre."""
 
@@ -186,6 +206,25 @@ class AssetRepository(Protocol):
 
     async def replace_for_connection(self, connection_id: str, assets: Sequence[Asset]) -> None:
         """Deja exactamente esos activos para la conexión. Conserva el `id` de los que ya existían."""
+        ...
+
+
+class PublicationRepository(Protocol):
+    async def get(self, publication_id: str) -> Publication | None: ...
+
+    async def find_by_key(self, asset_id: str, idempotency_key: str) -> Publication | None: ...
+
+    async def add(self, publication: Publication) -> bool:
+        """Guarda una publicación nueva. Devuelve `False`, sin guardar, si ese activo ya tiene una con la
+        misma clave de idempotencia."""
+        ...
+
+    async def save(self, publication: Publication, *, expected_version: int) -> bool:
+        """Guarda solo si la versión guardada sigue siendo `expected_version`. Devuelve si guardó."""
+        ...
+
+    async def remove(self, publication_id: str) -> None:
+        """Libera la reserva de una publicación que con certeza no salió, para poder reintentarla."""
         ...
 
 

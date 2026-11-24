@@ -25,6 +25,7 @@ COLUMNS = {
     Capability.LOGIN: "Login",
     Capability.ASSETS: "Activos",
     Capability.CONTENT: "Publicaciones",
+    Capability.PUBLISHING: "Publicar",
     Capability.COMMENTS: "Comentarios",
     Capability.MESSAGING: "Mensajes",
     Capability.INSIGHTS: "Métricas",

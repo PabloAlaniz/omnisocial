@@ -20,6 +20,7 @@ from omnisocial.domain.errors import (
     TokenRejected,
 )
 from omnisocial.domain.provider import Capability, ProviderId
+from omnisocial.domain.publishing import PublishLimits
 
 _TOO_MANY_REQUESTS = 429
 _SERVER_ERROR = 500
@@ -104,6 +105,8 @@ class NetworkSpec:
     """Solo si el OAuth de la red es el estándar. Si no, la red trae su propio `OAuthClient`."""
     docs: str | None = None
     """La página de la red, relativa a la raíz del repositorio."""
+    publishing: Mapping[str, PublishLimits] = field(default_factory=dict)
+    """Qué acepta cada tipo de activo al publicar."""
 
     def __post_init__(self) -> None:
         for kind, capabilities in self.assets.items():
@@ -111,3 +114,5 @@ class NetworkSpec:
             if extra:
                 names = ", ".join(sorted(extra))
                 raise ValueError(f"El activo '{kind}' declara capacidades que la red no tiene: {names}.")
+            if (Capability.PUBLISHING in capabilities) != (kind in self.publishing):
+                raise ValueError(f"El activo '{kind}' publica si y solo si declara sus límites.")

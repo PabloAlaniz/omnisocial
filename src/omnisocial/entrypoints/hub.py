@@ -7,6 +7,7 @@ from dataclasses import dataclass
 
 from omniwebhook import AsyncIdempotencyStore
 
+from omnisocial.adapters.stores.memory import InMemoryPublicationRepository
 from omnisocial.adapters.system import SystemClock, SystemSecrets, UuidGenerator
 from omnisocial.application.ports import (
     AssetRepository,
@@ -14,6 +15,7 @@ from omnisocial.application.ports import (
     Clock,
     ConnectionRepository,
     IdGenerator,
+    PublicationRepository,
     SecretGenerator,
 )
 from omnisocial.application.registry import Provider, ProviderRegistry
@@ -41,6 +43,7 @@ from omnisocial.application.use_cases.operations import (
     SetCommentHidden,
 )
 from omnisocial.application.use_cases.profiles import LookupProfile
+from omnisocial.application.use_cases.publishing import CheckPublication, DeletePost, Publish, ValidateDraft
 from omnisocial.application.use_cases.webhooks import HandleWebhook
 from omnisocial.domain.redirect import ReturnUrlPolicy
 
@@ -81,6 +84,10 @@ class Omnisocial:
     send_message: SendMessage
     read_insights: ReadInsights
     handle_webhook: HandleWebhook
+    validate_draft: ValidateDraft
+    publish: Publish
+    check_publication: CheckPublication
+    delete_post: DeletePost
 
     @classmethod
     def build(
@@ -96,11 +103,15 @@ class Omnisocial:
         clock: Clock | None = None,
         ids: IdGenerator | None = None,
         secrets: SecretGenerator | None = None,
+        publications: PublicationRepository | None = None,
     ) -> Omnisocial:
+        """`publications` guarda las publicaciones en curso y las claves de idempotencia. Si falta, quedan en
+        memoria: alcanza para probar, pero no sobreviven a un reinicio ni se comparten entre procesos."""
         registry = ProviderRegistry(providers)
         clock = clock or SystemClock()
         ids = ids or UuidGenerator()
         secrets = secrets or SystemSecrets()
+        publications = publications or InMemoryPublicationRepository()
         store = ConnectionStore(connections=connections, assets=assets, clock=clock, ids=ids)
         tokens = GetValidToken(registry=registry, connections=connections, clock=clock)
         access = ResolveAssetAccess(assets=assets, tokens=tokens, clock=clock)
@@ -136,4 +147,12 @@ class Omnisocial:
             handle_webhook=HandleWebhook(
                 registry=registry, assets=assets, store=webhook_events, tokens=tokens
             ),
+            validate_draft=ValidateDraft(registry=registry, access=access),
+            publish=Publish(
+                registry=registry, access=access, publications=publications, clock=clock, ids=ids
+            ),
+            check_publication=CheckPublication(
+                registry=registry, access=access, publications=publications, clock=clock
+            ),
+            delete_post=DeletePost(registry=registry, access=access),
         )

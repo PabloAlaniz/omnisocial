@@ -16,6 +16,7 @@ from omnisocial.application.ports import (
     MessagingGateway,
     OAuthClient,
     ProfileLookup,
+    Publisher,
     WebhookParser,
 )
 from omnisocial.domain.errors import CapabilityNotSupported, UnknownProvider
@@ -40,6 +41,7 @@ class Provider:
     insights: InsightsReader | None = None
     webhooks: WebhookParser | None = None
     profiles: ProfileLookup | None = None
+    publisher: Publisher | None = None
     identity: IdentityReader | None = None
     """Quién es el dueño de un token sin pasar por OAuth. Si falta, se usa el del OAuth."""
     spec: NetworkSpec | None = None
@@ -56,6 +58,7 @@ class Provider:
             Capability.INSIGHTS: self.insights,
             Capability.WEBHOOKS: self.webhooks,
             Capability.PUBLIC_PROFILES: self.profiles,
+            Capability.PUBLISHING: self.publisher,
         }
         return frozenset(c for c, component in present.items() if component is not None)
 
@@ -91,6 +94,9 @@ class Provider:
         if reader is None:
             raise CapabilityNotSupported(self.id, Capability.LOGIN)
         return reader
+
+    def require_publisher(self) -> Publisher:
+        return self._require(self.publisher, Capability.PUBLISHING)
 
     def require_profiles(self) -> ProfileLookup:
         return self._require(self.profiles, Capability.PUBLIC_PROFILES)

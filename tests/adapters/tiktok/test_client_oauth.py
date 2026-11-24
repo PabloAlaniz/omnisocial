@@ -167,7 +167,7 @@ async def test_la_cuenta_es_el_activo(fake: FakeTikTok, client: TikTokClient) ->
         "Marca",
         None,
     )
-    assert asset.capabilities == frozenset({Capability.CONTENT, Capability.INSIGHTS})
+    assert asset.capabilities == frozenset({Capability.CONTENT, Capability.INSIGHTS, Capability.PUBLISHING})
     fake.routes.clear()
     fake.on("GET", "user/info/", ok({}))
     with pytest.raises(ProviderError, match="open_id"):

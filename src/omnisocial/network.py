@@ -17,6 +17,7 @@ from omnisocial.application.ports import (
     MessagingGateway,
     OAuthClient,
     ProfileLookup,
+    Publisher,
     WebhookParser,
 )
 from omnisocial.application.registry import ENTRY_POINT_GROUP, Provider, load_entry_point
@@ -32,6 +33,16 @@ from omnisocial.domain.errors import (
 )
 from omnisocial.domain.identity import Identity
 from omnisocial.domain.provider import Capability, ProviderId
+from omnisocial.domain.publishing import (
+    Draft,
+    Media,
+    MediaKind,
+    Outcome,
+    PublicationStatus,
+    PublishLimits,
+    PublishOptions,
+    TextCount,
+)
 from omnisocial.domain.spec import ErrorTable, NetworkSpec, OAuthSpec
 from omnisocial.domain.token import Token, TokenKind
 
@@ -44,6 +55,7 @@ __all__ = [
     "CommentGateway",
     "ContentReader",
     "DiscoveredAsset",
+    "Draft",
     "ErrorKind",
     "ErrorTable",
     "HttpResponse",
@@ -51,22 +63,30 @@ __all__ = [
     "Identity",
     "IdentityReader",
     "InsightsReader",
+    "Media",
+    "MediaKind",
     "MessagingGateway",
     "NetworkSpec",
     "OAuthApp",
     "OAuthClient",
     "OAuthSpec",
+    "Outcome",
     "Params",
     "PermissionMissing",
     "ProfileLookup",
     "Provider",
     "ProviderError",
     "ProviderId",
+    "PublicationStatus",
+    "PublishLimits",
+    "PublishOptions",
+    "Publisher",
     "Purpose",
     "QuotaExhausted",
     "RateLimited",
     "StandardOAuth",
     "SystemClock",
+    "TextCount",
     "Token",
     "TokenKind",
     "TokenRejected",

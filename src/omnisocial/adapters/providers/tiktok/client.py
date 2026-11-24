@@ -71,6 +71,20 @@ class TikTokClient:
         )
         return self._unwrap(response)
 
+    async def command(
+        self, path: str, token: str, body: Mapping[str, object], *, read: bool = False
+    ) -> dict[str, object]:
+        """Un POST con cuerpo JSON. Solo se repite solo si es una lectura (`read`): iniciar una publicación
+        dos veces publica dos veces."""
+        response = await self._transport.request(
+            "POST",
+            self._url(path),
+            json=body,
+            headers=self._bearer(token),
+            retry_safe="es una lectura: TikTok la pide por POST" if read else None,
+        )
+        return self._unwrap(response)
+
     @staticmethod
     def _bearer(token: str) -> dict[str, str]:
         return {"Authorization": f"Bearer {token}"}

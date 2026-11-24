@@ -5,10 +5,18 @@ from __future__ import annotations
 from omnisocial.adapters.providers.meta.config import FACEBOOK_PAGE, INSTAGRAM_ACCOUNT, META
 from omnisocial.domain.errors import ErrorKind
 from omnisocial.domain.provider import Capability
+from omnisocial.domain.publishing import PublishLimits
 from omnisocial.domain.spec import ErrorTable, NetworkSpec
 
 PAGE_CAPABILITIES = frozenset(
-    {Capability.CONTENT, Capability.COMMENTS, Capability.MESSAGING, Capability.INSIGHTS, Capability.WEBHOOKS}
+    {
+        Capability.CONTENT,
+        Capability.COMMENTS,
+        Capability.MESSAGING,
+        Capability.INSIGHTS,
+        Capability.WEBHOOKS,
+        Capability.PUBLISHING,
+    }
 )
 INSTAGRAM_CAPABILITIES = PAGE_CAPABILITIES
 
@@ -29,7 +37,28 @@ RATE_LIMIT_CODES = frozenset({4, 17, 32, 341, 613, 80001, 80002, 80006})
 # 1: error desconocido del lado de Meta.  2: servicio no disponible por un momento.
 TRANSIENT_CODES = frozenset({1, 2})
 
-INVALID_REQUEST_CODES = frozenset({100})
+# 100: parámetro inválido.  352: formato de video no soportado.  9004: Instagram no pudo descargar el medio.
+# 36000, 36001 y 36003: la imagen pesa demasiado, tiene un formato o una proporción que Instagram no acepta.
+INVALID_REQUEST_CODES = frozenset({100, 352, 9004, 36000, 36001, 36003})
+
+# Con subcódigo, cuando el código solo no alcanza.
+#   9/2207042: se llegó al tope de publicaciones por API de Instagram en 24 horas.
+PRECISE_CODES = {"9/2207042": ErrorKind.QUOTA_EXHAUSTED}
+
+PAGE_LIMITS = PublishLimits(
+    max_text=63206, max_images=10, max_videos=1, link=True, first_comment=True, delete=True
+)
+# Instagram siempre pide al menos un medio. Borrar por API existe, pero pide otro permiso
+# (`instagram_manage_contents`) y todavía no se ofrece.
+INSTAGRAM_LIMITS = PublishLimits(
+    max_text=2200,
+    max_images=20,
+    max_videos=20,
+    max_media=20,
+    mix_media=True,
+    media_required=True,
+    first_comment=True,
+)
 
 
 def _codes() -> dict[str, ErrorKind]:
@@ -40,7 +69,7 @@ def _codes() -> dict[str, ErrorKind]:
         ErrorKind.TRANSIENT: TRANSIENT_CODES,
         ErrorKind.INVALID_REQUEST: INVALID_REQUEST_CODES,
     }
-    return {str(code): kind for kind, codes in groups.items() for code in codes}
+    return {str(code): kind for kind, codes in groups.items() for code in codes} | PRECISE_CODES
 
 
 ERRORS = ErrorTable(codes=_codes())
@@ -52,4 +81,5 @@ SPEC = NetworkSpec(
     assets={FACEBOOK_PAGE: PAGE_CAPABILITIES, INSTAGRAM_ACCOUNT: INSTAGRAM_CAPABILITIES},
     errors=ERRORS,
     docs="docs/meta.md",
+    publishing={FACEBOOK_PAGE: PAGE_LIMITS, INSTAGRAM_ACCOUNT: INSTAGRAM_LIMITS},
 )

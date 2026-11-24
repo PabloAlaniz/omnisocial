@@ -19,5 +19,7 @@ class Capability(StrEnum):
     MESSAGING = "messaging"
     INSIGHTS = "insights"
     WEBHOOKS = "webhooks"
+    PUBLISHING = "publishing"
+    """Publicar en un activo, retomar una publicación en curso y borrarla."""
     PUBLIC_PROFILES = "public_profiles"
     """Leer el perfil público de cuentas que no se administran."""

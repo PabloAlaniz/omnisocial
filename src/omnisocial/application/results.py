@@ -17,6 +17,7 @@ from omnisocial.domain.errors import PermissionMissing, ProviderError, QuotaExha
 from omnisocial.domain.identity import Identity
 from omnisocial.domain.metrics import CanonicalMetric, MetricSeries
 from omnisocial.domain.provider import Capability
+from omnisocial.domain.publishing import DraftProblem
 from omnisocial.domain.token import Token
 
 T = TypeVar("T")
@@ -50,6 +51,10 @@ class Refusal(StrEnum):
     """La red pide bajar el ritmo. `retry_after` trae los segundos que pidió esperar, si lo dijo."""
     QUOTA_EXHAUSTED = "quota_exhausted"
     """Se acabó la cuota o el crédito de la app en la red. La conexión sigue sana."""
+    INVALID_DRAFT = "invalid_draft"
+    """El borrador no entra en ese activo. `problems` dice por qué. No se llamó a la red."""
+    CONTENT_REJECTED = "content_rejected"
+    """La red no aceptó el contenido. No salió, y repetirlo igual da lo mismo."""
 
 
 _REFUSAL_BY_ERROR: dict[type[ProviderError], Refusal] = {
@@ -65,6 +70,7 @@ class Refused:
     return_url: str | None = None
     capability: Capability | None = None
     retry_after: float | None = None
+    problems: tuple[DraftProblem, ...] = ()
 
 
 def refusal_for(error: ProviderError, capability: Capability) -> Refused | None:

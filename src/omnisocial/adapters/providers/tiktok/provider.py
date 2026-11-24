@@ -9,6 +9,7 @@ from omnisocial.adapters.providers.tiktok.config import TIKTOK, TikTokConfig
 from omnisocial.adapters.providers.tiktok.content import TikTokContentReader
 from omnisocial.adapters.providers.tiktok.insights import DEFAULT_CATALOG, TikTokInsightsReader
 from omnisocial.adapters.providers.tiktok.oauth import tiktok_oauth
+from omnisocial.adapters.providers.tiktok.publishing import TikTokPublisher
 from omnisocial.adapters.providers.tiktok.spec import SPEC
 from omnisocial.adapters.providers.tiktok.webhooks import TikTokWebhookParser
 from omnisocial.adapters.system import SystemClock
@@ -37,5 +38,6 @@ def tiktok_provider(
         content=TikTokContentReader(client),
         insights=TikTokInsightsReader(client, clock, catalog),
         webhooks=TikTokWebhookParser(config, clock),
+        publisher=TikTokPublisher(client),
         spec=SPEC,
     )

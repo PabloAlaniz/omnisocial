@@ -24,6 +24,7 @@ def test_capacidades_segun_lo_que_trae() -> None:
         bare.require_messaging,
         bare.require_insights,
         bare.require_webhooks,
+        bare.require_publisher,
     ):
         with pytest.raises(CapabilityNotSupported, match="vacia"):
             require()

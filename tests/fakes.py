@@ -28,6 +28,8 @@ from omnisocial.domain.metrics import (
 )
 from omnisocial.domain.profile import PublicProfile
 from omnisocial.domain.provider import Capability, ProviderId
+from omnisocial.domain.publishing import Draft, Outcome, PublicationStatus, PublishLimits, PublishOptions
+from omnisocial.domain.spec import NetworkSpec
 from omnisocial.domain.token import Token, TokenKind
 from omnisocial.domain.webhooks import EventAction, EventKind, SocialEvent
 from omnisocial.domain.window import TimeWindow
@@ -274,6 +276,57 @@ class FakeProfiles:
         return self.known.get(handle.value)
 
 
+@dataclass(frozen=True)
+class FakeOptions(PublishOptions):
+    audience: str = "todos"
+
+
+FAKE_LIMITS = PublishLimits(
+    max_text=50, max_images=2, max_videos=1, link=True, first_comment=True, delete=True, options=FakeOptions
+)
+FAKE_SPEC = NetworkSpec(
+    id=FAKE,
+    name="Falsa",
+    capabilities=frozenset(Capability),
+    assets={"pagina": frozenset(Capability)},
+    publishing={"pagina": FAKE_LIMITS},
+)
+
+
+@dataclass
+class FakePublisher:
+    """Publica en dos etapas si `pending` está puesto: primero queda pendiente y al retomar sale."""
+
+    published: list[Draft] = field(default_factory=list)
+    resumed: list[Mapping[str, str]] = field(default_factory=list)
+    deleted: list[str] = field(default_factory=list)
+    pending: bool = False
+    fail_with: Exception | None = None
+    outcome: Outcome | None = None
+
+    async def publish(self, asset: Asset, token: Token, *, draft: Draft) -> Outcome:
+        if self.fail_with is not None:
+            raise self.fail_with
+        self.published.append(draft)
+        if self.outcome is not None:
+            return self.outcome
+        if self.pending:
+            return Outcome(PublicationStatus.PENDING, resume={"paso": "1"})
+        number = len(self.published)
+        return Outcome(PublicationStatus.PUBLISHED, post_id=f"post-{number}", url=f"https://red/{number}")
+
+    async def resume(self, asset: Asset, token: Token, *, resume: Mapping[str, str]) -> Outcome:
+        if self.fail_with is not None:
+            raise self.fail_with
+        self.resumed.append(resume)
+        return self.outcome or Outcome(PublicationStatus.PUBLISHED, post_id="post-1")
+
+    async def delete(self, asset: Asset, token: Token, *, post_id: str) -> None:
+        if self.fail_with is not None:
+            raise self.fail_with
+        self.deleted.append(post_id)
+
+
 @dataclass
 class FakeNetwork:
     clock: FakeClock = field(default_factory=FakeClock)
@@ -285,6 +338,7 @@ class FakeNetwork:
     insights: FakeInsights = field(default_factory=FakeInsights)
     webhooks: FakeWebhooks = field(default_factory=FakeWebhooks)
     profiles: FakeProfiles = field(default_factory=FakeProfiles)
+    publisher: FakePublisher = field(default_factory=FakePublisher)
 
     def __post_init__(self) -> None:
         self.oauth.clock = self.clock
@@ -305,7 +359,9 @@ class FakeNetwork:
             insights=pick(Capability.INSIGHTS, self.insights),  # type: ignore[arg-type]
             webhooks=pick(Capability.WEBHOOKS, self.webhooks),  # type: ignore[arg-type]
             profiles=pick(Capability.PUBLIC_PROFILES, self.profiles),  # type: ignore[arg-type]
+            publisher=pick(Capability.PUBLISHING, self.publisher),  # type: ignore[arg-type]
             identity=identity,  # type: ignore[arg-type]
+            spec=FAKE_SPEC,
         )
 
 

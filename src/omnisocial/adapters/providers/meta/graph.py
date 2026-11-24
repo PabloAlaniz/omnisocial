@@ -67,6 +67,14 @@ def summary_count(node: object, key: str = "total_count") -> int | None:
     return as_int(as_dict(as_dict(node).get("summary")).get(key))
 
 
+def _table_code(code: int | None, subcode: int | None) -> str | None:
+    """El código con el que se busca en la tabla: `código/subcódigo` si la tabla lo distingue."""
+    if code is None:
+        return None
+    precise = f"{code}/{subcode}"
+    return precise if subcode is not None and precise in ERRORS.codes else str(code)
+
+
 class GraphClient:
     def __init__(self, config: MetaConfig, transport: HttpTransport) -> None:
         self._config = config
@@ -109,6 +117,12 @@ class GraphClient:
         response = await self._transport.request(
             "POST", self._url(path), params={**(params or {}), **self._auth(token)}, json=json
         )
+        return self._unwrap(response)
+
+    async def post_video(self, path: str, token: str, *, json: Mapping[str, object]) -> dict[str, object]:
+        """Los videos se crean en un servidor aparte de la Graph API."""
+        url = f"{self._config.video_base}/{path.lstrip('/')}"
+        response = await self._transport.request("POST", url, params=self._auth(token), json=json)
         return self._unwrap(response)
 
     async def delete(self, path: str, token: str) -> dict[str, object]:
@@ -172,6 +186,7 @@ class GraphClient:
             raise ProviderError(META, "La Graph API no devolvió JSON.", status=response.status)
         error = as_dict(body.get("error"))
         code = as_int(error.get("code"))
+        subcode = as_int(error.get("error_subcode"))
         message = as_str(error.get("message")) or response.text[:300] or f"HTTP {response.status}"
         if code in TOKEN_DEAD_CODES:
             message = f"Meta rechazó el token: {message}"
@@ -179,6 +194,6 @@ class GraphClient:
             META,
             message,
             status=response.status,
-            code=str(code) if code is not None else None,
+            code=_table_code(code, subcode),
             retry_after=response.retry_after(),
         )

@@ -2,11 +2,13 @@ from omnisocial.adapters.stores.memory import (
     InMemoryAssetRepository,
     InMemoryAuthorizationStateStore,
     InMemoryConnectionRepository,
+    InMemoryPublicationRepository,
 )
 from tests.adapters.stores.contract import (
     asset_contract,
     connection,
     connection_contract,
+    publication_contract,
     request,
     state_contract,
 )
@@ -23,6 +25,10 @@ async def test_activos() -> None:
 
 async def test_estados() -> None:
     await state_contract(InMemoryAuthorizationStateStore(FakeClock()))
+
+
+async def test_publicaciones() -> None:
+    await publication_contract(InMemoryPublicationRepository())
 
 
 async def test_agregar_dos_veces_es_un_error() -> None:

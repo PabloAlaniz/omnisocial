@@ -11,6 +11,7 @@ from omnisocial.adapters.stores.postgres import (
     PostgresAssetRepository,
     PostgresAuthorizationStateStore,
     PostgresConnectionRepository,
+    PostgresPublicationRepository,
 )
 from omnisocial.domain.redirect import ReturnUrlPolicy
 from omnisocial.entrypoints.hub import Omnisocial
@@ -19,6 +20,7 @@ from tests.adapters.stores.contract import (
     asset_contract,
     connection,
     connection_contract,
+    publication_contract,
     request,
     state_contract,
 )
@@ -39,6 +41,10 @@ async def test_activos(pool: Pool, cipher: AesGcmTokenCipher) -> None:
 
 async def test_estados(pool: Pool, cipher: AesGcmTokenCipher) -> None:
     await state_contract(PostgresAuthorizationStateStore(pool, cipher, FakeClock()))
+
+
+async def test_publicaciones(pool: Pool) -> None:
+    await publication_contract(PostgresPublicationRepository(pool))
 
 
 async def test_los_tokens_quedan_cifrados_en_la_base(pool: Pool, cipher: AesGcmTokenCipher) -> None:

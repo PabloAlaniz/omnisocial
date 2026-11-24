@@ -7,11 +7,18 @@ from dataclasses import replace
 
 from typing_extensions import override
 
-from omnisocial.application.ports import AssetRepository, AuthorizationStateStore, Clock, ConnectionRepository
+from omnisocial.application.ports import (
+    AssetRepository,
+    AuthorizationStateStore,
+    Clock,
+    ConnectionRepository,
+    PublicationRepository,
+)
 from omnisocial.domain.asset import Asset
 from omnisocial.domain.authorization import AuthorizationRequest
 from omnisocial.domain.connection import Connection
 from omnisocial.domain.provider import ProviderId
+from omnisocial.domain.publishing import Publication
 
 
 class InMemoryConnectionRepository(ConnectionRepository):
@@ -100,3 +107,43 @@ class InMemoryAuthorizationStateStore(AuthorizationStateStore):
     @override
     async def take(self, state: str) -> AuthorizationRequest | None:
         return self._items.pop(state, None)
+
+
+class InMemoryPublicationRepository(PublicationRepository):
+    def __init__(self) -> None:
+        self._items: dict[str, Publication] = {}
+
+    @override
+    async def get(self, publication_id: str) -> Publication | None:
+        return self._items.get(publication_id)
+
+    @override
+    async def find_by_key(self, asset_id: str, idempotency_key: str) -> Publication | None:
+        return next(
+            (
+                p
+                for p in self._items.values()
+                if p.asset_id == asset_id and p.idempotency_key == idempotency_key
+            ),
+            None,
+        )
+
+    @override
+    async def add(self, publication: Publication) -> bool:
+        key = publication.idempotency_key
+        if key is not None and await self.find_by_key(publication.asset_id, key) is not None:
+            return False
+        self._items[publication.id] = publication
+        return True
+
+    @override
+    async def save(self, publication: Publication, *, expected_version: int) -> bool:
+        current = self._items.get(publication.id)
+        if current is None or current.version != expected_version:
+            return False
+        self._items[publication.id] = publication
+        return True
+
+    @override
+    async def remove(self, publication_id: str) -> None:
+        self._items.pop(publication_id, None)

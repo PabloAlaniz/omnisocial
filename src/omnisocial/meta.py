@@ -7,6 +7,7 @@ from omnisocial.adapters.providers.meta.config import (
     INSTAGRAM_ACCOUNT,
     LOGIN_SCOPES,
     META,
+    PUBLISH_SCOPES,
     MetaConfig,
 )
 from omnisocial.adapters.providers.meta.deletion import (
@@ -31,6 +32,7 @@ __all__ = [
     "INSTAGRAM_TOTAL_VALUE_METRICS",
     "LOGIN_SCOPES",
     "META",
+    "PUBLISH_SCOPES",
     "SPEC",
     "DeletionReceipt",
     "DeletionRequest",

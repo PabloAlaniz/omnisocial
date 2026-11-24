@@ -32,15 +32,16 @@ class FakeTransport(HttpTransport):
     """
 
     base: str = ""
-    routes: dict[tuple[str, str], list[HttpResponse]] = field(default_factory=dict)
+    routes: dict[tuple[str, str], list[HttpResponse | Exception]] = field(default_factory=dict)
     calls: list[RecordedCall] = field(default_factory=list)
     failing: HttpResponse | None = None
     """Si está, es la respuesta a todo. Sirve para simular que la red empezó a fallar."""
 
     def on(self, method: str, path: str, *responses: object, status: int = 200) -> None:
-        """Agrega respuestas para esa ruta. Un valor que no es `HttpResponse` es el cuerpo JSON."""
+        """Agrega respuestas para esa ruta. Un valor que no es `HttpResponse` es el cuerpo JSON; una
+        excepción (un `TransportError`, por ejemplo) se lanza en vez de responder."""
         self.routes.setdefault((method, path), []).extend(
-            r if isinstance(r, HttpResponse) else HttpResponse(status, r, "") for r in responses
+            r if isinstance(r, HttpResponse | Exception) else HttpResponse(status, r, "") for r in responses
         )
 
     @override
@@ -62,4 +63,7 @@ class FakeTransport(HttpTransport):
         queue = self.routes.get((method, path))
         if not queue:
             raise AssertionError(f"Sin respuesta para {method} {path}")
-        return queue.pop(0) if len(queue) > 1 else queue[0]
+        answer = queue.pop(0) if len(queue) > 1 else queue[0]
+        if isinstance(answer, Exception):
+            raise answer
+        return answer
