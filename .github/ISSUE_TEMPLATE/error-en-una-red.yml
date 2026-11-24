@@ -15,6 +15,7 @@ body:
         - YouTube
         - LinkedIn
         - X
+        - Threads
         - El núcleo, no una red
     validations:
       required: true
