@@ -1,5 +1,7 @@
 # Discord: por bot o por webhook, y lo que conviene saber
 
+## Qué cubre
+
 Hay dos formas de publicar en un canal de Discord, y son dos redes distintas para la librería:
 
 | | `discord` | `discord_webhook` |
@@ -14,6 +16,8 @@ Las dos publican y borran lo que publicaron. **Ninguna recibe mensajes**: Discor
 mensajes de los canales por una conexión permanente, que esta librería no mantiene.
 
 ## Con el bot de la app
+
+### Armado
 
 ```python
 from omnisocial.discord import DiscordConfig, discord_provider
@@ -59,6 +63,8 @@ draft = Draft("Abrimos el sábado 🎉", options=DiscordOptions(channel_id="500"
 
 ## Con un webhook de canal
 
+### Armado
+
 ```python
 from omnisocial.discord_webhook import DiscordWebhookConfig, DiscordWebhookOptions, discord_webhook_provider
 
@@ -103,3 +109,6 @@ connected = await social.connect_with_credentials.execute(
 - Sin verificar: la forma de la dirección de un mensaje (es la que usa la app de Discord, no está en su
   documentación), con qué estado HTTP llega cada código de error, y si el token de renovación anterior
   deja de valer al renovar. Nada se probó contra la API real.
+
+Qué tan probada está esta red lo dice la columna "Soporte" de la [matriz de redes](index.md); qué
+quiere decir cada nivel, [niveles de soporte](niveles-de-soporte.md).

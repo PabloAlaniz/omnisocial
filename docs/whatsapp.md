@@ -118,3 +118,6 @@ received = await social.handle_webhook.execute("whatsapp", request=request, on_e
   de la red, porque la librería ya lo comprueba antes con lo que le dijo la app.
 - Sin verificar: el estado HTTP con que llega cada código de error, y si los tokens del alta embebida
   vencen. Nada se probó contra la API real.
+
+Qué tan probada está esta red lo dice la columna "Soporte" de la [matriz de redes](index.md); qué
+quiere decir cada nivel, [niveles de soporte](niveles-de-soporte.md).

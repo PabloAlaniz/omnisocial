@@ -139,3 +139,6 @@ draft = Draft(
   exigen: en ese caso la búsqueda falla.
 - Nada de esto se probó contra un servidor real. En Pixelfed, además, lo que no es login y publicar sale
   de leer su código, no su documentación.
+
+Qué tan probada está esta red lo dice la columna "Soporte" de la [matriz de redes](index.md); qué
+quiere decir cada nivel, [niveles de soporte](niveles-de-soporte.md).

@@ -3,7 +3,7 @@
 ## El circuito
 
 1. Cada commit en `main` sigue [Conventional Commits](https://www.conventionalcommits.org/es/).
-2. El workflow [`release.yml`](../.github/workflows/release.yml) mantiene abierto un pull request
+2. El workflow [`release.yml`](https://github.com/PabloAlaniz/omnisocial/blob/main/.github/workflows/release.yml) mantiene abierto un pull request
    con la próxima versión y el CHANGELOG, calculados a partir de esos commits.
 3. Integrar ese pull request crea el tag y la versión en GitHub.
 4. El mismo workflow arma el paquete desde ese tag (después de correr lint, tipos, contratos y tests) y
@@ -20,7 +20,7 @@ La versión se escribe en un solo lugar (`.release-please-manifest.json`) y la h
 - **La lista de componentes** (`omnisocial.cdx.json`, en formato CycloneDX): de qué depende el paquete
   con todos sus extras, con las versiones exactas con que se probó. Va adjunta a la versión en GitHub.
 
-Además, [`scorecard.yml`](../.github/workflows/scorecard.yml) publica cada semana la puntuación de
+Además, [`scorecard.yml`](https://github.com/PabloAlaniz/omnisocial/blob/main/.github/workflows/scorecard.yml) publica cada semana la puntuación de
 prácticas de seguridad del repositorio, y Dependabot propone las actualizaciones de dependencias y de
 acciones. Las acciones van fijadas por commit.
 

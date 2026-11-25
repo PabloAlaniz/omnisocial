@@ -58,6 +58,9 @@ dev = [
     "ruff>=0.8",
     "starlette>=0.37",
 ]
+docs = [
+    "mkdocs-material>=9.6",
+]
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/omnisocial"]

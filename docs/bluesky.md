@@ -112,3 +112,6 @@ draft = Draft(
 - **El límite de uso dice a qué hora vuelve** (`ratelimit-reset`): `Refused(RATE_LIMITED)` trae los segundos
   que faltan.
 - **Los perfiles públicos se leen de un servidor aparte** (`public.api.bsky.app`), sin sesión.
+
+Qué tan probada está esta red lo dice la columna "Soporte" de la [matriz de redes](index.md); qué
+quiere decir cada nivel, [niveles de soporte](niveles-de-soporte.md).

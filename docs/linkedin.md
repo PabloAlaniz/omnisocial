@@ -151,3 +151,6 @@ result = await social.publish.execute(page.id, draft, idempotency_key="equipo-nu
 - **Según la respuesta, la página administrada viene en `organization` o en `organizationTarget`.**
 - **Las respuestas de error viejas no traen `code`**, solo `serviceErrorCode`.
 - Los links de imágenes vencen. Si hace falta mostrarlas después, se copian en el momento.
+
+Qué tan probada está esta red lo dice la columna "Soporte" de la [matriz de redes](index.md); qué
+quiere decir cada nivel, [niveles de soporte](niveles-de-soporte.md).

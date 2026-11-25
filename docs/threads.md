@@ -110,7 +110,7 @@ result = await social.publish.execute(account.id, draft, idempotency_key="local-
   dentro de la ventana. `likes`, `replies`, `reposts` y `quotes` son el total de la ventana. Sin ventana,
   Threads devuelve de ayer a hoy.
 
-## Errores
+## Lo que conviene saber
 
 **Threads no documenta sus códigos de error.** Responde con la forma de la Graph API de Meta, y el
 adaptador usa los códigos generales de esa API: 190 como token muerto, 10 y 200–299 como permiso
@@ -120,3 +120,6 @@ resulta distinto, se corrige en una línea de la tabla `ERRORS`.
 Mientras procesa los medios, un contenedor puede fallar con `FAILED_DOWNLOADING_VIDEO`,
 `FAILED_PROCESSING_VIDEO` o `INVALID_ASPEC_RATIO` (así, con el error de tipeo): la publicación queda
 `FAILED` con ese motivo.
+
+Qué tan probada está esta red lo dice la columna "Soporte" de la [matriz de redes](index.md); qué
+quiere decir cada nivel, [niveles de soporte](niveles-de-soporte.md).

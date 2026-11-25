@@ -23,7 +23,7 @@ contrato común, tiene su página en `docs/` y aparece en la matriz de capacidad
 | 7 ✓ | Publicaciones con campos propios | Pinterest, Reddit, Google Business Profile |
 | 8 ✓ | Mensajería y comunidades | WhatsApp Business, Telegram, Discord |
 | 9 ✓ | Operar en producción | — |
-| 10 | Versión 1.0 | Snapchat, Twitch (según demanda) |
+| 10 ✓ | Documentación (la 1.0 queda para cuando haya redes verificadas) | — |
 
 Al terminar: 16 redes o más, contra las 2 de hoy.
 
@@ -192,16 +192,35 @@ rotan durante las pruebas, y compartir entre procesos el tope de pedidos simult�
 - **Cadena de suministro**: atestaciones de origen en cada versión, lista de componentes (SBOM) y
   puntuación pública de prácticas de seguridad.
 
-## Sprint 10. Versión 1.0
+## Sprint 10. Documentación, y lo que falta para la 1.0
 
-- **Promesa de estabilidad**: qué es API pública, cómo se anuncia un cambio y cuánto dura lo obsoleto.
-- **Sitio de documentación**: una página por red con la misma estructura (cómo crear la app, permisos,
-  revisión, límites, lo que conviene saber), más la matriz de capacidades. También en inglés.
+**La versión 1.0 no se declara todavía.** Todas las redes son experimentales: están probadas contra
+respuestas simuladas, no contra la API real. Prometer estabilidad sobre adaptadores que las pruebas en
+vivo todavía pueden cambiar comprometería poco. La librería sigue en 0.x hasta que las redes que se usan
+estén verificadas.
+
+**Hecho**: el sitio de documentación. Una página por red con la misma estructura (qué cubre, cómo se
+arma y lo que conviene saber), la matriz de capacidades en la portada y la guía de uso, que salen del
+README para no mantener dos textos. Se arma en modo estricto en cada cambio y se publica en GitHub
+Pages.
+
+**Anotado para más adelante**, en este orden:
+
 - **Apps de ejemplo**: conectar y publicar con FastAPI; una bandeja unificada.
 - **Más marcos**: rutas para Django y Flask, además de Starlette.
+- **Promesa de estabilidad**: qué es API pública, cómo se anuncia un cambio y cuánto dura lo obsoleto,
+  con una prueba que falle si la API pública cambia sin declararlo. Va junto con la 1.0.
 - **Redes fuera del repositorio**: guía y plantilla para publicar una red como paquete propio, y un
   listado de las que existen.
-- **Snapchat y Twitch**, o las que más se hayan pedido hasta ese momento.
+- **El sitio en inglés.** Hoy está en español, como el código y sus mensajes.
+- **Snapchat y Twitch**, o las que más se hayan pedido hasta ese momento. Hoy no hay pedidos.
+
+### Qué tiene que pasar para la 1.0
+
+1. Las redes que se usan en producción pasan a `verificada` o a `comunitaria`
+   ([niveles de soporte](niveles-de-soporte.md)), con sus [pruebas en vivo](pruebas-en-vivo.md) encendidas.
+2. Lo que esas pruebas obliguen a cambiar en los puertos ya se cambió.
+3. La promesa de estabilidad está escrita y hay una prueba que la vigila.
 
 ## Lo que queda afuera
 

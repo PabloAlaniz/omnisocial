@@ -11,3 +11,6 @@ htmlcov/
 dist/
 .env
 .env.*
+# El sitio de documentación, armado
+_site/
+site/

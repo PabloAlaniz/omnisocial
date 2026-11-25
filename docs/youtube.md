@@ -151,3 +151,6 @@ result = await social.publish.execute(channel.id, draft, idempotency_key="guiso-
 - **Likes ocultos o comentarios desactivados**: el contador no viene, y eso no es cero.
 - **No compartir el cliente oficial de Google entre tareas concurrentes**: reusa un socket que no es seguro
   entre hilos. Este adaptador habla HTTP directo y no lo usa.
+
+Qué tan probada está esta red lo dice la columna "Soporte" de la [matriz de redes](index.md); qué
+quiere decir cada nivel, [niveles de soporte](niveles-de-soporte.md).

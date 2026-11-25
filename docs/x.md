@@ -132,3 +132,6 @@ los segundos que faltan en `retry_after`.
   El `type` puede venir con el dominio nuevo o con el viejo: se mira solo el último tramo.
 - **Una cuenta que no existe o está suspendida** puede volver con 200 y sin datos, no con 404.
 - Guardar el id de la cuenta, no el nombre: el nombre de usuario cambia.
+
+Qué tan probada está esta red lo dice la columna "Soporte" de la [matriz de redes](index.md); qué
+quiere decir cada nivel, [niveles de soporte](niveles-de-soporte.md).

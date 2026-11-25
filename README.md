@@ -451,6 +451,8 @@ Para esto **no hace falta una app propia**: `MetaConfig(api_version="v24.0")` si
 
 ## Documentación
 
+Todo esto, navegable, en el [sitio de documentación](https://pabloalaniz.github.io/omnisocial/).
+
 - [Arquitectura en capas](docs/adr/0001-arquitectura-en-capas.md)
 - [Capacidades por red](docs/adr/0002-capacidades-por-red.md)
 - [Webhooks con omniwebhook](docs/adr/0003-webhooks-con-omniwebhook.md)

@@ -97,3 +97,6 @@ las cuatro por separado, `CALL_CLICKS`, `WEBSITE_CLICKS`, `BUSINESS_DIRECTION_RE
 - Sin verificar: el límite de 1500 caracteres y el de 10 fotos por novedad, el orden en que vienen las
   novedades, y qué responde Google al publicar en una sede sin verificar. Nada se probó contra la API
   real.
+
+Qué tan probada está esta red lo dice la columna "Soporte" de la [matriz de redes](index.md); qué
+quiere decir cada nivel, [niveles de soporte](niveles-de-soporte.md).

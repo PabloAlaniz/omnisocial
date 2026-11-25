@@ -1,5 +1,7 @@
 # Instagram con login propio
 
+## Qué cubre
+
 Hay dos formas de conectar una cuenta profesional de Instagram, y para la librería son dos redes:
 
 | | `meta` | `instagram` |
@@ -70,3 +72,6 @@ Los nombres viejos (`business_basic` y compañía) dejaron de servir en enero de
   dos caminos son dos conexiones distintas.
 - Algunos mensajes de error todavía dicen "Meta" aunque la red sea Instagram: vienen de los adaptadores
   compartidos.
+
+Qué tan probada está esta red lo dice la columna "Soporte" de la [matriz de redes](index.md); qué
+quiere decir cada nivel, [niveles de soporte](niveles-de-soporte.md).

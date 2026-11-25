@@ -128,3 +128,6 @@ await webhooks.register(token, "https://api.ejemplo.com/webhooks/telegram")
 - Sin verificar: el significado de cada estado de error (Telegram no los documenta) y la forma de la
   dirección de una publicación en un canal sin nombre público, que por eso no se arma. Nada se probó
   contra la API real.
+
+Qué tan probada está esta red lo dice la columna "Soporte" de la [matriz de redes](index.md); qué
+quiere decir cada nivel, [niveles de soporte](niveles-de-soporte.md).

@@ -91,20 +91,6 @@ draft = Draft(
 - `invalid_grant` al renovar es terminal: la conexión queda inválida hasta que la persona vuelva a autorizar.
 - En web no hay PKCE: el canje va del servidor con el secreto de la app.
 
-## Cosas que conviene saber
-
-- **`fields` va en la query, también en los POST.** Listar videos es un `POST` con el cursor en el cuerpo y
-  los campos en la URL. Como es una lectura, el transporte lo reintenta igual que un `GET`.
-- **No hay filtro por fecha.** Los videos vienen del más nuevo al más viejo y el cursor es un instante en
-  milisegundos: la librería arranca desde el final de la ventana y corta al pasar el principio.
-- **La portada (`cover_image_url`) vence a las 6 horas.** Si hace falta mostrarla después, conviene copiar la
-  imagen en el momento.
-- **Los contadores no tienen historia.** `read_insights` devuelve una foto del momento (`Period.LIFETIME`);
-  para la evolución de seguidores, la app guarda una lectura por día.
-- **Errores:** `access_token_invalid` deja la conexión inválida; `scope_not_authorized` y
-  `scope_permission_missed` vuelven como `Refused(MISSING_PERMISSION)`; `rate_limit_exceeded` (429) lo reintenta
-  el transporte. El límite por defecto es de 600 pedidos por minuto por endpoint.
-
 ## Webhooks
 
 Se configura una sola URL de callback en el portal (`https://.../webhooks/tiktok` con `webhook_routes`). No
@@ -119,3 +105,20 @@ hay saludo de verificación.
   conexión queda revocada antes de llamar a `on_events`, y el token ya no sirve.
 - `video.publish.completed` y `video.upload.failed` son de las publicaciones hechas con Content Posting API.
 - Para rotar el secreto: `TikTokConfig(client_secret=nuevo, previous_client_secrets=(anterior,))`.
+
+## Lo que conviene saber
+
+- **`fields` va en la query, también en los POST.** Listar videos es un `POST` con el cursor en el cuerpo y
+  los campos en la URL. Como es una lectura, el transporte lo reintenta igual que un `GET`.
+- **No hay filtro por fecha.** Los videos vienen del más nuevo al más viejo y el cursor es un instante en
+  milisegundos: la librería arranca desde el final de la ventana y corta al pasar el principio.
+- **La portada (`cover_image_url`) vence a las 6 horas.** Si hace falta mostrarla después, conviene copiar la
+  imagen en el momento.
+- **Los contadores no tienen historia.** `read_insights` devuelve una foto del momento (`Period.LIFETIME`);
+  para la evolución de seguidores, la app guarda una lectura por día.
+- **Errores:** `access_token_invalid` deja la conexión inválida; `scope_not_authorized` y
+  `scope_permission_missed` vuelven como `Refused(MISSING_PERMISSION)`; `rate_limit_exceeded` (429) lo reintenta
+  el transporte. El límite por defecto es de 600 pedidos por minuto por endpoint.
+
+Qué tan probada está esta red lo dice la columna "Soporte" de la [matriz de redes](index.md); qué
+quiere decir cada nivel, [niveles de soporte](niveles-de-soporte.md).

@@ -104,3 +104,6 @@ draft = Draft(
 - Sin verificar: el límite de 40.000 caracteres del texto (cambia por comunidad), la forma exacta de las
   respuestas al publicar y al comentar, y varios campos de las comunidades (`submission_type`). Nada se
   probó contra la API real.
+
+Qué tan probada está esta red lo dice la columna "Soporte" de la [matriz de redes](index.md); qué
+quiere decir cada nivel, [niveles de soporte](niveles-de-soporte.md).

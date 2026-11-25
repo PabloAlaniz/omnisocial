@@ -1,0 +1,88 @@
+site_name: omnisocial
+site_description: Redes sociales con las mismas reglas, con un núcleo común y un adaptador por red.
+site_url: https://pabloalaniz.github.io/omnisocial/
+repo_url: https://github.com/PabloAlaniz/omnisocial
+repo_name: PabloAlaniz/omnisocial
+edit_uri: edit/main/docs/
+docs_dir: docs
+strict: true
+
+theme:
+  name: material
+  language: es
+  features:
+    - navigation.sections
+    - navigation.top
+    - navigation.footer
+    - content.code.copy
+    - search.highlight
+  palette:
+    - media: "(prefers-color-scheme: light)"
+      scheme: default
+      toggle:
+        icon: material/weather-night
+        name: Modo oscuro
+    - media: "(prefers-color-scheme: dark)"
+      scheme: slate
+      toggle:
+        icon: material/weather-sunny
+        name: Modo claro
+
+markdown_extensions:
+  - admonition
+  - tables
+  - toc:
+      permalink: true
+  - pymdownx.highlight
+  - pymdownx.superfences
+
+validation:
+  omitted_files: warn
+  absolute_links: warn
+  unrecognized_links: warn
+  anchors: warn
+
+# Toda página de `docs/` tiene que estar acá: un test lo comprueba.
+nav:
+  - Inicio: index.md
+  - Guía de uso: guia.md
+  - Redes:
+      - Lo que vale para todas: redes-pendientes.md
+      - Meta: meta.md
+      - Instagram con login propio: instagram.md
+      - Threads: threads.md
+      - WhatsApp Business: whatsapp.md
+      - TikTok: tiktok.md
+      - YouTube: youtube.md
+      - Google Business Profile: google-business.md
+      - LinkedIn: linkedin.md
+      - X: x.md
+      - Bluesky: bluesky.md
+      - Mastodon y Pixelfed: mastodon.md
+      - Pinterest: pinterest.md
+      - Reddit: reddit.md
+      - Telegram: telegram.md
+      - Discord: discord.md
+  - Operar:
+      - Operar en producción: operar.md
+      - Niveles de soporte: niveles-de-soporte.md
+      - Pruebas en vivo: pruebas-en-vivo.md
+  - Contribuir:
+      - Sumar una red: nueva-red.md
+      - Cómo se publica una versión: publicar.md
+      - Hoja de ruta: hoja-de-ruta.md
+  - Decisiones de diseño:
+      - "0001. Arquitectura en capas": adr/0001-arquitectura-en-capas.md
+      - "0002. Capacidades por red": adr/0002-capacidades-por-red.md
+      - "0003. Webhooks con omniwebhook": adr/0003-webhooks-con-omniwebhook.md
+      - "0004. Reglas estáticas de diseño": adr/0004-reglas-estaticas-de-diseno.md
+      - "0005. Perfiles públicos y mirador": adr/0005-perfiles-publicos-y-mirador.md
+      - "0006. Cada red paga lo suyo": adr/0006-cada-red-paga-lo-suyo.md
+      - "0007. Descripción y contrato de una red": adr/0007-descripcion-y-contrato-de-una-red.md
+      - "0008. Publicar": adr/0008-publicar.md
+      - "0009. Cuota y subida por partes": adr/0009-cuota-y-subida-por-partes.md
+      - "0010. Salud de las conexiones": adr/0010-salud-de-las-conexiones.md
+      - "0011. Redes federadas y conexión por credencial": adr/0011-redes-federadas-y-credenciales.md
+      - "0012. Consultas auxiliares y ritmo por red": adr/0012-consultas-auxiliares-y-ritmo.md
+      - "0013. Mensajes sin historial y bandeja unificada": adr/0013-mensajes-sin-historial-y-bandeja.md
+      - "0014. Operar en producción": adr/0014-operar-en-produccion.md

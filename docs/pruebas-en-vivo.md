@@ -1,6 +1,6 @@
 # Pruebas en vivo
 
-Una corrida nocturna ([`en-vivo.yml`](../.github/workflows/en-vivo.yml)) prueba cada red contra su API
+Una corrida nocturna ([`en-vivo.yml`](https://github.com/PabloAlaniz/omnisocial/blob/main/.github/workflows/en-vivo.yml)) prueba cada red contra su API
 real, con una cuenta de prueba. Es lo único que dice si un adaptador funciona de verdad.
 
 **Viene apagada.** Cada red se enciende cargando un secreto en el repositorio. Sin el secreto, esa red

@@ -96,3 +96,6 @@ draft = Draft(
 - **Un 403 se toma como permiso faltante.** También lo da el acceso de prueba cuando no alcanza.
 - Sin verificar: los límites de tamaño de las imágenes y de los videos, y el significado de los códigos
   de error distintos del 2. Nada se probó contra la API real.
+
+Qué tan probada está esta red lo dice la columna "Soporte" de la [matriz de redes](index.md); qué
+quiere decir cada nivel, [niveles de soporte](niveles-de-soporte.md).
