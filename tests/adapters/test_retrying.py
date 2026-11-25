@@ -26,6 +26,7 @@ class Script:
         form: Mapping[str, str] | None = None,
         headers: Mapping[str, str] | None = None,
         retry_safe: str | None = None,
+        content: bytes | None = None,
     ) -> HttpResponse:
         self.calls.append(method)
         step = self.steps.pop(0)

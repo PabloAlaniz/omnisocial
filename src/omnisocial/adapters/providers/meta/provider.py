@@ -13,6 +13,8 @@ from omnisocial.adapters.providers.meta.insights import MetaInsightsReader
 from omnisocial.adapters.providers.meta.messaging import MetaMessagingGateway
 from omnisocial.adapters.providers.meta.oauth import MetaIdentity, MetaOAuth
 from omnisocial.adapters.providers.meta.profiles import MetaProfileLookup
+from omnisocial.adapters.providers.meta.publishing import MetaPublisher
+from omnisocial.adapters.providers.meta.spec import SPEC
 from omnisocial.adapters.providers.meta.webhooks import MetaWebhookParser
 from omnisocial.adapters.system import SystemClock
 from omnisocial.application.ports import Clock
@@ -41,4 +43,6 @@ def meta_provider(
         insights=MetaInsightsReader(graph, clock, catalog),
         webhooks=MetaWebhookParser(config) if config.has_app else None,
         profiles=MetaProfileLookup(graph),
+        publisher=MetaPublisher(graph),
+        spec=SPEC,
     )

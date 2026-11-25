@@ -1,0 +1,50 @@
+"""$nombre cumple el contrato común de las redes."""
+
+from __future__ import annotations
+
+from typing_extensions import override
+
+from omnisocial import ErrorKind, NetworkSpec, Provider
+from omnisocial.$id import SPEC, ${clase}Config, ${id}_provider
+from omnisocial.network import HttpResponse
+from omnisocial.testing import FakeTransport, NetworkHarness, ProviderContract
+
+BASE = "https://api.$id.ejemplo/"
+
+# PENDIENTE: cómo dice la red cada clase de error, con respuestas copiadas de la API real.
+_CODES = {
+    ErrorKind.TOKEN_DEAD: "invalid_token",
+    ErrorKind.MISSING_PERMISSION: "insufficient_scope",
+    ErrorKind.RATE_LIMITED: "rate_limited",
+}
+
+
+class ${clase}Harness(NetworkHarness):
+    def __init__(self) -> None:
+        self.transport = FakeTransport(base=BASE)
+
+    @property
+    @override
+    def spec(self) -> NetworkSpec:
+        return SPEC
+
+    @override
+    def provider(self) -> Provider:
+        return ${id}_provider(${clase}Config(client_id="app", client_secret="secreto"), self.transport)
+
+    @override
+    def script_connection(self) -> None:
+        # PENDIENTE: respuestas grabadas de la red al conectar una cuenta, con un activo de cada tipo.
+        self.transport.on("POST", "oauth/token", {"access_token": "acceso-1", "expires_in": 3600})
+        self.transport.on("GET", "me", {"id": "persona-1", "name": "Ana"})
+
+    @override
+    def error(self, kind: ErrorKind) -> HttpResponse | None:
+        code = _CODES.get(kind)
+        return HttpResponse(400, {"error": {"code": code, "message": "no"}}, "") if code else None
+
+
+class Test${clase}CumpleElContrato(ProviderContract):
+    @override
+    def harness(self) -> NetworkHarness:
+        return ${clase}Harness()

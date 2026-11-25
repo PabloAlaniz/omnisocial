@@ -51,16 +51,6 @@ def _retryable_status(status: int) -> bool:
     return status == _TOO_MANY_REQUESTS or status >= _SERVER_ERROR
 
 
-def _retry_after(response: HttpResponse) -> float | None:
-    value = response.header("retry-after")
-    if value is None:
-        return None
-    try:
-        return max(0.0, float(value))
-    except ValueError:
-        return None
-
-
 class RetryingTransport(HttpTransport):
     def __init__(
         self,
@@ -86,6 +76,7 @@ class RetryingTransport(HttpTransport):
         form: Mapping[str, str] | None = None,
         headers: Mapping[str, str] | None = None,
         retry_safe: str | None = None,
+        content: bytes | None = None,
     ) -> HttpResponse:
         repeatable = method.upper() in _REPEATABLE or retry_safe is not None
         last_attempt = self._policy.attempts - 1 if repeatable else 0
@@ -93,7 +84,14 @@ class RetryingTransport(HttpTransport):
         while True:
             try:
                 response = await self._inner.request(
-                    method, url, params=params, json=json, form=form, headers=headers, retry_safe=retry_safe
+                    method,
+                    url,
+                    params=params,
+                    json=json,
+                    form=form,
+                    headers=headers,
+                    retry_safe=retry_safe,
+                    content=content,
                 )
             except TransportError:
                 if retry >= last_attempt:
@@ -110,7 +108,7 @@ class RetryingTransport(HttpTransport):
         """Cuánto esperar antes del próximo intento, o `None` si hay que devolver esta respuesta."""
         if retry >= last_attempt or not _retryable_status(response.status):
             return None
-        asked = _retry_after(response)
+        asked = response.retry_after()
         if asked is None:
             return self._jitter(self._policy.ceiling(retry))
         return asked if asked <= self._policy.max_retry_after else None

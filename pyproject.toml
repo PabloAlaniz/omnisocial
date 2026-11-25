@@ -11,7 +11,7 @@ license = "MIT"
 license-files = ["LICENSE"]
 requires-python = ">=3.11"
 authors = [{ name = "Pablo Alaniz" }]
-keywords = ["social", "oauth", "graph-api", "facebook", "instagram", "insights", "messaging", "comments", "webhooks"]
+keywords = ["social", "oauth", "graph-api", "facebook", "instagram", "tiktok", "youtube", "linkedin", "x", "twitter", "threads", "bluesky", "mastodon", "pixelfed", "fediverse", "pinterest", "reddit", "google-business-profile", "whatsapp", "telegram", "discord", "inbox", "insights", "messaging", "comments", "webhooks"]
 classifiers = [
     "Development Status :: 2 - Pre-Alpha",
     "Intended Audience :: Developers",
@@ -34,6 +34,9 @@ crypto = ["cryptography>=43"]
 postgres = ["psycopg[pool]>=3.2"]
 # Las rutas de `omnisocial.starlette`, también para FastAPI.
 starlette = ["starlette>=0.37"]
+otel = [
+    "opentelemetry-api>=1.27",
+]
 
 [project.urls]
 Homepage = "https://github.com/PabloAlaniz/omnisocial"
@@ -47,12 +50,16 @@ dev = [
     "httpx>=0.28.1",
     "import-linter>=2.17",
     "mypy>=1.13",
+    "opentelemetry-sdk>=1.27",
     "psycopg[binary,pool]>=3.2",
     "pytest>=8.3",
     "pytest-asyncio>=1.0",
     "pytest-cov>=7.0",
     "ruff>=0.8",
     "starlette>=0.37",
+]
+docs = [
+    "mkdocs-material>=9.6",
 ]
 
 [tool.hatch.build.targets.wheel]
@@ -82,7 +89,7 @@ exclude_also = ["if TYPE_CHECKING:", "@overload", "raise NotImplementedError", "
 [tool.mypy]
 strict = true
 enable_error_code = ["explicit-override", "ignore-without-code", "redundant-expr", "truthy-bool", "possibly-undefined"]
-files = ["src", "tests"]
+files = ["src", "tests", "scripts"]
 
 [tool.ruff]
 line-length = 110
@@ -157,6 +164,9 @@ ban-relative-imports = "all"
 "src/omnisocial/entrypoints/hub.py" = ["PLR0913"]
 # El puerto HTTP tiene las dimensiones de un pedido HTTP: método, URL, query, cuerpo, cabeceras y si se repite.
 "src/omnisocial/adapters/http/transport.py" = ["PLR0913"]
+# El contrato de las redes son pruebas que viajan en el paquete: afirman con `assert`.
+"src/omnisocial/testing/**" = ["S101"]
+"src/omnisocial/testing/transport.py" = ["PLR0913"]
 "tests/**" = [
     "S101", "S105", "S106", "S107",
     # Los dobles implementan puertos y no usan todos los argumentos.
@@ -167,6 +177,10 @@ ban-relative-imports = "all"
     "SLF001",
 ]
 "tests/integration/**" = ["S101", "TID251", "S608"]
+# Las pruebas en vivo leen sus credenciales del entorno y miran el reloj.
+"tests/live/**" = ["TID251"]
+# Herramientas del repositorio: se corren sueltas, no son un paquete.
+"scripts/*.py" = ["INP001"]
 
 # Reglas de arquitectura. Las dependencias apuntan hacia adentro:
 #   entrypoints → adapters → application → domain
@@ -188,14 +202,21 @@ layers = [
 [[tool.importlinter.contracts]]
 name = "Las redes no se conocen entre sí ni las conoce el núcleo"
 type = "independence"
-modules = [
-    "omnisocial.adapters.providers.meta",
-    "omnisocial.adapters.providers.tiktok",
-    "omnisocial.adapters.stores",
+modules = ["omnisocial.adapters.providers.*", "omnisocial.adapters.stores"]
+
+[[tool.importlinter.contracts]]
+name = "El kit de pruebas no lo usa el paquete"
+type = "forbidden"
+source_modules = [
+    "omnisocial.domain",
+    "omnisocial.application",
+    "omnisocial.adapters",
+    "omnisocial.entrypoints",
 ]
+forbidden_modules = ["omnisocial.testing"]
 
 [[tool.importlinter.contracts]]
 name = "El núcleo no depende de paquetes opcionales"
 type = "forbidden"
 source_modules = ["omnisocial.domain", "omnisocial.application"]
-forbidden_modules = ["httpx", "starlette", "psycopg", "cryptography"]
+forbidden_modules = ["httpx", "starlette", "psycopg", "cryptography", "opentelemetry"]

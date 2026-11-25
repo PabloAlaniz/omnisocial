@@ -8,13 +8,11 @@ from typing_extensions import override
 
 from omnisocial.adapters.providers.tiktok.client import TikTokClient, as_dict, as_str
 from omnisocial.adapters.providers.tiktok.config import TIKTOK, TIKTOK_ACCOUNT
+from omnisocial.adapters.providers.tiktok.spec import ACCOUNT_CAPABILITIES
 from omnisocial.application.ports import AssetDirectory
 from omnisocial.domain.asset import DiscoveredAsset
 from omnisocial.domain.errors import ProviderError
-from omnisocial.domain.provider import Capability
 from omnisocial.domain.token import Token
-
-ACCOUNT_CAPABILITIES = frozenset({Capability.CONTENT, Capability.INSIGHTS})
 
 
 class TikTokAssetDirectory(AssetDirectory):

@@ -15,6 +15,70 @@
 Las cuentas de Instagram usan el token de su página: en el flujo de Facebook Login no existen tokens
 propios de Instagram.
 
+## Armado
+
+```python
+from omnisocial.httpx import HttpxTransport, RetryingTransport
+from omnisocial.meta import MetaConfig, meta_provider
+
+meta = meta_provider(
+    MetaConfig(
+        app_id="...",
+        app_secret="...",
+        api_version="v24.0",
+        webhook_verify_token="...",
+    ),
+    RetryingTransport(HttpxTransport()),
+)
+```
+
+La versión de la Graph API se fija a propósito: Meta saca una cada pocos meses y retira cada una a los
+dos años.
+
+## Publicar
+
+Hacen falta `pages_manage_posts` (páginas) e `instagram_content_publish` (Instagram), que no están en los
+permisos de conexión por defecto:
+
+```python
+from omnisocial.meta import CONNECT_SCOPES, PUBLISH_SCOPES, MetaConfig
+
+MetaConfig(..., connect_scopes=CONNECT_SCOPES + PUBLISH_SCOPES)
+```
+
+Quien ya estaba conectado tiene que volver a autorizar para darlos, y los activos guardados antes de esta
+versión no tienen la capacidad `publishing`: `social.sync_assets` los actualiza.
+
+| | Página de Facebook | Cuenta de Instagram |
+|---|---|---|
+| Texto | Hasta 63.206 | Hasta 2.200 |
+| Solo texto | Sí | No: siempre con medios |
+| Imágenes | Hasta 10 | Hasta 20 (carrusel) |
+| Videos | 1 | Hasta 20; uno solo sale como reel |
+| Mezclar fotos y videos | No | Sí, en carrusel |
+| Link adjunto | Sí, sin medios | No |
+| Primer comentario | Sí | Sí |
+| Borrar | Sí | No (ver abajo) |
+| Cómo sale | En una llamada | En etapas |
+
+- **Los medios son URLs públicas.** Meta los descarga: una URL firmada que vence antes de que termine no
+  sirve.
+- **Instagram publica en etapas.** Se arma un contenedor, Instagram procesa los medios y recién ahí se
+  publica. Una imagen suele salir en la misma llamada; un video queda `PENDING` y conviene consultarlo una
+  vez por minuto. Un contenedor vence a las 24 horas: si nadie lo retomó, la publicación queda `FAILED`.
+- **Si se pierde la respuesta al publicar en Instagram**, al retomar el contenedor figura como publicado:
+  la publicación queda `PUBLISHED_WITH_ERROR`, sin id, en vez de salir dos veces.
+- **El primer comentario pide otro permiso** (`pages_manage_engagement` o `instagram_manage_comments`, que
+  sí están en los de conexión). Si falla, la publicación queda `PUBLISHED_WITH_ERROR`.
+- **Instagram tiene un tope de publicaciones por API cada 24 horas.** La documentación de Meta da números
+  distintos según la página (50 o 100); el valor real se consulta en `content_publishing_limit`. Cuando se
+  llega, vuelve `Refused(QUOTA_EXHAUSTED)` (código 9, subcódigo 2207042).
+- **Borrar en Instagram existe en la API, pero pide `instagram_manage_contents`** y todavía no se ofrece:
+  `delete_post` devuelve `Refused(ACTION_NOT_OFFERED)`.
+- **El video de una página se crea en otro servidor** (`graph-video.facebook.com`, `MetaConfig.video_url`).
+  Queda publicado aunque Facebook siga procesándolo.
+- **El contenido va en el cuerpo del pedido**, no en la URL: un texto largo no entra en una URL.
+
 ## Tokens
 
 - El código se canjea por un token de usuario de corta duración y enseguida se estira al de **larga
@@ -61,37 +125,6 @@ usuario de sistema sobre las páginas que el portfolio tenga asignadas.
 
 Si solo hace falta una parte, conviene pedir menos permisos: `MetaConfig(connect_scopes=(...))` o
 `start_authorization(..., scopes=[...])`. Cada permiso que se pide es uno más para revisar.
-
-## Cosas que se aprendieron a los golpes
-
-- **Algunos permisos ya no se pueden pedir por el diálogo.** Meta rechaza con *Invalid Scopes* ciertos
-  permisos en Facebook Login aunque la Graph API los siga exigiendo. Hoy pasa con
-  `pages_read_user_content`: sin él, `/{page}/posts` niega los contadores de likes y comentarios (error 10).
-  La librería reintenta sin contadores y devuelve las publicaciones con `like_count=None`. Con un token de
-  usuario de sistema el permiso se asigna en el portfolio y los contadores vuelven.
-- **Los permisos `instagram_business_*` son de otro flujo** (Instagram Login, `instagram.com/oauth`), no de
-  Facebook Login. Mezclarlos da *Invalid Scopes*.
-- **`/{ig}/media` ignora `since` y `until`.** La ventana se aplica por código mientras se pagina.
-- **Métricas que cambian de nombre.** `impressions` de Instagram se reemplazó por `views` desde la v22; el
-  catálogo lo tiene en cuenta por versión. Varias métricas de cuenta de Instagram solo existen como total
-  del período (`metric_type=total_value`); la librería las pide aparte (`INSTAGRAM_TOTAL_VALUE_METRICS`).
-- **`follower_count` de Instagram son seguidores nuevos por día**, no el total. Por eso no se traduce a
-  `CanonicalMetric.FOLLOWERS`.
-- **Ventana de métricas:** no más de ~93 días por llamada. La librería parte en tramos de 90
-  (`MetaConfig.insights_max_span`).
-- **Error 2500** también aparece en pedidos mal armados. Solo 190 y 102 se toman como token muerto: la
-  conexión queda inválida y no se vuelve a llamar con ese token (`Refused(CONNECTION_INVALID)`).
-- **Error 10 y 200–299 son permisos faltantes**, no tokens muertos. Vuelven como
-  `Refused(MISSING_PERMISSION)` y la conexión sigue sana: se arregla reconectando con el permiso.
-- **El autor de un comentario es `from.id`**, no el nombre de usuario, que puede cambiar.
-- **No hay like de comentarios en Instagram.** `like_comment` devuelve `Refused(ACTION_NOT_OFFERED)` sin
-  llamar a la red: no es un permiso que falte.
-- **Una escritura que responde 200 sin `id` no se publicó.** Se trata como error.
-- **El token viaja en la query.** Por eso las fallas de red (`TransportError`) dicen solo el host, y conviene
-  no loguear las URLs de la Graph API.
-- **Paginación:** las URLs de `paging.next` ya traen cursor, token y firma; se piden sin agregar parámetros.
-- **Reintentos:** `RetryingTransport(HttpxTransport())` repite lecturas ante 429, 5xx y fallas de red, con
-  backoff y jitter. Las escrituras no se repiten solas.
 
 ## Borrado de datos
 
@@ -164,3 +197,37 @@ y después de un rato se saca el anterior.
 
 Los avisos se enrutan a todos los activos guardados con ese id: si dos dueños conectaron la misma página,
 los dos lo reciben.
+
+## Lo que conviene saber
+
+- **Algunos permisos ya no se pueden pedir por el diálogo.** Meta rechaza con *Invalid Scopes* ciertos
+  permisos en Facebook Login aunque la Graph API los siga exigiendo. Hoy pasa con
+  `pages_read_user_content`: sin él, `/{page}/posts` niega los contadores de likes y comentarios (error 10).
+  La librería reintenta sin contadores y devuelve las publicaciones con `like_count=None`. Con un token de
+  usuario de sistema el permiso se asigna en el portfolio y los contadores vuelven.
+- **Los permisos `instagram_business_*` son de otro flujo** (Instagram Login, `instagram.com/oauth`), no de
+  Facebook Login. Mezclarlos da *Invalid Scopes*.
+- **`/{ig}/media` ignora `since` y `until`.** La ventana se aplica por código mientras se pagina.
+- **Métricas que cambian de nombre.** `impressions` de Instagram se reemplazó por `views` desde la v22; el
+  catálogo lo tiene en cuenta por versión. Varias métricas de cuenta de Instagram solo existen como total
+  del período (`metric_type=total_value`); la librería las pide aparte (`INSTAGRAM_TOTAL_VALUE_METRICS`).
+- **`follower_count` de Instagram son seguidores nuevos por día**, no el total. Por eso no se traduce a
+  `CanonicalMetric.FOLLOWERS`.
+- **Ventana de métricas:** no más de ~93 días por llamada. La librería parte en tramos de 90
+  (`MetaConfig.insights_max_span`).
+- **Error 2500** también aparece en pedidos mal armados. Solo 190 y 102 se toman como token muerto: la
+  conexión queda inválida y no se vuelve a llamar con ese token (`Refused(CONNECTION_INVALID)`).
+- **Error 10 y 200–299 son permisos faltantes**, no tokens muertos. Vuelven como
+  `Refused(MISSING_PERMISSION)` y la conexión sigue sana: se arregla reconectando con el permiso.
+- **El autor de un comentario es `from.id`**, no el nombre de usuario, que puede cambiar.
+- **No hay like de comentarios en Instagram.** `like_comment` devuelve `Refused(ACTION_NOT_OFFERED)` sin
+  llamar a la red: no es un permiso que falte.
+- **Una escritura que responde 200 sin `id` no se publicó.** Se trata como error.
+- **El token viaja en la query.** Por eso las fallas de red (`TransportError`) dicen solo el host, y conviene
+  no loguear las URLs de la Graph API.
+- **Paginación:** las URLs de `paging.next` ya traen cursor, token y firma; se piden sin agregar parámetros.
+- **Reintentos:** `RetryingTransport(HttpxTransport())` repite lecturas ante 429, 5xx y fallas de red, con
+  backoff y jitter. Las escrituras no se repiten solas.
+
+Qué tan probada está esta red lo dice la columna "Soporte" de la [matriz de redes](index.md); qué
+quiere decir cada nivel, [niveles de soporte](niveles-de-soporte.md).

@@ -14,6 +14,8 @@ from urllib.parse import parse_qs, unquote, urlsplit
 
 from typing_extensions import override
 
+from omnisocial.domain.server import normalize_server
+
 
 class Network(StrEnum):
     """La red donde vive una cuenta pública. Meta, como proveedor, cubre dos: Facebook e Instagram."""
@@ -24,6 +26,10 @@ class Network(StrEnum):
     YOUTUBE = "youtube"
     X = "x"
     LINKEDIN = "linkedin"
+    THREADS = "threads"
+    BLUESKY = "bluesky"
+    MASTODON = "mastodon"
+    """También vale para las redes que hablan el mismo protocolo, como Pixelfed."""
 
 
 class HandleKind(StrEnum):
@@ -62,6 +68,7 @@ _RULES: dict[Network, _Rule] = {
         prefixes=("channel", "user", "c"),
     ),
     Network.X: _Rule(("x.com", "twitter.com"), re.compile(r"[a-z0-9_]{1,15}")),
+    Network.THREADS: _Rule(("threads.com", "threads.net"), re.compile(r"[a-z0-9._]{1,30}")),
     Network.LINKEDIN: _Rule(
         ("linkedin.com",), re.compile(r"[a-z0-9-]{1,100}"), prefixes=("in", "company", "school")
     ),
@@ -95,8 +102,47 @@ def _looks_like_url(raw: str, rule: _Rule) -> bool:
     return bool(_SCHEME.match(raw)) or any(known in raw.lower() for known in rule.hosts)
 
 
+_FEDIVERSE_USER = re.compile(r"[a-z0-9_]{1,30}")
+_BLUESKY_DID = re.compile(r"did:(?:plc|web):[a-z0-9.:%-]{1,200}")
+
+
+def _mastodon(text: str) -> Handle | None:
+    """`@ana@mastodon.social`, `ana@mastodon.social` o `https://mastodon.social/@ana`: el nombre lleva
+    el servidor, porque la misma persona puede existir en varios."""
+    if _SCHEME.match(text):
+        parts = urlsplit(text)
+        segments = [s for s in unquote(parts.path).split("/") if s]
+        text = f"{segments[0]}@{parts.hostname}" if segments and segments[0].startswith("@") else ""
+    user, _, server = text.lstrip("@").lower().partition("@")
+    host = normalize_server(server)
+    if host is None or not _FEDIVERSE_USER.fullmatch(user):
+        return None
+    return Handle(Network.MASTODON, f"{user}@{host}")
+
+
+def _bluesky(text: str) -> Handle | None:
+    """`ana.bsky.social`, `@ana.bsky.social`, `https://bsky.app/profile/ana.bsky.social` o un DID. El
+    nombre es un dominio y puede cambiar; el DID no."""
+    if _SCHEME.match(text):
+        parts = urlsplit(text)
+        segments = [s for s in unquote(parts.path).split("/") if s]
+        is_profile = parts.hostname == "bsky.app" and segments[:1] == ["profile"] and len(segments) > 1
+        text = segments[1] if is_profile else ""
+    name = text.lstrip("@").lower()
+    if _BLUESKY_DID.fullmatch(name):
+        return Handle(Network.BLUESKY, name, HandleKind.ID)
+    host = normalize_server(name)
+    return Handle(Network.BLUESKY, host) if host is not None else None
+
+
+_FEDERATED = {Network.MASTODON: _mastodon, Network.BLUESKY: _bluesky}
+
+
 def parse_handle(network: Network | str, raw: str) -> Handle | None:
     """El nombre normalizado, o `None` si lo que se pegó no es una cuenta válida de esa red."""
+    federated = _FEDERATED.get(Network(network))
+    if federated is not None:
+        return federated(raw.strip())
     rule = _RULES[Network(network)]
     text = raw.strip()
     if _looks_like_url(text, rule):

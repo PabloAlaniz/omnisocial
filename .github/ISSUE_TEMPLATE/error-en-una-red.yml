@@ -1,0 +1,69 @@
+name: Error en una red
+description: El adaptador de una red traduce mal una respuesta, clasifica mal un error o dejó de andar.
+labels: ["error"]
+body:
+  - type: markdown
+    attributes:
+      value: No pegues tokens, secretos ni datos de cuentas reales. Reemplazalos antes de enviar.
+  - type: dropdown
+    id: red
+    attributes:
+      label: Red
+      options:
+        - Meta (Facebook, Instagram)
+        - TikTok
+        - YouTube
+        - LinkedIn
+        - X
+        - Threads
+        - Instagram con login propio
+        - Bluesky
+        - Mastodon
+        - Pixelfed
+        - Pinterest
+        - Reddit
+        - Google Business Profile
+        - WhatsApp Business
+        - Telegram
+        - Discord
+        - El núcleo, no una red
+    validations:
+      required: true
+  - type: dropdown
+    id: capacidad
+    attributes:
+      label: Capacidad
+      options:
+        - login
+        - credentials
+        - assets
+        - content
+        - publishing
+        - comments
+        - messaging
+        - insights
+        - webhooks
+        - public_profiles
+        - No sé
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: Versión de omnisocial y versión de la API de la red
+      placeholder: omnisocial 0.2.0, Graph API v24.0
+    validations:
+      required: true
+  - type: textarea
+    id: paso
+    attributes:
+      label: Qué pasó y qué esperabas
+      description: El resultado que volvió (`Refused(...)`, una excepción, datos mal traducidos) y el que esperabas.
+    validations:
+      required: true
+  - type: textarea
+    id: respuesta
+    attributes:
+      label: La respuesta de la red
+      description: Estado HTTP y cuerpo, sin tokens ni datos personales. Con esto se arma el caso de prueba.
+      render: json

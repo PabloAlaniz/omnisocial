@@ -25,6 +25,9 @@ class Token:
     refresh_token: str | None = field(default=None, repr=False)
     expires_at: datetime | None = None
     scopes: frozenset[str] = frozenset()
+    server: str | None = None
+    """En una red federada, el servidor al que pertenece el token (`mastodon.social`). El adaptador le
+    habla a ese servidor. `None` en las redes que tienen uno solo."""
 
     def is_expired(self, now: datetime) -> bool:
         return self.expires_at is not None and now >= self.expires_at

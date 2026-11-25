@@ -3,9 +3,9 @@
 from __future__ import annotations
 
 from omnisocial.application.registry import Provider, ProviderRegistry
-from omnisocial.application.results import AssetAccess, Done, Refusal, Refused
+from omnisocial.application.results import AssetAccess, Done, Refusal, Refused, refusal_for
 from omnisocial.application.use_cases.access import ResolveAssetAccess
-from omnisocial.domain.errors import PermissionMissing, TokenRejected
+from omnisocial.domain.errors import ProviderError, TokenRejected
 from omnisocial.domain.handles import Handle, Network, parse_handle
 from omnisocial.domain.profile import PublicProfile
 from omnisocial.domain.provider import Capability
@@ -72,8 +72,11 @@ class LookupProfile:
             if viewer is None:
                 raise
             return await self._access.reject(viewer, error)
-        except PermissionMissing as error:
-            return Refused(Refusal.MISSING_PERMISSION, detail=str(error), capability=_CAPABILITY)
+        except ProviderError as error:
+            refused = refusal_for(error, _CAPABILITY)
+            if refused is None:
+                raise
+            return refused
         if profile is None:
             return Refused(Refusal.PROFILE_NOT_FOUND, detail=str(handle))
         return Done(profile)

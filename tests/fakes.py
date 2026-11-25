@@ -17,7 +17,8 @@ from omnisocial.domain.content import Comment, CommentAction, Post
 from omnisocial.domain.errors import TokenRejected
 from omnisocial.domain.handles import Handle, Network
 from omnisocial.domain.identity import Identity
-from omnisocial.domain.messaging import Conversation, Message, ReplyWindow
+from omnisocial.domain.lookup import Choice, LookupSpec
+from omnisocial.domain.messaging import Conversation, Message, MessagingLimits, OutboundMessage, ReplyWindow
 from omnisocial.domain.metrics import (
     CanonicalMetric,
     CatalogEntry,
@@ -28,6 +29,8 @@ from omnisocial.domain.metrics import (
 )
 from omnisocial.domain.profile import PublicProfile
 from omnisocial.domain.provider import Capability, ProviderId
+from omnisocial.domain.publishing import Draft, Outcome, PublicationStatus, PublishLimits, PublishOptions
+from omnisocial.domain.spec import NetworkSpec
 from omnisocial.domain.token import Token, TokenKind
 from omnisocial.domain.webhooks import EventAction, EventKind, SocialEvent
 from omnisocial.domain.window import TimeWindow
@@ -157,9 +160,16 @@ class FakeComments:
     fail_with: Exception | None = None
     """Si está, `list_comments` la lanza: así se prueba qué hace el caso de uso con los errores de la red."""
 
+    found: list[Comment] | None = None
+    """Lo que devuelve `list_comments`. Si falta, un comentario de la publicación pedida."""
+    asked: list[str] = field(default_factory=list)
+
     async def list_comments(self, asset: Asset, token: Token, *, object_id: str) -> Sequence[Comment]:
+        self.asked.append(object_id)
         if self.fail_with is not None:
             raise self.fail_with
+        if self.found is not None:
+            return list(self.found)
         return [Comment("com-1", object_id, NOW, text="buenísimo")]
 
     def supports(self, asset: Asset, action: CommentAction) -> bool:
@@ -195,8 +205,13 @@ class FakeMessaging:
     ) -> Sequence[Message]:
         return list(self.messages)
 
-    async def send(self, asset: Asset, token: Token, *, recipient_id: str, text: str) -> str:
-        self.sent.append((recipient_id, text))
+    limits: MessagingLimits = field(default_factory=lambda: MessagingLimits(max_text=100))
+
+    def limits_for(self, asset: Asset) -> MessagingLimits:
+        return self.limits
+
+    async def send(self, asset: Asset, token: Token, *, recipient_id: str, message: OutboundMessage) -> str:
+        self.sent.append((recipient_id, message.text or (message.template.name if message.template else "")))
         return "msg-nuevo"
 
 
@@ -239,7 +254,7 @@ class FakeWebhooks:
     def handshake(self, query: Mapping[str, str]) -> str | None:
         return query.get("desafio") if query.get("clave") == "ok" else None
 
-    def parse(self, body: bytes) -> Sequence[SocialEvent]:
+    def parse(self, body: bytes, *, query: Mapping[str, str] | None = None) -> Sequence[SocialEvent]:
         return [SocialEvent(FAKE, EventKind.COMMENT, EventAction.CREATED, body.decode(), "com-9", NOW)]
 
 
@@ -274,6 +289,75 @@ class FakeProfiles:
         return self.known.get(handle.value)
 
 
+@dataclass(frozen=True)
+class FakeOptions(PublishOptions):
+    audience: str = "todos"
+
+
+FAKE_LIMITS = PublishLimits(
+    max_text=50, max_images=2, max_videos=1, link=True, first_comment=True, delete=True, options=FakeOptions
+)
+FAKE_SPEC = NetworkSpec(
+    id=FAKE,
+    name="Falsa",
+    capabilities=frozenset(Capability),
+    assets={"pagina": frozenset(Capability)},
+    publishing={"pagina": FAKE_LIMITS},
+    lookups={
+        "pagina": (
+            LookupSpec("tableros", "Los tableros de la cuenta.", searchable=True),
+            LookupSpec("secciones", "Las secciones de un tablero.", parent="tableros"),
+        )
+    },
+)
+
+
+@dataclass
+class FakePublisher:
+    """Publica en dos etapas si `pending` está puesto: primero queda pendiente y al retomar sale."""
+
+    published: list[Draft] = field(default_factory=list)
+    resumed: list[Mapping[str, str]] = field(default_factory=list)
+    deleted: list[str] = field(default_factory=list)
+    pending: bool = False
+    fail_with: Exception | None = None
+    outcome: Outcome | None = None
+
+    async def publish(self, asset: Asset, token: Token, *, draft: Draft) -> Outcome:
+        if self.fail_with is not None:
+            raise self.fail_with
+        self.published.append(draft)
+        if self.outcome is not None:
+            return self.outcome
+        if self.pending:
+            return Outcome(PublicationStatus.PENDING, resume={"paso": "1"})
+        number = len(self.published)
+        return Outcome(PublicationStatus.PUBLISHED, post_id=f"post-{number}", url=f"https://red/{number}")
+
+    async def resume(self, asset: Asset, token: Token, *, resume: Mapping[str, str]) -> Outcome:
+        if self.fail_with is not None:
+            raise self.fail_with
+        self.resumed.append(resume)
+        return self.outcome or Outcome(PublicationStatus.PUBLISHED, post_id="post-1")
+
+    async def delete(self, asset: Asset, token: Token, *, post_id: str) -> None:
+        if self.fail_with is not None:
+            raise self.fail_with
+        self.deleted.append(post_id)
+
+
+@dataclass
+class FakeLookups:
+    found: Sequence[Choice] = (Choice("t1", "Recetas"),)
+    calls: list[tuple[str, str | None, str | None]] = field(default_factory=list)
+
+    async def choices(
+        self, asset: Asset, token: Token, *, lookup: str, query: str | None, parent: str | None
+    ) -> Sequence[Choice]:
+        self.calls.append((lookup, query, parent))
+        return self.found
+
+
 @dataclass
 class FakeNetwork:
     clock: FakeClock = field(default_factory=FakeClock)
@@ -285,12 +369,18 @@ class FakeNetwork:
     insights: FakeInsights = field(default_factory=FakeInsights)
     webhooks: FakeWebhooks = field(default_factory=FakeWebhooks)
     profiles: FakeProfiles = field(default_factory=FakeProfiles)
+    publisher: FakePublisher = field(default_factory=FakePublisher)
+    lookups: FakeLookups | None = None
 
     def __post_init__(self) -> None:
         self.oauth.clock = self.clock
 
     def provider(
-        self, *, only: frozenset[Capability] | None = None, identity: object | None = None
+        self,
+        *,
+        only: frozenset[Capability] | None = None,
+        identity: object | None = None,
+        spec: NetworkSpec | None = None,
     ) -> Provider:
         def pick(capability: Capability, component: object) -> object:
             return component if only is None or capability in only else None
@@ -305,7 +395,10 @@ class FakeNetwork:
             insights=pick(Capability.INSIGHTS, self.insights),  # type: ignore[arg-type]
             webhooks=pick(Capability.WEBHOOKS, self.webhooks),  # type: ignore[arg-type]
             profiles=pick(Capability.PUBLIC_PROFILES, self.profiles),  # type: ignore[arg-type]
+            publisher=pick(Capability.PUBLISHING, self.publisher),  # type: ignore[arg-type]
             identity=identity,  # type: ignore[arg-type]
+            lookups=self.lookups,
+            spec=spec or FAKE_SPEC,
         )
 
 

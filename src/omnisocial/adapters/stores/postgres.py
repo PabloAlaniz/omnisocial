@@ -22,13 +22,18 @@ from omnisocial.application.ports import (
     AuthorizationStateStore,
     Clock,
     ConnectionRepository,
+    PublicationRepository,
+    QuotaLedger,
+    RateLimitStore,
+    ServerAppStore,
     TokenCipher,
 )
 from omnisocial.domain.asset import Asset
-from omnisocial.domain.authorization import AuthorizationRequest, Purpose
+from omnisocial.domain.authorization import AuthorizationRequest, Purpose, ServerApp
 from omnisocial.domain.connection import Connection, ConnectionStatus
 from omnisocial.domain.identity import Identity
 from omnisocial.domain.provider import Capability, ProviderId
+from omnisocial.domain.publishing import Publication, PublicationStatus
 from omnisocial.domain.token import Token, TokenKind
 
 SCHEMA = """
@@ -77,6 +82,45 @@ CREATE TABLE IF NOT EXISTS omnisocial_authorization_states (
     expires_at timestamptz NOT NULL
 );
 CREATE INDEX IF NOT EXISTS omnisocial_states_expiry ON omnisocial_authorization_states (expires_at);
+
+CREATE TABLE IF NOT EXISTS omnisocial_publications (
+    id              text PRIMARY KEY,
+    asset_id        text NOT NULL,
+    owner           text NOT NULL,
+    provider        text NOT NULL,
+    status          text NOT NULL,
+    idempotency_key text,
+    post_id         text,
+    url             text,
+    error           text,
+    resume          jsonb NOT NULL DEFAULT '{}',
+    version         integer NOT NULL,
+    created_at      timestamptz NOT NULL,
+    updated_at      timestamptz NOT NULL,
+    UNIQUE (asset_id, idempotency_key)
+);
+CREATE INDEX IF NOT EXISTS omnisocial_publications_owner ON omnisocial_publications (owner, created_at);
+
+CREATE TABLE IF NOT EXISTS omnisocial_server_apps (
+    provider      text NOT NULL,
+    server        text NOT NULL,
+    redirect_uri  text NOT NULL,
+    client_id     text NOT NULL,
+    client_secret text NOT NULL,
+    PRIMARY KEY (provider, server)
+);
+
+CREATE TABLE IF NOT EXISTS omnisocial_rate_limits (
+    key     text PRIMARY KEY,
+    next_at timestamptz NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS omnisocial_quota (
+    key    text NOT NULL,
+    period text NOT NULL,
+    used   integer NOT NULL,
+    PRIMARY KEY (key, period)
+);
 """
 
 
@@ -88,7 +132,11 @@ async def create_schema(pool: AsyncConnectionPool[Any]) -> None:
 
 
 def _seal(cipher: TokenCipher, token: Token, context: str) -> str:
-    secret = {"access_token": token.access_token, "refresh_token": token.refresh_token}
+    secret = {
+        "access_token": token.access_token,
+        "refresh_token": token.refresh_token,
+        "server": token.server,
+    }
     return cipher.encrypt(json.dumps(secret), context=context)
 
 
@@ -100,6 +148,7 @@ def _open(cipher: TokenCipher, row: dict[str, Any], context: str) -> Token:
         refresh_token=secret.get("refresh_token"),
         expires_at=row["token_expires_at"],
         scopes=frozenset(row.get("token_scopes") or ()),
+        server=secret.get("server"),
     )
 
 
@@ -155,6 +204,14 @@ class PostgresConnectionRepository(ConnectionRepository):
     async def list_by_owner(self, owner: str) -> Sequence[Connection]:
         return await self._fetch(
             "SELECT * FROM omnisocial_connections WHERE owner = %s ORDER BY created_at, id", [owner]
+        )
+
+    @override
+    async def list_expiring(self, before: datetime, *, limit: int) -> Sequence[Connection]:
+        return await self._fetch(
+            "SELECT * FROM omnisocial_connections WHERE status = %s AND token_expires_at <= %s "
+            "ORDER BY token_expires_at, id LIMIT %s",
+            [ConnectionStatus.ACTIVE.value, before, limit],
         )
 
     def _values(self, c: Connection) -> dict[str, object]:
@@ -333,6 +390,7 @@ def _request_to_json(request: AuthorizationRequest) -> str:
             "owner": request.owner,
             "return_url": request.return_url,
             "code_verifier": request.code_verifier,
+            "server": request.server,
         }
     )
 
@@ -350,6 +408,7 @@ def _request_from_json(raw: str) -> AuthorizationRequest:
         owner=data["owner"],
         return_url=data["return_url"],
         code_verifier=data["code_verifier"],
+        server=data.get("server"),
     )
 
 
@@ -388,3 +447,210 @@ class PostgresAuthorizationStateStore(AuthorizationStateStore):
         if row is None:
             return None
         return _request_from_json(self._cipher.decrypt(row[0], context=self._context(state)))
+
+
+class PostgresPublicationRepository(PublicationRepository):
+    """Las publicaciones en curso y sus claves de idempotencia. No guarda tokens ni el contenido."""
+
+    def __init__(self, pool: AsyncConnectionPool[Any]) -> None:
+        self._pool = pool
+
+    @staticmethod
+    def _row_to_publication(row: dict[str, Any]) -> Publication:
+        return Publication(
+            id=row["id"],
+            asset_id=row["asset_id"],
+            owner=row["owner"],
+            provider=ProviderId(row["provider"]),
+            status=PublicationStatus(row["status"]),
+            created_at=row["created_at"],
+            updated_at=row["updated_at"],
+            idempotency_key=row["idempotency_key"],
+            post_id=row["post_id"],
+            url=row["url"],
+            error=row["error"],
+            resume=dict(row["resume"]),
+            version=row["version"],
+        )
+
+    @staticmethod
+    def _values(p: Publication) -> dict[str, object]:
+        return {
+            "id": p.id,
+            "asset_id": p.asset_id,
+            "owner": p.owner,
+            "provider": p.provider,
+            "status": p.status.value,
+            "idempotency_key": p.idempotency_key,
+            "post_id": p.post_id,
+            "url": p.url,
+            "error": p.error,
+            "resume": Jsonb(dict(p.resume)),
+            "version": p.version,
+            "created_at": p.created_at,
+            "updated_at": p.updated_at,
+        }
+
+    async def _one(self, sql: str, params: Sequence[object]) -> Publication | None:
+        async with self._pool.connection() as conn, conn.cursor(row_factory=dict_row) as cur:
+            await cur.execute(sql, params)
+            row = await cur.fetchone()
+            return self._row_to_publication(row) if row else None
+
+    @override
+    async def get(self, publication_id: str) -> Publication | None:
+        return await self._one("SELECT * FROM omnisocial_publications WHERE id = %s", [publication_id])
+
+    @override
+    async def find_by_key(self, asset_id: str, idempotency_key: str) -> Publication | None:
+        return await self._one(
+            "SELECT * FROM omnisocial_publications WHERE asset_id = %s AND idempotency_key = %s",
+            [asset_id, idempotency_key],
+        )
+
+    @override
+    async def add(self, publication: Publication) -> bool:
+        values = self._values(publication)
+        columns = ", ".join(values)
+        placeholders = ", ".join(f"%({k})s" for k in values)
+        async with self._pool.connection() as conn:
+            cur = await conn.execute(
+                f"INSERT INTO omnisocial_publications ({columns}) VALUES ({placeholders}) "  # noqa: S608
+                "ON CONFLICT (asset_id, idempotency_key) DO NOTHING",
+                values,
+            )
+            return bool(cur.rowcount == 1)
+
+    @override
+    async def save(self, publication: Publication, *, expected_version: int) -> bool:
+        values = self._values(publication)
+        assignments = ", ".join(f"{k} = %({k})s" for k in values if k not in {"id", "created_at"})
+        async with self._pool.connection() as conn:
+            cur = await conn.execute(
+                f"UPDATE omnisocial_publications SET {assignments} "  # noqa: S608
+                "WHERE id = %(id)s AND version = %(expected_version)s",
+                {**values, "expected_version": expected_version},
+            )
+            return bool(cur.rowcount == 1)
+
+    @override
+    async def remove(self, publication_id: str) -> None:
+        async with self._pool.connection() as conn:
+            await conn.execute("DELETE FROM omnisocial_publications WHERE id = %s", [publication_id])
+
+
+class PostgresQuotaLedger(QuotaLedger):
+    """La cuota gastada, compartida entre procesos."""
+
+    def __init__(self, pool: AsyncConnectionPool[Any]) -> None:
+        self._pool = pool
+
+    @override
+    async def spend(self, key: str, period: str, units: int, *, limit: int) -> bool:
+        if units > limit:
+            return False
+        async with self._pool.connection() as conn:
+            cur = await conn.execute(
+                "INSERT INTO omnisocial_quota (key, period, used) VALUES (%s, %s, %s) "
+                "ON CONFLICT (key, period) DO UPDATE SET used = omnisocial_quota.used + EXCLUDED.used "
+                "WHERE omnisocial_quota.used + EXCLUDED.used <= %s",
+                [key, period, units, limit],
+            )
+            return bool(cur.rowcount == 1)
+
+    @override
+    async def spent(self, key: str, period: str) -> int:
+        async with self._pool.connection() as conn:
+            cur = await conn.execute(
+                "SELECT used FROM omnisocial_quota WHERE key = %s AND period = %s", [key, period]
+            )
+            row = await cur.fetchone()
+            return int(row[0]) if row else 0
+
+
+class PostgresRateLimitStore(RateLimitStore):
+    """Los turnos de cada red, compartidos entre procesos. El reloj es el de la base: así no importa que
+    los procesos no tengan la hora igual."""
+
+    def __init__(self, pool: AsyncConnectionPool[Any]) -> None:
+        self._pool = pool
+
+    @override
+    async def reserve(self, key: str, interval: float) -> float:
+        async with self._pool.connection() as conn:
+            cur = await conn.execute(
+                "INSERT INTO omnisocial_rate_limits (key, next_at) "
+                "VALUES (%(key)s, clock_timestamp() + make_interval(secs => %(interval)s)) "
+                "ON CONFLICT (key) DO UPDATE SET next_at = "
+                "GREATEST(omnisocial_rate_limits.next_at, clock_timestamp()) "
+                "+ make_interval(secs => %(interval)s) "
+                "RETURNING EXTRACT(EPOCH FROM "
+                "(next_at - make_interval(secs => %(interval)s) - clock_timestamp()))",
+                {"key": key, "interval": interval},
+            )
+            row = await cur.fetchone()
+            return max(0.0, float(row[0])) if row else 0.0
+
+    @override
+    async def pause(self, key: str, seconds: float) -> None:
+        async with self._pool.connection() as conn:
+            await conn.execute(
+                "INSERT INTO omnisocial_rate_limits (key, next_at) "
+                "VALUES (%(key)s, clock_timestamp() + make_interval(secs => %(seconds)s)) "
+                "ON CONFLICT (key) DO UPDATE SET next_at = "
+                "GREATEST(omnisocial_rate_limits.next_at, EXCLUDED.next_at)",
+                {"key": key, "seconds": seconds},
+            )
+
+
+class PostgresServerAppStore(ServerAppStore):
+    """Las apps registradas en cada servidor de una red federada. El secreto va cifrado."""
+
+    def __init__(self, pool: AsyncConnectionPool[Any], cipher: TokenCipher) -> None:
+        self._pool = pool
+        self._cipher = cipher
+
+    @staticmethod
+    def _context(provider: str, server: str) -> str:
+        return f"omnisocial|server_app|{provider}|{server}"
+
+    def _values(self, app: ServerApp) -> list[object]:
+        sealed = self._cipher.encrypt(app.client_secret, context=self._context(app.provider, app.server))
+        return [app.provider, app.server, app.redirect_uri, app.client_id, sealed]
+
+    @override
+    async def get(self, provider: ProviderId, server: str) -> ServerApp | None:
+        async with self._pool.connection() as conn:
+            cur = await conn.execute(
+                "SELECT redirect_uri, client_id, client_secret FROM omnisocial_server_apps "
+                "WHERE provider = %s AND server = %s",
+                [provider, server],
+            )
+            row = await cur.fetchone()
+        if row is None:
+            return None
+        secret = self._cipher.decrypt(row[2], context=self._context(provider, server))
+        return ServerApp(provider, server, row[0], row[1], secret)
+
+    @override
+    async def add(self, app: ServerApp) -> ServerApp:
+        async with self._pool.connection() as conn:
+            await conn.execute(
+                "INSERT INTO omnisocial_server_apps "
+                "(provider, server, redirect_uri, client_id, client_secret) "
+                "VALUES (%s, %s, %s, %s, %s) ON CONFLICT DO NOTHING",
+                self._values(app),
+            )
+        return await self.get(app.provider, app.server) or app
+
+    @override
+    async def replace(self, app: ServerApp) -> None:
+        async with self._pool.connection() as conn:
+            await conn.execute(
+                "INSERT INTO omnisocial_server_apps "
+                "(provider, server, redirect_uri, client_id, client_secret) "
+                "VALUES (%s, %s, %s, %s, %s) ON CONFLICT (provider, server) DO UPDATE SET "
+                "redirect_uri = EXCLUDED.redirect_uri, client_id = EXCLUDED.client_id, "
+                "client_secret = EXCLUDED.client_secret",
+                self._values(app),
+            )

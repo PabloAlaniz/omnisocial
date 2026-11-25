@@ -1,0 +1,18 @@
+"""Arma el proveedor de $nombre."""
+
+from __future__ import annotations
+
+from omnisocial.adapters.providers.$id.client import ${clase}Client
+from omnisocial.adapters.providers.$id.config import $const, ${clase}Config
+from omnisocial.adapters.providers.$id.oauth import ${id}_oauth
+from omnisocial.adapters.providers.$id.spec import SPEC
+from omnisocial.network import Clock, HttpTransport, Provider, SystemClock
+
+
+def ${id}_provider(
+    config: ${clase}Config, transport: HttpTransport, *, clock: Clock | None = None
+) -> Provider:
+    """Por ahora, solo login. Cada capacidad nueva es un puerto más: ver `docs/nueva-red.md`."""
+    clock = clock or SystemClock()
+    client = ${clase}Client(config, transport)
+    return Provider(id=$const, oauth=${id}_oauth(client, clock), spec=SPEC)

@@ -1,0 +1,21 @@
+version: 2
+updates:
+  # Las acciones van fijadas por commit: esto propone el commit de cada versión nueva.
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+    commit-message:
+      prefix: ci
+    groups:
+      acciones:
+        patterns: ["*"]
+  - package-ecosystem: uv
+    directory: /
+    schedule:
+      interval: weekly
+    commit-message:
+      prefix: build
+    groups:
+      dependencias:
+        patterns: ["*"]

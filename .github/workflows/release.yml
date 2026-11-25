@@ -53,10 +53,17 @@ jobs:
       - run: uv run lint-imports
       - run: uv run pytest
       - run: uv build --out-dir dist
+      # La lista de componentes: de qué depende el paquete con todos sus extras, con versiones exactas.
+      - run: uv export --format cyclonedx1.5 --no-dev --all-extras -o sbom/omnisocial.cdx.json
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: python-dist
           path: dist/
+          if-no-files-found: error
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: sbom
+          path: sbom/
           if-no-files-found: error
 
   pypi:
@@ -73,3 +80,34 @@ jobs:
           name: python-dist
           path: dist/
       - uses: pypa/gh-action-pypi-publish@7245906fb61fa33a13554f9d5fb856fe61758086 # v1.14.3
+
+  procedencia:
+    name: atestación de origen y lista de componentes
+    needs: [release-please, pypi-build]
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      id-token: write
+      attestations: write
+      contents: write
+    steps:
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: python-dist
+          path: dist/
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: sbom
+          path: sbom/
+      # Firma que estos archivos salieron de este workflow, en este repositorio y en este commit.
+      # Se comprueba con `gh attestation verify <archivo> --repo PabloAlaniz/omnisocial`.
+      - uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8 # v4.2.2
+        with:
+          subject-path: |
+            dist/*
+            sbom/omnisocial.cdx.json
+      - name: Adjuntar a la versión
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ needs.release-please.outputs.tag_name }}
+        run: gh release upload "$TAG" dist/* sbom/omnisocial.cdx.json --repo "$GITHUB_REPOSITORY" --clobber

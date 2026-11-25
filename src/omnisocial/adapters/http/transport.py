@@ -6,10 +6,12 @@ from collections.abc import Mapping
 from dataclasses import dataclass, field
 from typing import Protocol
 
+from omnisocial.domain.errors import OmnisocialError
+
 Params = Mapping[str, str | int]
 
 
-class TransportError(Exception):
+class TransportError(OmnisocialError):
     """No hubo respuesta: la conexión falló, se cortó o venció el tiempo de espera."""
 
 
@@ -26,6 +28,16 @@ class HttpResponse:
         wanted = name.lower()
         return next((value for key, value in self.headers.items() if key.lower() == wanted), None)
 
+    def retry_after(self) -> float | None:
+        """Los segundos de la cabecera `Retry-After`, si la red la mandó como número."""
+        value = self.header("retry-after")
+        if value is None:
+            return None
+        try:
+            return max(0.0, float(value))
+        except ValueError:
+            return None
+
 
 class HttpTransport(Protocol):
     async def request(
@@ -38,11 +50,13 @@ class HttpTransport(Protocol):
         form: Mapping[str, str] | None = None,
         headers: Mapping[str, str] | None = None,
         retry_safe: str | None = None,
+        content: bytes | None = None,
     ) -> HttpResponse:
         """Hace el pedido.
 
         `retry_safe` marca un POST que se puede repetir sin efectos (una lectura que la red obliga a pedir
         por POST, el canje de un código). Va el motivo, para que quien lea el código no tenga que adivinarlo.
+        `content` es un cuerpo binario (una parte de un video, por ejemplo), en vez de `json` o `form`.
         Lanza `TransportError` si no hubo respuesta.
         """
         ...

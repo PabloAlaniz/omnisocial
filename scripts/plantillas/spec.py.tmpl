@@ -1,0 +1,32 @@
+"""La descripción de $nombre: su OAuth, sus capacidades y qué quiere decir cada código de error."""
+
+from __future__ import annotations
+
+from omnisocial.adapters.providers.$id.config import API_BASE, AUTHORIZE_URL, $const
+from omnisocial.network import Capability, ErrorKind, ErrorTable, NetworkSpec, OAuthSpec
+
+# PENDIENTE: los códigos reales de la red. Solo es TOKEN_DEAD lo que la red documenta como "este token ya
+# no sirve": un 401 o un 403 cualquiera no alcanza, porque invalida una conexión sana.
+ERRORS = ErrorTable(
+    codes={
+        "invalid_token": ErrorKind.TOKEN_DEAD,
+        "insufficient_scope": ErrorKind.MISSING_PERMISSION,
+        "rate_limited": ErrorKind.RATE_LIMITED,
+    }
+)
+
+
+def oauth_spec(*, authorize_url: str = AUTHORIZE_URL, api_base: str = API_BASE) -> OAuthSpec:
+    """PENDIENTE: en qué se aparta la red del estándar (separador de permisos, PKCE, rotación…)."""
+    return OAuthSpec(authorize_url=authorize_url, token_url=f"{api_base}/oauth/token")
+
+
+SPEC = NetworkSpec(
+    id=$const,
+    name="$nombre",
+    # PENDIENTE: sumar cada capacidad cuando el proveedor la traiga, y los tipos de activo en `assets`.
+    capabilities=frozenset({Capability.LOGIN}),
+    errors=ERRORS,
+    oauth=oauth_spec(),
+    docs="docs/$id.md",
+)

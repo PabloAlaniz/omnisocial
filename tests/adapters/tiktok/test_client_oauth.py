@@ -8,9 +8,9 @@ import pytest
 from omnisocial.adapters.http.transport import HttpResponse
 from omnisocial.adapters.providers.tiktok.assets import TikTokAssetDirectory
 from omnisocial.adapters.providers.tiktok.client import TikTokClient
-from omnisocial.adapters.providers.tiktok.oauth import TikTokOAuth
+from omnisocial.adapters.providers.tiktok.oauth import tiktok_oauth
 from omnisocial.domain.authorization import Purpose
-from omnisocial.domain.errors import PermissionMissing, ProviderError, TokenRejected
+from omnisocial.domain.errors import PermissionMissing, ProviderError, RateLimited, TokenRejected
 from omnisocial.domain.provider import Capability
 from omnisocial.domain.token import Token, TokenKind
 from tests.adapters.tiktok.conftest import FakeTikTok, failure, ok
@@ -41,7 +41,8 @@ async def test_el_sobre_de_datos(fake: FakeTikTok, client: TikTokClient) -> None
         ("access_token_invalid", TokenRejected),
         ("scope_not_authorized", PermissionMissing),
         ("scope_permission_missed", PermissionMissing),
-        ("rate_limit_exceeded", ProviderError),
+        ("rate_limit_exceeded", RateLimited),
+        ("otro", ProviderError),
     ],
 )
 async def test_errores_de_datos(
@@ -59,22 +60,24 @@ async def test_una_respuesta_sin_sobre(fake: FakeTikTok, client: TikTokClient) -
         await client.get("user/info", "tok", fields=("open_id",))
 
 
-async def test_errores_de_oauth(fake: FakeTikTok, client: TikTokClient) -> None:
+async def test_errores_de_oauth(fake: FakeTikTok, client: TikTokClient, clock: FakeClock) -> None:
+    oauth = tiktok_oauth(client, clock)
+    stale = Token(TokenKind.USER, "act", refresh_token="rft")
     fake.on("POST", "oauth/token/", {"error": "invalid_grant", "error_description": "vencido"}, status=400)
     with pytest.raises(TokenRejected, match="vencido"):
-        await client.oauth("oauth/token", {})
+        await oauth.refresh(stale)
     fake.routes.clear()
     fake.on("POST", "oauth/token/", {"error": "invalid_request"}, status=400)
     with pytest.raises(ProviderError, match="invalid_request"):
-        await client.oauth("oauth/token", {})
+        await oauth.refresh(stale)
     fake.routes.clear()
     fake.on("POST", "oauth/token/", HttpResponse(500, None, ""))
     with pytest.raises(ProviderError, match="HTTP 500"):
-        await client.oauth("oauth/token", {})
+        await oauth.refresh(stale)
 
 
 def test_url_de_autorizacion(client: TikTokClient, clock: FakeClock) -> None:
-    oauth = TikTokOAuth(client, clock)
+    oauth = tiktok_oauth(client, clock)
     url = oauth.authorization_url(
         state="s",
         redirect_uri="https://api/cb",
@@ -93,7 +96,7 @@ def test_url_de_autorizacion(client: TikTokClient, clock: FakeClock) -> None:
 
 async def test_canjear_el_codigo(fake: FakeTikTok, client: TikTokClient, clock: FakeClock) -> None:
     fake.on("POST", "oauth/token/", TOKENS)
-    token = await TikTokOAuth(client, clock).exchange_code(
+    token = await tiktok_oauth(client, clock).exchange_code(
         code="c", redirect_uri="https://api/cb", code_verifier=None
     )
     assert (token.access_token, token.refresh_token) == ("act.1", "rft.1")
@@ -113,13 +116,13 @@ async def test_canjear_el_codigo(fake: FakeTikTok, client: TikTokClient, clock: 
 async def test_canje_sin_token(fake: FakeTikTok, client: TikTokClient, clock: FakeClock) -> None:
     fake.on("POST", "oauth/token/", {"open_id": "x"})
     with pytest.raises(ProviderError, match="token"):
-        await TikTokOAuth(client, clock).exchange_code(code="c", redirect_uri="r", code_verifier=None)
+        await tiktok_oauth(client, clock).exchange_code(code="c", redirect_uri="r", code_verifier=None)
 
 
 async def test_renovar_rota_el_refresh_token(
     fake: FakeTikTok, client: TikTokClient, clock: FakeClock
 ) -> None:
-    oauth = TikTokOAuth(client, clock)
+    oauth = tiktok_oauth(client, clock)
     old = Token(TokenKind.USER, "act.1", refresh_token="rft.1")
     fake.on(
         "POST", "oauth/token/", {**TOKENS, "access_token": "act.2", "refresh_token": "rft.2", "scope": ""}
@@ -140,7 +143,7 @@ async def test_renovar_rota_el_refresh_token(
 
 
 async def test_identidad_y_revocacion(fake: FakeTikTok, client: TikTokClient, clock: FakeClock) -> None:
-    oauth = TikTokOAuth(client, clock)
+    oauth = tiktok_oauth(client, clock)
     fake.on(
         "GET", "user/info/", ok({"user": {"open_id": "oid-1", "display_name": "Marca", "avatar_url": "a"}})
     )
@@ -164,7 +167,7 @@ async def test_la_cuenta_es_el_activo(fake: FakeTikTok, client: TikTokClient) ->
         "Marca",
         None,
     )
-    assert asset.capabilities == frozenset({Capability.CONTENT, Capability.INSIGHTS})
+    assert asset.capabilities == frozenset({Capability.CONTENT, Capability.INSIGHTS, Capability.PUBLISHING})
     fake.routes.clear()
     fake.on("GET", "user/info/", ok({}))
     with pytest.raises(ProviderError, match="open_id"):

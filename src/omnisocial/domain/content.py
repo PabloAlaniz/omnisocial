@@ -46,5 +46,7 @@ class Comment:
     like_count: int | None = None
     reply_count: int | None = None
     hidden: bool | None = None
+    rating: int | None = None
+    """Si es una reseña, cuántas estrellas puso (de 1 a 5)."""
     replies: tuple[Comment, ...] = ()
     raw: Mapping[str, object] = field(default_factory=dict, repr=False)

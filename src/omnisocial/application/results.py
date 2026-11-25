@@ -13,9 +13,17 @@ from typing import Generic, TypeVar
 
 from omnisocial.domain.asset import Asset
 from omnisocial.domain.connection import Connection
+from omnisocial.domain.errors import (
+    NotPublished,
+    PermissionMissing,
+    ProviderError,
+    QuotaExhausted,
+    RateLimited,
+)
 from omnisocial.domain.identity import Identity
 from omnisocial.domain.metrics import CanonicalMetric, MetricSeries
 from omnisocial.domain.provider import Capability
+from omnisocial.domain.publishing import DraftProblem
 from omnisocial.domain.token import Token
 
 T = TypeVar("T")
@@ -45,6 +53,35 @@ class Refusal(StrEnum):
     """El token es válido pero no administra ningún activo: no se guarda."""
     OUTSIDE_REPLY_WINDOW = "outside_reply_window"
     NO_RECIPIENT = "no_recipient"
+    INVALID_MESSAGE = "invalid_message"
+    """El mensaje no entra en lo que acepta la red. `detail` dice por qué. No se llamó a la red."""
+    RATE_LIMITED = "rate_limited"
+    """La red pide bajar el ritmo. `retry_after` trae los segundos que pidió esperar, si lo dijo."""
+    QUOTA_EXHAUSTED = "quota_exhausted"
+    """Se acabó la cuota o el crédito de la app en la red. La conexión sigue sana."""
+    SERVER_REQUIRED = "server_required"
+    """La red es federada: hay que decir en qué servidor está la cuenta."""
+    INVALID_SERVER = "invalid_server"
+    """Lo que se pasó no es el nombre de un servidor público."""
+    CREDENTIALS_REQUIRED = "credentials_required"
+    """Falta un dato de la credencial. `detail` dice cuál."""
+    UNKNOWN_LOOKUP = "unknown_lookup"
+    """Ese tipo de activo no ofrece esa consulta auxiliar."""
+    PARENT_REQUIRED = "parent_required"
+    """La consulta depende de otra elección (las etiquetas, de la comunidad). `detail` dice de cuál."""
+    INVALID_DRAFT = "invalid_draft"
+    """El borrador no entra en ese activo. `problems` dice por qué. No se llamó a la red."""
+    CONTENT_REJECTED = "content_rejected"
+    """La red no aceptó el contenido. No salió, y repetirlo igual da lo mismo."""
+    NOT_PUBLISHED = "not_published"
+    """Falló antes de que la red creara nada (se cortó la subida, por ejemplo). Se puede reintentar."""
+
+
+_REFUSAL_BY_ERROR: dict[type[ProviderError], Refusal] = {
+    PermissionMissing: Refusal.MISSING_PERMISSION,
+    QuotaExhausted: Refusal.QUOTA_EXHAUSTED,
+    NotPublished: Refusal.NOT_PUBLISHED,
+}
 
 
 @dataclass(frozen=True, slots=True)
@@ -53,6 +90,22 @@ class Refused:
     detail: str | None = None
     return_url: str | None = None
     capability: Capability | None = None
+    retry_after: float | None = None
+    problems: tuple[DraftProblem, ...] = ()
+
+
+def refusal_for(error: ProviderError, capability: Capability) -> Refused | None:
+    """La negativa que corresponde a un error de la red, o `None` si no es una decisión de negocio.
+
+    Permiso faltante, límite de uso y cuota agotada no invalidan la conexión ni se arreglan reintentando en
+    el momento: vuelven como negativa para que la app decida. Lo demás sigue siendo una excepción.
+    """
+    if isinstance(error, RateLimited):
+        return Refused(
+            Refusal.RATE_LIMITED, detail=str(error), capability=capability, retry_after=error.retry_after
+        )
+    reason = _REFUSAL_BY_ERROR.get(type(error))
+    return Refused(reason, detail=str(error), capability=capability) if reason else None
 
 
 # ── Autorización ────────────────────────────────────────────────────────────────────────────────

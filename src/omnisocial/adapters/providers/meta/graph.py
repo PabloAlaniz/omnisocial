@@ -9,22 +9,15 @@ from datetime import UTC, datetime
 
 from omnisocial.adapters.http.transport import HttpResponse, HttpTransport, Params
 from omnisocial.adapters.providers.meta.config import META, MetaConfig
-from omnisocial.domain.errors import PermissionMissing, ProviderError, TokenRejected
+from omnisocial.adapters.providers.meta.spec import ERRORS, TOKEN_DEAD_CODES
+from omnisocial.domain.errors import ProviderError
+from omnisocial.domain.provider import ProviderId
 from omnisocial.domain.window import TimeWindow
-
-# Códigos que quieren decir "este token ya no sirve".
-#   190: token vencido, revocado o inválido.
-#   102: alias viejo de la misma condición (sesión inválida).
-# El 2500 queda afuera a propósito: Meta también lo devuelve ante pedidos mal armados.
-TOKEN_DEAD_CODES = frozenset({190, 102})
 
 _SUCCESS = range(200, 300)
 
 PERMISSION_CODE = "10"
 """Falta un permiso para un campo. A veces conviene reintentar sin ese campo."""
-
-# 10: a la app le falta el permiso. 200 a 299: al token le falta un permiso (200 en general, 2xx uno puntual).
-_PERMISSION_CODES = frozenset({10, *range(200, 300)})
 
 
 def parse_time(value: object) -> datetime | None:
@@ -75,10 +68,21 @@ def summary_count(node: object, key: str = "total_count") -> int | None:
     return as_int(as_dict(as_dict(node).get("summary")).get(key))
 
 
+def _table_code(code: int | None, subcode: int | None) -> str | None:
+    """El código con el que se busca en la tabla: `código/subcódigo` si la tabla lo distingue."""
+    if code is None:
+        return None
+    precise = f"{code}/{subcode}"
+    return precise if subcode is not None and precise in ERRORS.codes else str(code)
+
+
 class GraphClient:
-    def __init__(self, config: MetaConfig, transport: HttpTransport) -> None:
+    def __init__(self, config: MetaConfig, transport: HttpTransport, *, provider: ProviderId = META) -> None:
+        """`provider`: a nombre de qué red van los errores. La misma API sirve a Meta y a Instagram con
+        login propio."""
         self._config = config
         self._transport = transport
+        self._provider = provider
 
     @property
     def config(self) -> MetaConfig:
@@ -117,6 +121,12 @@ class GraphClient:
         response = await self._transport.request(
             "POST", self._url(path), params={**(params or {}), **self._auth(token)}, json=json
         )
+        return self._unwrap(response)
+
+    async def post_video(self, path: str, token: str, *, json: Mapping[str, object]) -> dict[str, object]:
+        """Los videos se crean en un servidor aparte de la Graph API."""
+        url = f"{self._config.video_base}/{path.lstrip('/')}"
+        response = await self._transport.request("POST", url, params=self._auth(token), json=json)
         return self._unwrap(response)
 
     async def delete(self, path: str, token: str) -> dict[str, object]:
@@ -169,25 +179,24 @@ class GraphClient:
                 break
         return items
 
-    @staticmethod
-    def _unwrap(response: HttpResponse) -> dict[str, object]:
+    def _unwrap(self, response: HttpResponse) -> dict[str, object]:
         body = as_dict(response.data)
         if response.status in _SUCCESS and "error" not in body:
             if isinstance(response.data, dict):
                 return body
             if response.data is True or response.text.strip() in {"", "true"}:
                 return {"success": True}
-            raise ProviderError(META, "La Graph API no devolvió JSON.", status=response.status)
+            raise ProviderError(self._provider, "La Graph API no devolvió JSON.", status=response.status)
         error = as_dict(body.get("error"))
         code = as_int(error.get("code"))
+        subcode = as_int(error.get("error_subcode"))
         message = as_str(error.get("message")) or response.text[:300] or f"HTTP {response.status}"
         if code in TOKEN_DEAD_CODES:
-            raise TokenRejected(META, f"Meta rechazó el token: {message}", code=str(code))
-        if code in _PERMISSION_CODES:
-            raise PermissionMissing(META, message, status=response.status, code=str(code))
-        raise ProviderError(
-            META,
+            message = f"Meta rechazó el token: {message}"
+        raise ERRORS.error(
+            self._provider,
             message,
             status=response.status,
-            code=str(code) if code is not None else None,
+            code=_table_code(code, subcode),
+            retry_after=response.retry_after(),
         )

@@ -5,6 +5,7 @@ from datetime import timedelta
 from omnisocial.application.results import AuthorizationStarted, Connected, Refusal, Refused, ValidToken
 from omnisocial.domain.authorization import Purpose
 from omnisocial.domain.connection import ConnectionStatus
+from omnisocial.domain.token import Token, TokenKind
 from tests.application.conftest import World, build_world
 from tests.fakes import FakeNetwork, FakeOAuth
 
@@ -134,3 +135,36 @@ async def test_sincronizar_activos(world: World) -> None:
     assert [a.external_id for a in await world.social.list_assets.execute("c", provider="falsa")] == ["pag-1"]
     assert await world.social.list_assets.execute("c", provider="otra") == []
     assert await world.social.sync_assets.execute("nada") == Refused(Refusal.NOT_FOUND)
+
+
+async def test_perder_la_carrera_con_un_token_de_renovacion_que_rota_no_invalida_la_conexion() -> None:
+    """Dos procesos renuevan a la vez con el mismo token de renovación. La red acepta al primero y le
+    responde `invalid_grant` al segundo, porque ese token ya se usó. El segundo no tiene que marcar la
+    conexión como inválida: relee y usa el token que guardó el primero."""
+    world = build_world(FakeNetwork(oauth=FakeOAuth(reject_refresh=True)))
+    connected = await _connect(world)
+    world.network.clock.advance(timedelta(minutes=56))
+    conn_id = connected.connection.id
+    original_save = world.connections.save
+    raced = False
+
+    async def racy_save(connection: object, *, expected_version: int) -> bool:
+        nonlocal raced
+        if not raced:
+            raced = True
+            current = await world.connections.get(conn_id)
+            assert current is not None
+            now = world.network.clock.now()
+            winner = Token(
+                TokenKind.USER, "del-otro", refresh_token="r-nuevo", expires_at=now + timedelta(hours=2)
+            )
+            await original_save(current.with_token(winner, now), expected_version=current.version)
+        return await original_save(connection, expected_version=expected_version)  # type: ignore[arg-type]
+
+    world.connections.save = racy_save  # type: ignore[method-assign]
+    result = await world.social.get_valid_token.execute(conn_id)
+    assert isinstance(result, ValidToken)
+    assert (result.token.access_token, result.token.refresh_token) == ("del-otro", "r-nuevo")
+    stored = await world.connections.get(conn_id)
+    assert stored is not None
+    assert stored.status is ConnectionStatus.ACTIVE

@@ -9,6 +9,10 @@ from omnisocial.domain.provider import ProviderId
 
 META = ProviderId("meta")
 
+INSTAGRAM = ProviderId("instagram")
+"""Instagram con login propio, sin página de Facebook. Es otra red para la librería: otra app, otros
+tokens y otro servidor. Ver `instagram_login.py`."""
+
 FACEBOOK_PAGE = "facebook_page"
 INSTAGRAM_ACCOUNT = "instagram_account"
 
@@ -35,6 +39,11 @@ app y la verificación del negocio. Ver `docs/meta.md`.
 """
 
 
+PUBLISH_SCOPES: tuple[str, ...] = ("pages_manage_posts", "instagram_content_publish")
+"""Para publicar. No van en `CONNECT_SCOPES`: cada uno necesita su revisión de la app, y quien no publica no
+tiene por qué pedirlos. Se suman con `connect_scopes=CONNECT_SCOPES + PUBLISH_SCOPES`."""
+
+
 @dataclass(frozen=True, slots=True, kw_only=True)
 class MetaConfig:
     """La app de Meta y la versión de la Graph API.
@@ -48,6 +57,8 @@ class MetaConfig:
     app_id: str | None = None
     app_secret: str | None = field(default=None, repr=False)
     graph_url: str = "https://graph.facebook.com"
+    video_url: str = "https://graph-video.facebook.com"
+    """El servidor donde se crean los videos de una página."""
     dialog_url: str = "https://www.facebook.com"
     login_scopes: tuple[str, ...] = LOGIN_SCOPES
     connect_scopes: tuple[str, ...] = CONNECT_SCOPES
@@ -70,6 +81,10 @@ class MetaConfig:
     @property
     def base(self) -> str:
         return f"{self.graph_url.rstrip('/')}/{self.api_version}"
+
+    @property
+    def video_base(self) -> str:
+        return f"{self.video_url.rstrip('/')}/{self.api_version}"
 
     @property
     def has_app(self) -> bool:

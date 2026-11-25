@@ -22,6 +22,25 @@ class ConnectionStatus(StrEnum):
 
 
 @dataclass(frozen=True, slots=True)
+class ConnectionChange:
+    """Una conexión cambió de estado: dejó de servir, o volvió a servir."""
+
+    connection: Connection
+    """Como quedó."""
+    previous: ConnectionStatus
+
+    @property
+    def lost(self) -> bool:
+        """Servía y ya no: venció, la red rechazó el token o se desconectó."""
+        return self.previous is ConnectionStatus.ACTIVE and not self.connection.is_usable
+
+    @property
+    def recovered(self) -> bool:
+        """No servía y alguien volvió a conectar."""
+        return self.previous is not ConnectionStatus.ACTIVE and self.connection.is_usable
+
+
+@dataclass(frozen=True, slots=True)
 class Connection:
     """Una autorización guardada.
 
@@ -58,6 +77,10 @@ class Connection:
         )
 
     def reconnect(self, subject: Identity, token: Token, now: datetime) -> Connection:
+        """Hay redes que solo mandan el token de renovación la primera vez que la persona autoriza: si el
+        token nuevo no trae uno, se conserva el que había."""
+        if token.refresh_token is None and self.token.refresh_token is not None:
+            token = replace(token, refresh_token=self.token.refresh_token)
         return replace(self.with_token(token, now), subject=subject)
 
     def mark(self, status: ConnectionStatus, reason: str, now: datetime) -> Connection:

@@ -10,22 +10,24 @@ Hay dos familias:
 
 from __future__ import annotations
 
-from collections.abc import Mapping, Sequence
+from collections.abc import Awaitable, Callable, Mapping, Sequence
 from datetime import datetime
 from typing import Protocol
 
 from omniwebhook import Verifier
 
 from omnisocial.domain.asset import Asset, DiscoveredAsset
-from omnisocial.domain.authorization import AuthorizationRequest, Purpose
-from omnisocial.domain.connection import Connection
+from omnisocial.domain.authorization import AuthorizationRequest, CredentialField, Purpose, ServerApp
+from omnisocial.domain.connection import Connection, ConnectionChange
 from omnisocial.domain.content import Comment, CommentAction, Post
 from omnisocial.domain.handles import Handle, Network
 from omnisocial.domain.identity import Identity
-from omnisocial.domain.messaging import Conversation, Message, ReplyWindow
+from omnisocial.domain.lookup import Choice
+from omnisocial.domain.messaging import Conversation, Message, MessagingLimits, OutboundMessage, ReplyWindow
 from omnisocial.domain.metrics import MetricCatalog, MetricSeries, Period
 from omnisocial.domain.profile import PublicProfile
 from omnisocial.domain.provider import ProviderId
+from omnisocial.domain.publishing import Draft, Outcome, Publication
 from omnisocial.domain.token import Token
 from omnisocial.domain.webhooks import SocialEvent
 from omnisocial.domain.window import TimeWindow
@@ -60,6 +62,69 @@ class OAuthClient(Protocol):
     async def refresh(self, token: Token) -> Token:
         """Renueva el token. Lanza `TokenRejected` si la red ya no lo acepta."""
         ...
+
+    async def revoke(self, token: Token) -> None: ...
+
+
+class ServerOAuth(Protocol):
+    """OAuth en una red federada: la persona elige el servidor, y cada servidor es una app distinta.
+
+    Reemplaza a `OAuthClient` en esas redes. La identidad la lee un `IdentityReader` aparte, con el
+    servidor que el token lleva anotado.
+    """
+
+    @property
+    def supports_pkce(self) -> bool: ...
+
+    def default_scopes(self, purpose: Purpose) -> tuple[str, ...]: ...
+
+    async def authorization_url(
+        self, server: str, *, state: str, redirect_uri: str, scopes: Sequence[str], code_challenge: str | None
+    ) -> str:
+        """Puede llamar al servidor: en algunas redes la app se registra ahí la primera vez."""
+        ...
+
+    async def exchange_code(
+        self, server: str, *, code: str, redirect_uri: str, code_verifier: str | None
+    ) -> Token:
+        """El token vuelve con `server` anotado."""
+        ...
+
+    def can_refresh(self, token: Token) -> bool: ...
+
+    async def refresh(self, token: Token) -> Token: ...
+
+    async def revoke(self, token: Token) -> None: ...
+
+
+class CredentialLogin(Protocol):
+    """Conectar con una credencial que la persona genera en la red, sin pasar por un diálogo de OAuth."""
+
+    @property
+    def fields(self) -> Sequence[CredentialField]:
+        """Lo que hay que pedirle a la persona."""
+        ...
+
+    async def login(self, credentials: Mapping[str, str]) -> Token:
+        """Cambia la credencial por un token. Lanza `TokenRejected` si la red no la acepta.
+
+        La credencial no se guarda: se guarda el token.
+        """
+        ...
+
+    def can_refresh(self, token: Token) -> bool: ...
+
+    async def refresh(self, token: Token) -> Token: ...
+
+    async def revoke(self, token: Token) -> None: ...
+
+
+class TokenRefresher(Protocol):
+    """Lo que tienen en común las tres formas de conectar: renovar y revocar."""
+
+    def can_refresh(self, token: Token) -> bool: ...
+
+    async def refresh(self, token: Token) -> Token: ...
 
     async def revoke(self, token: Token) -> None: ...
 
@@ -104,8 +169,12 @@ class MessagingGateway(Protocol):
         self, asset: Asset, token: Token, *, conversation_id: str, limit: int | None
     ) -> Sequence[Message]: ...
 
-    async def send(self, asset: Asset, token: Token, *, recipient_id: str, text: str) -> str:
-        """Le escribe a la persona. Devuelve el id del mensaje."""
+    def limits_for(self, asset: Asset) -> MessagingLimits:
+        """Lo que ese activo acepta al mandar un mensaje, y si deja leer las conversaciones."""
+        ...
+
+    async def send(self, asset: Asset, token: Token, *, recipient_id: str, message: OutboundMessage) -> str:
+        """Le escribe a la persona. El mensaje ya entra en los límites. Devuelve su id."""
         ...
 
 
@@ -119,6 +188,36 @@ class InsightsReader(Protocol):
     async def read(
         self, asset: Asset, token: Token, *, metrics: Sequence[str], period: Period, window: TimeWindow
     ) -> Sequence[MetricSeries]: ...
+
+
+class Publisher(Protocol):
+    """Publicar en un activo. Los límites de cada tipo de activo van en la descripción de la red."""
+
+    async def publish(self, asset: Asset, token: Token, *, draft: Draft) -> Outcome:
+        """Publica un borrador que ya pasó la validación.
+
+        Si la red publica en etapas, devuelve `PENDING` con lo necesario para retomarla en `resume`. Si
+        salió pero un paso posterior falló, `PUBLISHED_WITH_ERROR`: nunca una excepción, porque repetir el
+        pedido duplicaría la publicación.
+        """
+        ...
+
+    async def resume(self, asset: Asset, token: Token, *, resume: Mapping[str, str]) -> Outcome:
+        """Retoma una publicación pendiente. Llamarla dos veces no publica dos veces."""
+        ...
+
+    async def delete(self, asset: Asset, token: Token, *, post_id: str) -> None: ...
+
+
+class LookupReader(Protocol):
+    """Lo que hay que elegir antes de publicar: tableros, comunidades, etiquetas."""
+
+    async def choices(
+        self, asset: Asset, token: Token, *, lookup: str, query: str | None, parent: str | None
+    ) -> Sequence[Choice]:
+        """Las opciones de esa consulta. `lookup` es una de las que la red declara para ese tipo de activo;
+        `parent`, la elección de la que depende, si depende de una."""
+        ...
 
 
 class ProfileLookup(Protocol):
@@ -153,7 +252,10 @@ class WebhookParser(Protocol):
         """El esquema de firma de la red, armado con omniwebhook. Sin secreto, rechaza todo."""
         ...
 
-    def parse(self, body: bytes) -> Sequence[SocialEvent]: ...
+    def parse(self, body: bytes, *, query: Mapping[str, str] | None = None) -> Sequence[SocialEvent]:
+        """Traduce un aviso ya verificado. `query` son los parámetros de la URL a la que llegó, para las
+        redes cuyo aviso no dice de qué cuenta es."""
+        ...
 
 
 # ── Infraestructura común ───────────────────────────────────────────────────────────────────────
@@ -166,11 +268,20 @@ class ConnectionRepository(Protocol):
 
     async def list_by_owner(self, owner: str) -> Sequence[Connection]: ...
 
+    async def list_expiring(self, before: datetime, *, limit: int) -> Sequence[Connection]:
+        """Las conexiones activas cuyo token vence antes de ese momento, de la que vence primero a la que
+        vence última. Las que no vencen nunca no entran."""
+        ...
+
     async def add(self, connection: Connection) -> None: ...
 
     async def save(self, connection: Connection, *, expected_version: int) -> bool:
         """Guarda solo si la versión guardada sigue siendo `expected_version`. Devuelve si guardó."""
         ...
+
+
+ConnectionObserver = Callable[[ConnectionChange], Awaitable[None]]
+"""Se llama cuando una conexión deja de servir o vuelve a servir, después de guardar el cambio."""
 
 
 class AssetRepository(Protocol):
@@ -186,6 +297,72 @@ class AssetRepository(Protocol):
 
     async def replace_for_connection(self, connection_id: str, assets: Sequence[Asset]) -> None:
         """Deja exactamente esos activos para la conexión. Conserva el `id` de los que ya existían."""
+        ...
+
+
+class PublicationRepository(Protocol):
+    async def get(self, publication_id: str) -> Publication | None: ...
+
+    async def find_by_key(self, asset_id: str, idempotency_key: str) -> Publication | None: ...
+
+    async def add(self, publication: Publication) -> bool:
+        """Guarda una publicación nueva. Devuelve `False`, sin guardar, si ese activo ya tiene una con la
+        misma clave de idempotencia."""
+        ...
+
+    async def save(self, publication: Publication, *, expected_version: int) -> bool:
+        """Guarda solo si la versión guardada sigue siendo `expected_version`. Devuelve si guardó."""
+        ...
+
+    async def remove(self, publication_id: str) -> None:
+        """Libera la reserva de una publicación que con certeza no salió, para poder reintentarla."""
+        ...
+
+
+class QuotaLedger(Protocol):
+    """Lleva la cuenta de lo gastado por clave y por período (un día, en general)."""
+
+    async def spend(self, key: str, period: str, units: int, *, limit: int) -> bool:
+        """Suma `units` a lo gastado si el total no pasa de `limit`. Devuelve si entró.
+
+        Es atómico: dos procesos que gastan a la vez no pasan juntos el límite.
+        """
+        ...
+
+    async def spent(self, key: str, period: str) -> int: ...
+
+
+class RateLimitStore(Protocol):
+    """Cuándo se le puede volver a pedir algo a una red, compartido entre procesos.
+
+    Guarda un solo dato por clave: el momento del próximo pedido. Con eso se espacian los pedidos de
+    todos los procesos, y cuando la red pide esperar, esperan todos.
+    """
+
+    async def reserve(self, key: str, interval: float) -> float:
+        """Toma el próximo turno de `key` y corre el siguiente `interval` segundos. Devuelve cuántos
+        segundos faltan para ese turno: cero si ya se puede pedir."""
+        ...
+
+    async def pause(self, key: str, seconds: float) -> None:
+        """La red pidió esperar: nadie tiene turno hasta dentro de `seconds`. No acorta una espera
+        mayor que ya estuviera puesta."""
+        ...
+
+
+class ServerAppStore(Protocol):
+    """Las apps registradas en cada servidor de una red federada."""
+
+    async def get(self, provider: ProviderId, server: str) -> ServerApp | None: ...
+
+    async def add(self, app: ServerApp) -> ServerApp:
+        """Guarda la app si ese servidor no tenía una. Devuelve la que quedó guardada: si dos procesos
+        registran a la vez, los dos usan la misma."""
+        ...
+
+    async def replace(self, app: ServerApp) -> None:
+        """Cambia la app de ese servidor. Hace falta cuando cambió la URL de retorno: la app anterior
+        quedó atada a la vieja."""
         ...
 
 

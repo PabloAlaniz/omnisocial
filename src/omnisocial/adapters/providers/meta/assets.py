@@ -8,15 +8,10 @@ from typing_extensions import override
 
 from omnisocial.adapters.providers.meta.config import FACEBOOK_PAGE, INSTAGRAM_ACCOUNT
 from omnisocial.adapters.providers.meta.graph import GraphClient, as_dict, as_str
+from omnisocial.adapters.providers.meta.spec import INSTAGRAM_CAPABILITIES, PAGE_CAPABILITIES
 from omnisocial.application.ports import AssetDirectory
 from omnisocial.domain.asset import DiscoveredAsset
-from omnisocial.domain.provider import Capability
 from omnisocial.domain.token import Token, TokenKind
-
-PAGE_CAPABILITIES = frozenset(
-    {Capability.CONTENT, Capability.COMMENTS, Capability.MESSAGING, Capability.INSIGHTS, Capability.WEBHOOKS}
-)
-INSTAGRAM_CAPABILITIES = PAGE_CAPABILITIES
 
 _FIELDS = (
     "id,name,access_token,category,tasks,instagram_business_account{id,username,name,profile_picture_url}"
