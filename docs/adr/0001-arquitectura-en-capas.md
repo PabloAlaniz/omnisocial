@@ -1,5 +1,9 @@
 # 0001. Arquitectura en capas
 
+- **Estado:** Aceptada.
+- **Fecha:** 2026-11-23
+- **Relacionadas:** [0002](0002-capacidades-por-red.md), [0004](0004-reglas-estaticas-de-diseno.md), [0006](0006-cada-red-paga-lo-suyo.md)
+
 ## Contexto
 
 La librería tiene que servir para varias redes, varias bases y varios frameworks web. Si las reglas
@@ -31,3 +35,7 @@ opcionales.
 - Los paquetes opcionales (httpx, psycopg, cryptography, starlette) solo se importan en su adaptador. Quien
   no los instala no los carga.
 - Hay más archivos que en un cliente directo de la API. Es el precio de no repetir las reglas por red.
+
+## Alternativas descartadas
+
+- **Un cliente directo por red**, sin capas: menos archivos, pero cada red repite las reglas a su manera.

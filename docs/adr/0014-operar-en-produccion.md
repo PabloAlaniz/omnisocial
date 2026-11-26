@@ -1,5 +1,20 @@
 # 0014. Operar en producción
 
+- **Estado:** Aceptada.
+- **Fecha:** 2026-11-24
+- **Relacionadas:** [0007](0007-descripcion-y-contrato-de-una-red.md), [0012](0012-consultas-auxiliares-y-ritmo.md)
+
+**En resumen.** Seis decisiones para operar con muchas redes:
+
+1. Observar cada llamada a una red, sin datos de la cuenta.
+2. OpenTelemetry como extra.
+3. Repartir los límites de uso entre procesos.
+4. Un nivel de soporte por red.
+5. Pruebas en vivo, apagadas por defecto.
+6. La versión de API como dato con fecha.
+
+Además, cada versión publicada lleva su atestación de origen (SLSA) y su lista de componentes (SBOM).
+
 ## Contexto
 
 Con muchas redes, lo que falta no es otra red: es saber qué pasa cuando corren. Cuál falla, cuánto
@@ -14,9 +29,8 @@ y todas las operaciones, presentes y futuras, sin tocar los casos de uso. Lo que
 llamar a nadie no es una llamada y no aparece.
 
 **Una observación lleva nombres, no datos.** Ni tokens, ni mensajes de error (que pueden traer datos de
-la cuenta), ni rutas con ids. La ruta de un pedido se informa con cada tramo que no es un nombre
-reemplazado: hay redes donde el secreto viaja en la ruta, y una regla por red se olvidaría en la
-siguiente. El contrato común comprueba, en cada red, que ningún secreto que pasó por el transporte
+la cuenta), ni rutas con ids. De la ruta de un pedido se informan los nombres, y cada tramo que no
+es un nombre (un id, un token) se reemplaza por `:id`: hay redes donde el secreto viaja en la ruta. El contrato común comprueba, en cada red, que ningún secreto que pasó por el transporte
 aparezca en lo observado.
 
 **OpenTelemetry es un extra, no el contrato.** El núcleo define un observador mínimo; `omnisocial.otel`
@@ -35,8 +49,7 @@ respuestas simuladas no es estar probada.
 con un secreto. No publican salvo que alguien lo pida a mano.
 
 **La versión de API es un dato con fecha.** Cada red declara contra cuál está escrita y cuándo se la
-revisó; una tarea avisa por tiempo. No se intenta leer los anuncios de cada red: cambian de formato, y
-un aviso que falla en silencio es peor que uno por calendario.
+revisó; una tarea avisa por tiempo.
 
 ## Lo que queda afuera
 
@@ -48,4 +61,12 @@ un aviso que falla en silencio es peor que uno por calendario.
 
 - `Omnisocial.build` suma `observer`, y las fábricas de las redes con ritmo, `rate_limits`.
 - `create_schema` crea la tabla `omnisocial_rate_limits`.
-- Cada versión publicada lleva una atestación de origen y su lista de componentes.
+- Cada versión publicada lleva una [atestación de origen](../referencia/glosario.md) y su
+  [lista de componentes](../referencia/glosario.md) (ver [cómo se publica una versión](../versiones.md)).
+
+## Alternativas descartadas
+
+- **Una regla por red para limpiar las rutas.** Se olvidaría en la red siguiente; reemplazar todo
+  tramo que no es un nombre vale para todas.
+- **Leer los anuncios de cada red para saber cuándo retira una versión.** Cambian de formato, y un
+  aviso que falla en silencio es peor que uno por calendario.
