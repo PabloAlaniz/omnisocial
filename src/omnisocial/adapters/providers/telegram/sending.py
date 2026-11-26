@@ -89,7 +89,8 @@ class _Sender:
         boundary = f"omnisocial-{self._ids.new_id()}"
         return await self._client.upload(token, method, params, files=files, boundary=boundary)
 
-    async def _media(self, media: Sequence[Media]) -> tuple[list[str], list[Upload]]:
+    @staticmethod
+    async def _media(media: Sequence[Media]) -> tuple[list[str], list[Upload]]:
         """Para cada medio, su URL o la referencia al archivo que viaja en el mismo pedido."""
         references: list[str] = []
         files: list[Upload] = []

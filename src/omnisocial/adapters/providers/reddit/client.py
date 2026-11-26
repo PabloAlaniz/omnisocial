@@ -141,7 +141,8 @@ class RedditClient:
         """El transporte que ya lleva el User-Agent."""
         return self._transport
 
-    def _headers(self, token: str) -> dict[str, str]:
+    @staticmethod
+    def _headers(token: str) -> dict[str, str]:
         return {"Authorization": f"bearer {token}"}
 
     async def get(self, path: str, token: str, params: Params | None = None) -> object:

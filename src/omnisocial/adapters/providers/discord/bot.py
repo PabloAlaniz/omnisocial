@@ -213,15 +213,33 @@ class DiscordLookups(LookupReader):
         ]
 
 
+def _not_published(error: OmnisocialError, status: int | None = None) -> OmnisocialError:
+    if isinstance(error, ProviderError) and error.kind in _SAYS_WHY:
+        return error
+    return NotPublished(DISCORD, str(error), status=status)
+
+
 class DiscordPublisher(Publisher):
     def __init__(self, bot: DiscordBot, ids: IdGenerator) -> None:
         self._bot = bot
         self._ids = ids
 
-    def _not_published(self, error: OmnisocialError, status: int | None = None) -> OmnisocialError:
-        if isinstance(error, ProviderError) and error.kind in _SAYS_WHY:
-            return error
-        return NotPublished(DISCORD, str(error), status=status)
+    def _target(
+        self, channel: str, thread_name: str | None, body: dict[str, object]
+    ) -> tuple[str, dict[str, object]]:
+        """A dónde va el pedido y con qué cuerpo: un hilo nuevo en un foro, o un mensaje en el canal."""
+        if thread_name is not None:
+            return f"channels/{channel}/threads", {"name": thread_name, "message": body}
+        # Con el nonce, si el pedido se repite Discord devuelve el mensaje que ya creó.
+        nonce = self._ids.new_id().replace("-", "")[:_MAX_NONCE]
+        return f"channels/{channel}/messages", {**body, "nonce": nonce, "enforce_nonce": True}
+
+    def _raise_for_status(self, response: HttpResponse) -> None:
+        if _CLIENT_ERROR <= response.status < _SERVER_ERROR:
+            # Un 4xx es un rechazo: Discord no creó nada.
+            raise _not_published(self._bot.failure(response), response.status)
+        if response.status >= _SERVER_ERROR:
+            raise self._bot.failure(response)
 
     @override
     async def publish(self, asset: Asset, token: Token, *, draft: Draft) -> Outcome:
@@ -235,13 +253,7 @@ class DiscordPublisher(Publisher):
         if options.reply_to:
             body["message_reference"] = {"message_id": options.reply_to}
         channel = options.channel_id.strip()
-        payload: dict[str, object]
-        if options.thread_name is not None:
-            path, payload = f"channels/{channel}/threads", {"name": options.thread_name, "message": body}
-        else:
-            # Con el nonce, si el pedido se repite Discord devuelve el mensaje que ya creó.
-            nonce = self._ids.new_id().replace("-", "")[:_MAX_NONCE]
-            path, payload = f"channels/{channel}/messages", {**body, "nonce": nonce, "enforce_nonce": True}
+        path, payload = self._target(channel, options.thread_name, body)
         response = await self._bot.client.send(
             path,
             payload,
@@ -249,11 +261,7 @@ class DiscordPublisher(Publisher):
             authorization=self._bot.authorization,
             retry_safe=None if options.thread_name is not None else "lleva un nonce: Discord no lo repite",
         )
-        if _CLIENT_ERROR <= response.status < _SERVER_ERROR:
-            # Un 4xx es un rechazo: Discord no creó nada.
-            raise self._not_published(self._bot.failure(response), response.status)
-        if response.status >= _SERVER_ERROR:
-            raise self._bot.failure(response)
+        self._raise_for_status(response)
         created = as_dict(response.data)
         # En un foro la respuesta es el hilo, con su primer mensaje adentro.
         posted = as_dict(created.get("message")) if options.thread_name is not None else created

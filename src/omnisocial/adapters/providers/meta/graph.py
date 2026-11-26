@@ -163,6 +163,8 @@ class GraphClient:
         quedó antes de la ventana, no hay nada más adelante.
         """
         items: list[dict[str, object]] = []
+        # Solo se corta por fecha si los items la traen y la ventana tiene comienzo.
+        cuts_by_date = bool(time_field) and window.since is not None
         async for page in self.paginate(path, token, params):
             any_recent = False
             for item in page:
@@ -175,7 +177,7 @@ class GraphClient:
                 items.append(item)
                 if limit is not None and len(items) >= limit:
                     return items
-            if page and time_field and window.since is not None and not any_recent:
+            if page and cuts_by_date and not any_recent:
                 break
         return items
 

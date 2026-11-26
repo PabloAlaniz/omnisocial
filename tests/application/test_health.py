@@ -106,16 +106,8 @@ async def test_renueva_lo_que_esta_por_vencer_aunque_nadie_lo_use(world: World) 
     assert world.network.oauth.refreshed == 1
 
 
-async def test_el_informe_separa_lo_que_se_perdio_lo_que_no_se_puede_y_lo_que_fallo() -> None:
-    seen = Seen()
-    world = build_world(on_connection_change=seen)
-    ids = []
-    for number in range(4):
-        world.network.oauth.subject = Identity(FAKE, f"persona-{number}")
-        ids.append((await _connect(world, owner=f"dueño-{number}")).connection.id)
-    lost, plain, errored, unknown = ids
-
-    # Una conexión de una red que ya no está registrada, y una cuyo token no trae cómo renovarse.
+async def _unrefreshable(world: World, *, plain: str, unknown: str) -> None:
+    """Una conexión de una red que ya no está registrada, y una cuyo token no trae cómo renovarse."""
     orphan = await world.connections.get(unknown)
     assert orphan is not None
     moved = replace(orphan, provider=ProviderId("otra"), version=orphan.version + 1)
@@ -124,6 +116,17 @@ async def test_el_informe_separa_lo_que_se_perdio_lo_que_no_se_puede_y_lo_que_fa
     assert bare is not None
     no_refresh = bare.token.__class__(bare.token.kind, "sin-renovar", expires_at=bare.token.expires_at)
     await world.connections.save(bare.with_token(no_refresh, bare.updated_at), expected_version=bare.version)
+
+
+async def test_el_informe_separa_lo_que_se_perdio_lo_que_no_se_puede_y_lo_que_fallo() -> None:
+    seen = Seen()
+    world = build_world(on_connection_change=seen)
+    ids = []
+    for number in range(4):
+        world.network.oauth.subject = Identity(FAKE, f"persona-{number}")
+        ids.append((await _connect(world, owner=f"dueño-{number}")).connection.id)
+    lost, plain, errored, unknown = ids
+    await _unrefreshable(world, plain=plain, unknown=unknown)
 
     calls = 0
     original = world.network.oauth.refresh

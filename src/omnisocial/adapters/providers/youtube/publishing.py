@@ -179,16 +179,20 @@ class YouTubePublisher(Publisher):
                 continue
             # Una parte que no avanzó cuenta como falla, aunque YouTube haya respondido.
             failures += 1
-            if response is not None and _fatal(response):
-                raise self._abandoned(response, final=last)
-            if failures >= self._client.config.upload_attempts:
-                raise self._gave_up(final=last)
+            self._check_failure(response, failures, final=last)
             # Se le pregunta a la sesión hasta dónde llegó, y se sigue desde ahí.
             state = await self._ask(upload)
             if state is not None and state.status < _RESUME_INCOMPLETE:
                 return self._created(state)
             if state is not None:
                 offset = max(offset, _received(state))
+
+    def _check_failure(self, response: HttpResponse | None, failures: int, *, final: bool) -> None:
+        """Corta la subida si la falla no tiene arreglo o si ya no quedan intentos."""
+        if response is not None and _fatal(response):
+            raise self._abandoned(response, final=final)
+        if failures >= self._client.config.upload_attempts:
+            raise self._gave_up(final=final)
 
     async def _try_part(self, upload: _Upload, offset: int, chunk: int) -> HttpResponse | None:
         size = upload.file.size
