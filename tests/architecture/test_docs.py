@@ -142,6 +142,7 @@ def test_cada_red_tiene_su_pagina_con_la_misma_estructura(page: str) -> None:
     )
     # Qué tan probada está no se repite en cada página: se enlaza, para que no quede vieja.
     assert "niveles-de-soporte.md" in text, f"{page} no enlaza a los niveles de soporte."
+    assert "Nada se probó" not in text, f"{page}: qué tan probada está lo dicen los niveles de soporte."
 
 
 ADRS = sorted((DOCS / "adr").glob("[0-9][0-9][0-9][0-9]-*.md"))
@@ -160,7 +161,6 @@ def test_cada_adr_tiene_su_encabezado_y_esta_en_el_indice(adr: Path) -> None:
     )
     index = (DOCS / "adr" / "index.md").read_text(encoding="utf-8")
     assert f"]({adr.name})" in index, f"{adr.name} no está en docs/adr/index.md."
-    assert "Nada se probó" not in text, f"{page}: qué tan probada está lo dicen los niveles de soporte."
 
 
 def test_la_plantilla_de_una_red_sigue_la_misma_estructura() -> None:
