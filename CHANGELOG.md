@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.3.0](https://github.com/PabloAlaniz/omnisocial/compare/v0.2.0...v0.3.0) (2026-11-26)
+
+
+### Features
+
+* descripción y contrato de las redes, publicar, mensajería, operación, sitio de documentación y catorce redes nuevas ([#6](https://github.com/PabloAlaniz/omnisocial/issues/6)) ([984793f](https://github.com/PabloAlaniz/omnisocial/commit/984793f37680267de2fd1fabe72de5ad85f9245a))
+
 ## [0.2.0](https://github.com/PabloAlaniz/omnisocial/compare/v0.1.0...v0.2.0) (2026-11-23)
 
 
