@@ -1,5 +1,9 @@
 # 0007. Descripción y contrato de una red
 
+- **Estado:** Aceptada. Actualizada por [0012](0012-consultas-auxiliares-y-ritmo.md) y [0014](0014-operar-en-produccion.md), que suman el ritmo por red.
+- **Fecha:** 2026-11-24
+- **Relacionadas:** [0002](0002-capacidades-por-red.md), [0004](0004-reglas-estaticas-de-diseno.md)
+
 ## Contexto
 
 Con dos redes, sumar la tercera era copiar a mano lo que hacía Meta: el cliente de OAuth, la traducción de
@@ -13,7 +17,7 @@ que ser barato para quien lo mantiene.
 
 **Lo que se puede decir con datos, se declara.** Cada red trae un `NetworkSpec` (`spec.py`):
 
-- Sus capacidades y qué habilita cada tipo de activo. De ahí sale la matriz del README.
+- Sus capacidades y qué habilita cada tipo de activo. De ahí sale la matriz de capacidades.
 - Su `ErrorTable`: qué quiere decir cada código de error. El núcleo tiene siete clases (`ErrorKind`) y
   decide lo mismo para todas las redes: un token muerto invalida la conexión; un permiso faltante, un
   límite de uso o la cuota agotada vuelven como negativa y la conexión sigue sana; lo demás es una
@@ -33,8 +37,9 @@ esqueleto recién creado pasa todo.
 
 ## Lo que queda afuera
 
-- Las cabeceras de límite de uso y la concurrencia por red todavía no se declaran: se suman cuando haya
-  quien las use (ver la [hoja de ruta](../hoja-de-ruta.md)).
+- Las cabeceras de límite de uso y la concurrencia por red. Llegaron después: el ritmo por red en el
+  [ADR 0012](0012-consultas-auxiliares-y-ritmo.md) y su reparto entre procesos en el
+  [ADR 0014](0014-operar-en-produccion.md).
 - La descripción no reemplaza a los adaptadores de lectura: listar publicaciones o leer métricas sigue
   siendo código, porque ahí cada red es distinta de verdad.
 

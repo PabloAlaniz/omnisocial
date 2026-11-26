@@ -54,7 +54,7 @@ async def build_social() -> Omnisocial:
         providers=[
             meta_provider(
                 MetaConfig(
-                    api_version="v24.0",
+                    api_version="v26.0",
                     app_id=os.environ["META_APP_ID"],
                     app_secret=os.environ["META_APP_SECRET"],
                     webhook_verify_token=os.environ["META_WEBHOOK_VERIFY_TOKEN"],

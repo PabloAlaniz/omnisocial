@@ -1,5 +1,9 @@
 # 0011. Redes federadas y conexión por credencial
 
+- **Estado:** Aceptada.
+- **Fecha:** 2026-11-24
+- **Relacionadas:** [0002](0002-capacidades-por-red.md), [0010](0010-salud-de-las-conexiones.md)
+
 ## Contexto
 
 Hasta acá todas las redes se conectaban igual: una app registrada de antemano, un diálogo de OAuth y un
@@ -9,10 +13,16 @@ app, y la persona dice en cuál está su cuenta.
 
 ## Decisión
 
-**Tres formas de conectar, un mismo resultado.** Un proveedor trae una de las tres: `oauth` (el diálogo de
-siempre), `server_oauth` (el diálogo, en el servidor que elige la persona) o `credentials` (una credencial
-que se cambia por un token). Las tres terminan en una conexión con su token, y las tres renuevan y revocan
-por el mismo camino (`Provider.refresher`): el resto del núcleo no distingue cómo se conectó.
+**Tres formas de conectar, un mismo resultado.** Un proveedor trae una de las tres:
+
+| Campo de `Provider` | Cómo se conecta | Ejemplo |
+|---|---|---|
+| `oauth` | El diálogo de siempre, con una app registrada de antemano | Meta, YouTube |
+| `server_oauth` | El diálogo, en el servidor que elige la persona | Mastodon, Pixelfed |
+| `credentials` | Una credencial que se cambia por un token | Bluesky |
+
+Las tres terminan en una conexión con su token, y las tres renuevan y revocan por el mismo camino
+(`Provider.refresher`): el resto del núcleo no distingue cómo se conectó.
 
 **El servidor viaja con el token.** `Token.server` dice a qué servidor pertenece, y se guarda cifrado con
 él. Los adaptadores reciben lo mismo que antes (el activo y el token) y saben a dónde hablar. No hizo falta
@@ -45,5 +55,5 @@ adaptador declara qué datos pedir y cuáles son secretos, para que una interfaz
 - `create_schema` crea la tabla `omnisocial_server_apps`.
 - Dos redes pueden vivir en un mismo paquete cuando comparten protocolo (Mastodon y Pixelfed), como ya
   pasaba con Instagram y Meta.
-- El contrato común conecta de las tres formas: el arnés de cada red dice su servidor o su credencial de
+- El contrato común conecta de las tres formas: el [arnés](../referencia/glosario.md) de cada red dice su servidor o su credencial de
   prueba.
