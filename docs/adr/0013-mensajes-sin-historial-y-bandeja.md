@@ -1,5 +1,12 @@
 # 0013. Mensajes sin historial y bandeja unificada
 
+- **Estado:** Aceptada.
+- **Fecha:** 2026-11-24
+- **Relacionadas:** [0003](0003-webhooks-con-omniwebhook.md), [0012](0012-consultas-auxiliares-y-ritmo.md)
+
+**En resumen.** Dos decisiones: cómo se mandan mensajes en las redes que no guardan el historial
+(WhatsApp, Telegram) y la bandeja, que da la misma forma a comentarios, mensajes y reseñas.
+
 ## Contexto
 
 La mensajería se había modelado sobre Messenger e Instagram: la red deja leer las conversaciones, y de
@@ -55,3 +62,7 @@ no guarda la bandeja ni sabe qué se respondió: eso es de la app, que ya tiene 
 - Una red puede atender una capacidad con una credencial de la app y no con el token de la conexión (el
   bot de Discord). Si esa credencial deja de valer, la conexión no se invalida: el contrato común lo
   contempla.
+
+## Alternativas descartadas
+
+- **Devolver una lista vacía donde no hay historial.** Se confundiría con "nadie escribió".

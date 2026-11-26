@@ -1,5 +1,9 @@
 # 0008. Publicar
 
+- **Estado:** Aceptada. Actualizada por [0009](0009-cuota-y-subida-por-partes.md), que suma los medios como archivo.
+- **Fecha:** 2026-11-24
+- **Relacionadas:** [0009](0009-cuota-y-subida-por-partes.md), [0012](0012-consultas-auxiliares-y-ritmo.md)
+
 ## Contexto
 
 Publicar es distinto de leer en tres cosas. No se puede repetir: un reintento duplica la publicación.
@@ -35,8 +39,8 @@ núcleo valida el borrador con eso y devuelve todos los problemas juntos, sin ll
 nueva.
 
 **Los medios van por URL.** La red los descarga; la librería no. Por eso alcanza con exigir que la URL sea
-https y pública, y no hay descargas propias que proteger. Las redes que solo aceptan archivos suman la
-subida por partes cuando lleguen.
+https y pública, y no hay descargas propias que proteger. Las redes que solo aceptan archivos llegaron
+después, con la subida por partes del [ADR 0009](0009-cuota-y-subida-por-partes.md).
 
 **El adaptador nunca lanza una excepción después de haber publicado.** Devuelve `PUBLISHED_WITH_ERROR`. Es
 la regla que evita los duplicados.
@@ -54,3 +58,7 @@ la regla que evita los duplicados.
   sincronizarlos. Y publicar pide permisos propios, que no se suman solos a los de conexión.
 - `Omnisocial.build` recibe `publications`. Si falta, las publicaciones quedan en memoria.
 - Una publicación `STARTED` vieja no se resuelve sola: la app decide si la da por perdida.
+
+## Alternativas descartadas
+
+- **Reintentar sola una publicación en duda.** Publicar dos veces es peor que avisar que hay que mirar.
