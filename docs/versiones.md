@@ -1,5 +1,8 @@
 # Cómo se publica una versión
 
+Para quien mantiene el proyecto: cómo sale una versión a PyPI y qué la acompaña. Lo que cambió en cada
+versión está en el [CHANGELOG](https://github.com/PabloAlaniz/omnisocial/blob/main/CHANGELOG.md).
+
 ## El circuito
 
 1. Cada commit en `main` sigue [Conventional Commits](https://www.conventionalcommits.org/es/).
@@ -24,10 +27,12 @@ Además, [`scorecard.yml`](https://github.com/PabloAlaniz/omnisocial/blob/main/.
 prácticas de seguridad del repositorio, y Dependabot propone las actualizaciones de dependencias y de
 acciones. Las acciones van fijadas por commit.
 
+La configuración del repositorio que esto necesita:
+
 | Dónde | Qué |
 |---|---|
 | GitHub, *Settings → Code security* | Activar *Code scanning*, que es donde Scorecard deja sus resultados |
-| GitHub, *Settings → Branches* | Proteger `main` (revisión y checks obligatorios): es lo que más pesa en la puntuación |
+| GitHub, *Settings → Rules → Rulesets* | El ruleset `main`: cambios solo por pull request, CI obligatoria, sin force-push ni borrado. Es lo que más pesa en la puntuación |
 
 ## Publicación de confianza
 

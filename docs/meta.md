@@ -190,7 +190,7 @@ de tiempo, así que no hay control de frescura: la firma y la deduplicación son
 anterior. Durante el cambio:
 
 ```python
-MetaConfig(app_secret=nuevo, previous_app_secrets=(anterior,), ...)
+MetaConfig(..., app_secret=nuevo, previous_app_secrets=(anterior,))
 ```
 
 y después de un rato se saca el anterior.

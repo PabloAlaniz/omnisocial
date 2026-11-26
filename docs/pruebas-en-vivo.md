@@ -6,6 +6,9 @@ real, con una cuenta de prueba. Es lo único que dice si un adaptador funciona d
 **Viene apagada.** Cada red se enciende cargando un secreto en el repositorio. Sin el secreto, esa red
 se saltea y la corrida sigue.
 
+Por eso la insignia "En vivo" del README en verde quiere decir que la corrida terminó bien, no que se
+probó alguna red: el resumen de cada corrida dice cuáles se probaron.
+
 ## Qué comprueba
 
 Por defecto solo lee, sin cambiar nada en la cuenta:
@@ -28,9 +31,9 @@ En *Settings → Secrets and variables → Actions*, un secreto llamado `OMNISOC
 
 ```json
 {
-  "config": {"client_id": "...", "client_secret": "..."},
-  "token": {"access_token": "...", "refresh_token": "...", "server": "mastodon.social"},
-  "write": {"options": {"chat_id": "@canal_de_prueba"}}
+  "config": {"client_name": "Prueba"},
+  "token": {"access_token": "...", "server": "mastodon.social"},
+  "write": {"options": {"visibility": "direct"}}
 }
 ```
 
@@ -40,7 +43,7 @@ En *Settings → Secrets and variables → Actions*, un secreto llamado `OMNISOC
   `connect_with_credentials` en las redes que conectan así.
 - **`write`**: opcional. Las opciones para publicar (`options`), que algunas redes exigen.
 
-Los nombres de red son los de la matriz: `meta`, `instagram`, `tiktok`, `youtube`, `linkedin`, `x`,
+`<RED>` es el id de la red en mayúsculas. Los ids son `meta`, `instagram`, `tiktok`, `youtube`, `linkedin`, `x`,
 `threads`, `bluesky`, `mastodon`, `pixelfed`, `pinterest`, `reddit`, `google_business`, `whatsapp`,
 `telegram`, `discord` y `discord_webhook`.
 

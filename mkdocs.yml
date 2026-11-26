@@ -30,6 +30,7 @@ theme:
 
 markdown_extensions:
   - admonition
+  - def_list
   - tables
   - toc:
       permalink: true
@@ -45,9 +46,19 @@ validation:
 # Toda página de `docs/` tiene que estar acá: un test lo comprueba.
 nav:
   - Inicio: index.md
-  - Guía de uso: guia.md
+  - Primeros pasos: primeros-pasos.md
+  - Guías:
+      - Instalar y armar: instalar-y-armar.md
+      - Conectar cuentas: conectar.md
+      - Login con una red: login.md
+      - Publicar: publicar-contenido.md
+      - Comentarios, mensajes y bandeja: comentarios-y-mensajes.md
+      - Métricas: metricas.md
+      - Perfiles públicos: perfiles-publicos.md
+      - Avisos (webhooks): webhooks.md
+      - Mantener vivas las conexiones: conexiones.md
+      - Operar en producción: operar.md
   - Redes:
-      - Lo que vale para todas: redes-pendientes.md
       - Meta: meta.md
       - Instagram con login propio: instagram.md
       - Threads: threads.md
@@ -63,14 +74,11 @@ nav:
       - Reddit: reddit.md
       - Telegram: telegram.md
       - Discord: discord.md
-  - Operar:
-      - Operar en producción: operar.md
+  - Referencia:
+      - Negativas y errores: referencia/negativas.md
+      - Glosario: referencia/glosario.md
       - Niveles de soporte: niveles-de-soporte.md
-      - Pruebas en vivo: pruebas-en-vivo.md
-  - Contribuir:
-      - Sumar una red: nueva-red.md
-      - Cómo se publica una versión: publicar.md
-      - Hoja de ruta: hoja-de-ruta.md
+      - Changelog: https://github.com/PabloAlaniz/omnisocial/blob/main/CHANGELOG.md
   - Decisiones de diseño:
       - "0001. Arquitectura en capas": adr/0001-arquitectura-en-capas.md
       - "0002. Capacidades por red": adr/0002-capacidades-por-red.md
@@ -86,3 +94,8 @@ nav:
       - "0012. Consultas auxiliares y ritmo por red": adr/0012-consultas-auxiliares-y-ritmo.md
       - "0013. Mensajes sin historial y bandeja unificada": adr/0013-mensajes-sin-historial-y-bandeja.md
       - "0014. Operar en producción": adr/0014-operar-en-produccion.md
+  - Contribuir:
+      - Sumar una red: nueva-red.md
+      - Pruebas en vivo: pruebas-en-vivo.md
+      - Cómo se publica una versión: versiones.md
+      - Hoja de ruta: hoja-de-ruta.md

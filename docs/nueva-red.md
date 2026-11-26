@@ -303,7 +303,7 @@ en "Lo que conviene saber" y enlaza a los [niveles de soporte](niveles-de-soport
 Después:
 
 - `uv run python scripts/matriz.py` suma la red a la matriz del README.
-- `uv run python scripts/sitio.py` actualiza la portada y la guía del sitio, que salen del README.
+- `uv run python scripts/sitio.py` actualiza la portada del sitio, que sale del README.
 - La página se agrega al índice del sitio, en `mkdocs.yml`. El sitio se arma en modo estricto: una
   página fuera del índice o un link roto hacen fallar el CI. Para verlo:
   `uv run --group docs mkdocs serve`.

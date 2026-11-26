@@ -16,19 +16,19 @@ token, cuándo renovarlo, qué páginas administra la persona, cómo leer métri
 cada versión de la API, cómo responder un mensaje sin que la red bloquee la cuenta. `omnisocial` separa
 esas reglas de cada red:
 
-- **Un núcleo para todas las redes.** Autorizar, guardar conexiones, renovar tokens con
-  compare-and-swap, descubrir activos y enrutar webhooks se hace igual para Meta que para la próxima red.
-- **Capacidades, no herencia.** Cada red implementa solo lo que soporta (`login`, `assets`, `content`,
-  `publishing`, `comments`, `messaging`, `insights`, `webhooks`, `public_profiles`). Si una red no tiene mensajes privados, el caso de uso
-  lo dice con un resultado, no con una excepción a mitad de camino.
+- **Un núcleo para todas las redes.** Autorizar, guardar conexiones, renovar tokens (sin perder la
+  conexión aunque dos procesos renueven a la vez), descubrir activos y enrutar avisos se hace igual para
+  Meta que para la próxima red.
+- **Cada red, lo que tiene.** Cada red implementa solo las capacidades que soporta. Si una red no tiene
+  mensajes privados, pedírselos vuelve como un resultado, no como una excepción a mitad de camino.
 - **Resultados tipados.** Las decisiones de negocio (el `state` venció, la conexión fue revocada, pasó la
   ventana para responder) vuelven como `Refused(reason)`. Las excepciones quedan para lo que el código no
   puede decidir.
 - **Webhooks con [omniwebhook](https://pypi.org/project/omniwebhook/).** Cada aviso se verifica y se
   reserva antes de procesarlo: un reintento de la red no se procesa dos veces, y si el procesamiento falla,
   el reintento entra.
-- **Cualquier base, cualquier cliente HTTP.** Son puertos: hay adaptadores en memoria y para PostgreSQL, y
-  un transporte con httpx.
+- **Cualquier base, cualquier cliente HTTP.** El almacenamiento y el transporte son intercambiables: hay
+  versiones en memoria y para PostgreSQL, y un transporte con httpx.
 
 Redes disponibles, y qué puede hacer cada una y cada tipo de activo:
 
@@ -77,9 +77,11 @@ Instagram está dos veces: a través de una página de Facebook (dentro de Meta,
 propio, sin página ([cuál conviene](instagram.md)).
 
 La fila de la red dice lo que ofrece; la de cada activo, lo que ese activo habilita. Lo que falta es
-porque la API de la red no lo ofrece (TikTok no tiene comentarios ni mensajes; LinkedIn y Threads no tienen mensajes) o porque todavía no se integró
-(los mensajes de X; los avisos de YouTube, LinkedIn y X).
+porque la API de la red no lo ofrece (TikTok no tiene comentarios ni mensajes; LinkedIn y Threads no
+tienen mensajes) o porque todavía no se integró (los mensajes de X; los avisos de YouTube, LinkedIn y X).
+"Soporte" dice qué tan probada está cada red: ver
+[niveles de soporte](niveles-de-soporte.md).
 
-La arquitectura está pensada para sumar otras sin tocar el núcleo. Un comando crea el esqueleto de una red
-que ya pasa el contrato común: ver [Sumar una red](nueva-red.md), [cómo contribuir](https://github.com/PabloAlaniz/omnisocial/blob/main/CONTRIBUTING.md), la
-[hoja de ruta](hoja-de-ruta.md) y [lo que vale para todas las redes](redes-pendientes.md).
+Sumar otra red no toca el núcleo: un comando crea el esqueleto de una red que ya pasa el contrato común.
+Ver [Sumar una red](nueva-red.md) y la
+[hoja de ruta](hoja-de-ruta.md).

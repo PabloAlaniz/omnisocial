@@ -1,6 +1,6 @@
 # Niveles de soporte
 
-La matriz del README dice, para cada red, cuánto respaldo tiene. Sale de la descripción de la red
+La columna "Soporte" de la [matriz](index.md) dice, para cada red, cuánto respaldo tiene. Sale de la descripción de la red
 (`NetworkSpec.support`).
 
 | Nivel | Qué quiere decir |
@@ -11,7 +11,7 @@ La matriz del README dice, para cada red, cuánto respaldo tiene. Sale de la des
 
 **Hoy todas las redes son experimentales.** El código está probado contra respuestas simuladas, que
 dicen si el adaptador hace lo que su autor creyó que la red pedía, no si la red pide eso. Cada página de
-red lista lo que quedó sin verificar.
+red lista, al final, lo que quedó sin verificar.
 
 ## Cómo sube de nivel una red
 
