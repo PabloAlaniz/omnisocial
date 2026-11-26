@@ -36,19 +36,9 @@ uv run python scripts/nueva_red.py mired --nombre "Mi Red"
 ```
 
 Crea una red de solo login que ya pasa el contrato común, con lo que falta marcado como `PENDIENTE`. El
-paso a paso está en [docs/nueva-red.md](docs/nueva-red.md).
-
-Una red está terminada cuando:
-
-- [ ] Declara su descripción (`spec.py`): capacidades, tipos de activo, OAuth y tabla de errores.
-- [ ] Pasa el contrato común (`tests/adapters/<red>/test_contract.py`) con respuestas copiadas de la API
-      real, sin datos personales ni tokens.
-- [ ] Prueba la traducción de cada capacidad con respuestas grabadas. Ningún test llama a la red.
-- [ ] No suma dependencias obligatorias ni importa a otra red ([ADR 0006](docs/adr/0006-cada-red-paga-lo-suyo.md)).
-- [ ] Tiene su página en `docs/`: cómo crear la app, permisos y revisión, límites, errores y lo que
-      conviene saber.
-- [ ] Aparece en la matriz del README (`uv run python scripts/matriz.py`) y en la lista de redes de la
-      plantilla de issues.
+paso a paso, y la lista de lo que tiene que tener una red para estar terminada, están en
+[Sumar una red](docs/nueva-red.md). Lo que pide cada capacidad, en
+[Capacidades de una red](docs/nueva-red-capacidades.md).
 
 Si la red necesita una biblioteca pesada o tiene su propio ritmo de versiones, puede vivir en un paquete
 aparte y registrarse por entry point. El contrato y el transporte falso viajan en `omnisocial.testing` para

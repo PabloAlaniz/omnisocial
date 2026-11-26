@@ -1,5 +1,9 @@
 # 0003. Webhooks con omniwebhook
 
+- **Estado:** Aceptada.
+- **Fecha:** 2026-11-23
+- **Relacionadas:** [0013](0013-mensajes-sin-historial-y-bandeja.md)
+
 ## Contexto
 
 Recibir webhooks bien es más que verificar una firma. Las redes reintentan: si la app responde tarde o
@@ -15,14 +19,13 @@ resueltas, especificadas y probadas en [omniwebhook](https://pypi.org/project/om
   omniwebhook (Meta usa `hmac_body_scheme` sobre `X-Hub-Signature-256`) y no reimplementa HMAC.
 - `HandleWebhook` arma un receptor de omniwebhook por red con el almacén de reservas que se le inyecta.
   Traducir, enrutar y llamar a `on_events` es el procesamiento que omniwebhook reserva, completa o libera.
-- El almacén de reservas es obligatorio en `Omnisocial.build`. Uno en memoria deduplicaría solo dentro de
-  un proceso y escondería el problema hasta tener dos instancias.
+- El almacén de reservas es obligatorio en `Omnisocial.build`.
 - El saludo de suscripción (`hub.challenge` en Meta) no es parte de omniwebhook: queda en cada red
   (`WebhookParser.handshake`).
 
 ## Consecuencias
 
-- **La clave es la huella del cuerpo** cuando la red no manda un id de entrega, como Meta. Dos avisos
+- **La clave es la [huella](../referencia/glosario.md) del cuerpo** cuando la red no manda un id de entrega, como Meta. Dos avisos
   distintos con el mismo cuerpo exacto se tomarían por uno; en Meta no pasa, porque cada entrega lleva su
   marca de tiempo.
 - **La deduplicación es por entrega, no por evento.** Una entrega de Meta puede traer varios eventos; si
@@ -31,3 +34,10 @@ resueltas, especificadas y probadas en [omniwebhook](https://pypi.org/project/om
 - **Sin control de frescura** para esquemas que no firman una marca de tiempo. La firma y la reserva son la
   defensa contra la repetición.
 - Las respuestas HTTP son las de omniwebhook (`http_status_for`) y el cuerpo no dice qué falló.
+
+## Alternativas descartadas
+
+- **Verificar firmas y deduplicar dentro de omnisocial.** Repetiría reglas que omniwebhook ya resuelve
+  y prueba.
+- **Un almacén de reservas en memoria por defecto.** Deduplicaría solo dentro de un proceso y
+  escondería el problema hasta tener dos instancias.

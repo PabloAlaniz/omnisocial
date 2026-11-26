@@ -37,9 +37,10 @@ Lo que sigue:
   1. Completar lo marcado con PENDIENTE (buscar: grep -rn PENDIENTE src tests docs).
   2. uv run ruff check --fix . && uv run ruff format . && uv run mypy && uv run lint-imports
   3. uv run pytest tests/adapters/$id
-  4. uv run python scripts/matriz.py    # suma la red a la matriz del README
-  5. Sumar la página a la lista de documentación del README y la red a la lista de
+  4. Sumar docs/$id.md a la sección Redes de mkdocs.yml y la red a la lista de
      .github/ISSUE_TEMPLATE/error-en-una-red.yml.
+  5. uv run python scripts/matriz.py && uv run python scripts/sitio.py   # la matriz y la portada
+  6. uv run pytest   # la suite completa recién pasa después de los pasos 4 y 5
 """
 
 

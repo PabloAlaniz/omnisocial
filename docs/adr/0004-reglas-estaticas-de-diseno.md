@@ -1,5 +1,9 @@
 # 0004. Reglas estáticas de diseño
 
+- **Estado:** Aceptada.
+- **Fecha:** 2026-11-23
+- **Relacionadas:** [0001](0001-arquitectura-en-capas.md), [0002](0002-capacidades-por-red.md)
+
 ## Contexto
 
 La arquitectura en capas (ADR 0001) y las capacidades por red (ADR 0002) son acuerdos. Si nada los hace
@@ -17,19 +21,20 @@ opcionales. Ver `[tool.importlinter]`.
 
 ### ruff: lo que se ve en el código
 
-| Regla | Para qué |
-|-------|----------|
-| `TID251` (banned-api) | El reloj, los ids, el azar y las variables de entorno no se tocan directo: van por `Clock`, `IdGenerator`, `SecretGenerator` o se inyectan. Solo `adapters/system.py` y el adaptador de cifrado están exentos. |
-| `C90`, `PLR0911/0912/0915` | Responsabilidad única: complejidad ≤ 8, ≤ 8 ramas, ≤ 5 returns, ≤ 30 sentencias por función. |
-| `PLR0913`, `PLR0917` | ≤ 6 argumentos y ≤ 4 posicionales. Más dependencias que eso suele ser una clase que hace demasiado; la excepción es la raíz de composición (`entrypoints/hub.py`). |
-| `ARG` | Sin argumentos sin usar. Un adaptador que no usa un argumento del puerto lo dice con `@override`. |
-| `FBT` | Sin booleanos posicionales: `set_hidden(hidden=True)`, nunca `set_hidden(True)`. |
-| `SLF` | Nadie toca los privados de otro objeto. |
-| `BLE`, `TRY` | No se atrapa todo; las excepciones se re-lanzan con su causa. |
-| `DTZ` | Toda fecha lleva zona horaria. |
-| `ANN401` | Sin `Any` en las firmas. |
-| `PLR2004` | Sin números mágicos: las reglas tienen nombre. |
-| `ERA` | Sin código comentado. |
+Las reglas que hacen cumplir el diseño, no el estilo:
+
+- **Nada de efectos sueltos.** El reloj, los ids, el azar y las variables de entorno no se tocan directo:
+  van por `Clock`, `IdGenerator` o `SecretGenerator`, o se inyectan. Solo `adapters/system.py` y el
+  adaptador de cifrado están exentos.
+- **Funciones chicas.** Topes de complejidad, ramas, returns, sentencias y argumentos por función. Más
+  dependencias que eso suele ser una clase que hace demasiado; la excepción es la
+  [raíz de composición](../referencia/glosario.md) (`entrypoints/hub.py`).
+- **Sin atajos que esconden errores**: argumentos sin usar, booleanos posicionales, privados ajenos,
+  excepciones atrapadas de más, fechas sin zona, `Any` en las firmas, números mágicos, código comentado.
+
+Las reglas y sus umbrales exactos están en `[tool.ruff]` de
+[`pyproject.toml`](https://github.com/PabloAlaniz/omnisocial/blob/main/pyproject.toml): ese es el lugar que
+manda, y no se repite acá para que no quede viejo.
 
 En los tests se relajan solo las reglas que chocan con la forma de un test (literales esperados, dobles que
 no usan todos los argumentos).
@@ -48,7 +53,5 @@ no usan todos los argumentos).
 - `typing_extensions` pasa a ser dependencia, solo por `override`.
 - Los dobles de los tests siguen siendo estructurales (no heredan): un doble que no coincide con su puerto
   lo marca mypy en el punto donde se usa.
-- Refactors que estas reglas forzaron al adoptarlas: `GetValidToken` separa decidir la renovación de
-  guardarla, `CompleteAuthorization` separa validar el pedido de canjear el código, `StartAuthorization`
-  recibe `AuthorizationSettings` en vez de tres parámetros sueltos, y `MetaInsightsReader.catalog` dejó de
-  pisar una propiedad de solo lectura del puerto.
+- Adoptarlas forzó a partir algunos casos de uso que decidían varias cosas a la vez (`GetValidToken`,
+  `CompleteAuthorization`, `StartAuthorization`).

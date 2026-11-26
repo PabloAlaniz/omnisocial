@@ -98,3 +98,21 @@ def test_cada_red_tiene_su_pagina_con_la_misma_estructura(page: str) -> None:
     assert re.search(r"^###? Armado$", text, flags=re.MULTILINE), f"{page}: falta cómo se arma."
     # Qué tan probada está no se repite en cada página: se enlaza, para que no quede vieja.
     assert "niveles-de-soporte.md" in text, f"{page} no enlaza a los niveles de soporte."
+
+
+ADRS = sorted((DOCS / "adr").glob("[0-9][0-9][0-9][0-9]-*.md"))
+
+
+@pytest.mark.parametrize("adr", ADRS, ids=[adr.name[:4] for adr in ADRS])
+def test_cada_adr_tiene_su_encabezado_y_esta_en_el_indice(adr: Path) -> None:
+    text = adr.read_text(encoding="utf-8")
+    assert text.startswith(f"# {adr.name[:4]}. "), f"{adr.name} no empieza con su número y título."
+    assert re.search(r"^- \*\*Estado:\*\* \S", text, flags=re.MULTILINE), f"{adr.name}: falta el estado."
+    assert re.search(r"^- \*\*Fecha:\*\* \d{4}-\d{2}-\d{2}$", text, flags=re.MULTILINE), (
+        f"{adr.name}: falta la fecha."
+    )
+    assert re.search(r"^- \*\*Relacionadas:\*\* ", text, flags=re.MULTILINE), (
+        f"{adr.name}: faltan las relacionadas."
+    )
+    index = (DOCS / "adr" / "index.md").read_text(encoding="utf-8")
+    assert f"]({adr.name})" in index, f"{adr.name} no está en docs/adr/index.md."
