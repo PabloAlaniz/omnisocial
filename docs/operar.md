@@ -1,4 +1,7 @@
-# Operar en producción: observar, repartir los límites y saber qué se prueba
+# Operar en producción
+
+Cómo observar lo que la librería hace con cada red, repartir los límites de uso entre varios procesos y
+seguir las versiones de API.
 
 ## Observar
 

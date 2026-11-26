@@ -14,6 +14,8 @@ import pkgutil
 import sys
 from pathlib import Path
 
+from sitio import site_page  # el link va al sitio, para que funcione también en PyPI
+
 from omnisocial.adapters import providers
 from omnisocial.domain.provider import Capability
 from omnisocial.domain.spec import NetworkSpec, SupportLevel
@@ -70,7 +72,11 @@ def render(networks: list[NetworkSpec]) -> str:
     header = ["Red", "Activo", "Soporte", *COLUMNS.values()]
     lines = ["| " + " | ".join(header) + " |", "|" + "---|" * len(header)]
     for spec in networks:
-        name = f"[**{spec.name}**]({spec.docs})" if spec.docs else f"**{spec.name}**"
+        name = (
+            f"[**{spec.name}**]({site_page(spec.docs.removeprefix('docs/'))})"
+            if spec.docs
+            else f"**{spec.name}**"
+        )
         lines.append(_row((name, "", SUPPORT[spec.support]), spec.capabilities))
         lines.extend(_row(("", f"`{kind}`", ""), spec.assets[kind]) for kind in sorted(spec.assets))
     return "\n".join(lines)

@@ -7,6 +7,8 @@ Gracias por querer sumar. Lo que más ayuda:
   clasificado, un límite que cambió.
 - **Lo que aprendiste de una API** y no está en la documentación oficial. Va en la página de la red, en
   `docs/`.
+- **Documentación**: un ejemplo que no anda, algo que no se entiende. El sitio se arma desde `docs/` con
+  MkDocs; la portada sale del README.
 
 Antes de un cambio grande al núcleo (un puerto nuevo, un cambio en el dominio), abrí un issue para
 conversarlo: el núcleo es chico a propósito.
@@ -18,6 +20,9 @@ uv sync
 uv run pytest                 # unitarios, con cobertura
 uv run pytest -m integration  # contra PostgreSQL (OMNISOCIAL_PG_URL)
 uv run ruff format . && uv run ruff check . && uv run mypy && uv run lint-imports
+uv run python scripts/matriz.py   # la matriz de capacidades del README
+uv run python scripts/sitio.py    # la portada del sitio, que sale del README
+uv run --group docs mkdocs serve  # el sitio de documentación, en http://127.0.0.1:8000
 ```
 
 Todo eso corre en CI y tiene que pasar. Las reglas de diseño (capas, funciones chicas, nada de leer el reloj
@@ -59,7 +64,7 @@ sana que queda inválida, por ejemplo), el arreglo suele ser una línea en la ta
 
 Los mensajes siguen [Conventional Commits](https://www.conventionalcommits.org/es/), en español:
 `feat(tiktok): …`, `fix(meta): …`, `docs: …`. De ahí salen el número de versión y el CHANGELOG
-([cómo se publica](docs/publicar.md)). Un cambio incompatible lleva `!` y explica cómo migrar.
+([cómo se publica](docs/versiones.md)). Un cambio incompatible lleva `!` y explica cómo migrar.
 
 ## Seguridad
 

@@ -66,8 +66,8 @@ def test_las_versiones_de_hoy_estan_al_dia(capsys: pytest.CaptureFixture[str]) -
 def test_la_matriz_muestra_el_nivel_de_soporte() -> None:
     table = matriz.render([_spec("Probada", None, SupportLevel.VERIFIED), _spec("Nueva", None)])
     assert "| Red | Activo | Soporte |" in table
-    assert "| [**Probada**](docs/probada.md) |  | verificada |" in table
-    assert "| [**Nueva**](docs/nueva.md) |  | experimental |" in table
+    assert "| [**Probada**](https://pabloalaniz.github.io/omnisocial/probada/) |  | verificada |" in table
+    assert "| [**Nueva**](https://pabloalaniz.github.io/omnisocial/nueva/) |  | experimental |" in table
     assert set(matriz.SUPPORT) == set(SupportLevel)
 
 

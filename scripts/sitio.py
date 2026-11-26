@@ -1,11 +1,16 @@
-"""Genera las dos páginas del sitio de documentación que salen del README.
+"""Genera la portada del sitio de documentación a partir del README.
 
-    uv run python scripts/sitio.py           # reescribe docs/index.md y docs/guia.md
-    uv run python scripts/sitio.py --check   # falla si quedaron viejas
+    uv run python scripts/sitio.py           # reescribe docs/index.md
+    uv run python scripts/sitio.py --check   # falla si quedó vieja
 
-El README es la fuente: la portada del sitio es su presentación con la matriz de redes, y la guía, sus
-secciones de uso. Así no hay dos textos que mantener. Los links se ajustan, porque el README vive en la
-raíz y las páginas, en `docs/`.
+La portada es la presentación del README con la matriz de redes: todo lo que está antes de
+`## Instalación`. Así la matriz se mantiene en un solo lugar. El resto del sitio se escribe en `docs/`.
+
+Los links se ajustan, porque el README se lee en GitHub y en PyPI y la portada vive en `docs/`:
+
+- Un link al sitio publicado (`https://pabloalaniz.github.io/omnisocial/meta/`) pasa a ser relativo
+  (`meta.md`), para que el armado en modo estricto lo compruebe.
+- Un link relativo a `docs/` pierde el prefijo; uno a otro archivo del repositorio va a GitHub.
 """
 
 from __future__ import annotations
@@ -17,17 +22,32 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 README = ROOT / "README.md"
 DOCS = ROOT / "docs"
+SITE = "https://pabloalaniz.github.io/omnisocial/"
 REPOSITORY = "https://github.com/PabloAlaniz/omnisocial/blob/main"
 NOTE = "<!-- Generada por scripts/sitio.py a partir del README. No editar a mano. -->"
 
-GUIDE_STARTS = "## Instalación"
-GUIDE_ENDS = "## Documentación"
+INTRO_ENDS = "## Instalación"
 
-_LINK = re.compile(r"\]\((?!https?://|#|mailto:)([^)]+)\)")
+_LINK = re.compile(r"\]\(([^)]+)\)")
+
+
+def site_page(page: str) -> str:
+    """La URL publicada de una página de `docs/` (`meta.md` → `.../meta/`)."""
+    if page == "index.md":
+        return SITE
+    path, _, anchor = page.partition("#")
+    url = SITE + path.removesuffix(".md") + "/"
+    return f"{url}#{anchor}" if anchor else url
 
 
 def _target(target: str) -> str:
     """A dónde apunta, visto desde `docs/`, un link escrito en el README."""
+    if target.startswith(SITE):
+        path, _, anchor = target.removeprefix(SITE).partition("#")
+        page = path.rstrip("/") + ".md" if path else "index.md"
+        return f"{page}#{anchor}" if anchor else page
+    if re.match(r"https?://|#|mailto:", target):
+        return target
     if target.startswith("docs/"):
         return target.removeprefix("docs/")
     # Lo que está fuera de `docs/` no es parte del sitio: va al repositorio.
@@ -40,17 +60,10 @@ def relink(text: str) -> str:
 
 def pages(readme: str) -> dict[str, str]:
     """El contenido de cada página generada, por su nombre de archivo."""
-    try:
-        intro, rest = readme.split(f"\n{GUIDE_STARTS}\n", 1)
-        guide, _ = rest.split(f"\n{GUIDE_ENDS}\n", 1)
-    except ValueError:
-        raise SystemExit(f"El README no tiene las secciones `{GUIDE_STARTS}` y `{GUIDE_ENDS}`.") from None
-    index = f"{NOTE}\n\n{relink(intro).strip()}\n"
-    body = f"{GUIDE_STARTS}\n{guide}"
-    return {
-        "index.md": index,
-        "guia.md": f"{NOTE}\n\n# Guía de uso\n\n{relink(body).strip()}\n",
-    }
+    if f"\n{INTRO_ENDS}\n" not in readme:
+        raise SystemExit(f"El README no tiene la sección `{INTRO_ENDS}`.")
+    intro = readme.split(f"\n{INTRO_ENDS}\n", 1)[0]
+    return {"index.md": f"{NOTE}\n\n{relink(intro).strip()}\n"}
 
 
 def main(argv: list[str]) -> int:
@@ -63,7 +76,7 @@ def main(argv: list[str]) -> int:
     if "--check" in argv:
         if stale:
             names = ", ".join(stale)
-            sys.stderr.write(f"Quedaron viejas: {names}. Corré `uv run python scripts/sitio.py`.\n")
+            sys.stderr.write(f"Quedó vieja: {names}. Corré `uv run python scripts/sitio.py`.\n")
             return 1
         return 0
     for name in stale:

@@ -2,12 +2,16 @@
 
 from __future__ import annotations
 
+import ast
 import re
 import subprocess
 import sys
+import textwrap
 from pathlib import Path
 
 import pytest
+
+from omnisocial import Refusal
 
 ROOT = Path(__file__).resolve().parents[2]
 DOCS = ROOT / "docs"
@@ -18,7 +22,7 @@ import sitio  # noqa: E402
 NETWORK_PAGES = sorted({spec.docs for spec in matriz.specs() if spec.docs})
 
 
-def test_las_paginas_que_salen_del_readme_estan_al_dia() -> None:
+def test_la_portada_que_sale_del_readme_esta_al_dia() -> None:
     result = subprocess.run(  # noqa: S603
         [sys.executable, str(ROOT / "scripts" / "sitio.py"), "--check"],
         capture_output=True,
@@ -31,21 +35,49 @@ def test_las_paginas_que_salen_del_readme_estan_al_dia() -> None:
 def test_los_links_del_readme_se_ajustan_al_sitio() -> None:
     text = (
         "[Meta](docs/meta.md) [ADR](docs/adr/0001-arquitectura-en-capas.md) [Contribuir](CONTRIBUTING.md) "
-        "[PyPI](https://pypi.org/project/omnisocial/) [arriba](#instalacion)"
+        "[PyPI](https://pypi.org/project/omnisocial/) [arriba](#instalacion) "
+        "[Bluesky](https://pabloalaniz.github.io/omnisocial/bluesky/) "
+        "[Paso](https://pabloalaniz.github.io/omnisocial/primeros-pasos/#2-crear) "
+        "[Inicio](https://pabloalaniz.github.io/omnisocial/)"
     )
     assert sitio.relink(text) == (
         "[Meta](meta.md) [ADR](adr/0001-arquitectura-en-capas.md) "
         "[Contribuir](https://github.com/PabloAlaniz/omnisocial/blob/main/CONTRIBUTING.md) "
-        "[PyPI](https://pypi.org/project/omnisocial/) [arriba](#instalacion)"
+        "[PyPI](https://pypi.org/project/omnisocial/) [arriba](#instalacion) "
+        "[Bluesky](bluesky.md) [Paso](primeros-pasos.md#2-crear) [Inicio](index.md)"
     )
-    made = sitio.pages(
-        "# omnisocial\n\nPresentación.\n\n## Instalación\n\npip\n\n## Documentación\n\n- lista\n"
-    )
-    assert made["index.md"].endswith("# omnisocial\n\nPresentación.\n")
-    assert made["guia.md"].endswith("# Guía de uso\n\n## Instalación\n\npip\n")
-    assert "lista" not in "".join(made.values())
-    with pytest.raises(SystemExit, match="no tiene las secciones"):
+    assert sitio.site_page("meta.md") == "https://pabloalaniz.github.io/omnisocial/meta/"
+    made = sitio.pages("# omnisocial\n\nPresentación.\n\n## Instalación\n\npip\n")
+    assert made == {"index.md": f"{sitio.NOTE}\n\n# omnisocial\n\nPresentación.\n"}
+    with pytest.raises(SystemExit, match="no tiene la sección"):
         sitio.pages("# sin secciones\n")
+
+
+def test_los_links_del_readme_van_al_sitio_publicado() -> None:
+    """El README también es la página de PyPI, donde un link relativo a `docs/` no lleva a ningún lado."""
+    readme = (ROOT / "README.md").read_text(encoding="utf-8")
+    assert re.findall(r"\]\((docs/[^)]+)\)", readme) == []
+
+
+def test_toda_negativa_esta_explicada() -> None:
+    text = (DOCS / "referencia" / "negativas.md").read_text(encoding="utf-8")
+    missing = [reason.name for reason in Refusal if f"`{reason.name}`" not in text]
+    assert missing == [], f"Faltan en docs/referencia/negativas.md: {missing}"
+
+
+def _python_blocks() -> list[tuple[str, str]]:
+    blocks = []
+    for path in [ROOT / "README.md", *sorted(DOCS.rglob("*.md"))]:
+        text = path.read_text(encoding="utf-8")
+        for number, code in enumerate(re.findall(r"^```python\n(.*?)^```", text, re.DOTALL | re.MULTILINE)):
+            blocks.append((f"{path.relative_to(ROOT)}#{number + 1}", textwrap.dedent(code)))
+    return blocks
+
+
+@pytest.mark.parametrize(("where", "code"), _python_blocks(), ids=[where for where, _ in _python_blocks()])
+def test_los_ejemplos_de_codigo_son_python_valido(where: str, code: str) -> None:
+    # Los ejemplos usan `await` suelto, como en un REPL asíncrono.
+    compile(code, where, "exec", flags=ast.PyCF_ALLOW_TOP_LEVEL_AWAIT, dont_inherit=True)
 
 
 def test_toda_pagina_esta_en_el_indice_del_sitio() -> None:
