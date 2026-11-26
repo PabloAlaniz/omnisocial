@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "omnisocial"
-version = "0.3.1"
+version = "0.3.2"
 description = "Redes sociales con las mismas reglas: login, conexiones, activos, publicaciones, comentarios, mensajes, métricas y webhooks, con un adaptador por red."
 readme = "README.md"
 license = "MIT"

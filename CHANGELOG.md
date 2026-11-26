@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.3.2](https://github.com/PabloAlaniz/omnisocial/compare/v0.3.1...v0.3.2) (2026-11-26)
+
+
+### Documentation
+
+* estructura común de las páginas de red y ADR con índice y plantilla ([#15](https://github.com/PabloAlaniz/omnisocial/issues/15)) ([4bbbccd](https://github.com/PabloAlaniz/omnisocial/commit/4bbbccd062d1a7bcbc8a158f99784c6e5fe64ae9))
+
 ## [0.3.1](https://github.com/PabloAlaniz/omnisocial/compare/v0.3.0...v0.3.1) (2026-11-26)
 
 
