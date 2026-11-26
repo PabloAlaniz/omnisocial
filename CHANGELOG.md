@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.3.1](https://github.com/PabloAlaniz/omnisocial/compare/v0.3.0...v0.3.1) (2026-11-26)
+
+
+### Documentation
+
+* README corto, guías separadas y referencia de negativas ([#10](https://github.com/PabloAlaniz/omnisocial/issues/10)) ([deafd06](https://github.com/PabloAlaniz/omnisocial/commit/deafd06edd6500f627cb6ceb1cbdaead1fd5532d))
+
 ## [0.3.0](https://github.com/PabloAlaniz/omnisocial/compare/v0.2.0...v0.3.0) (2026-11-26)
 
 
