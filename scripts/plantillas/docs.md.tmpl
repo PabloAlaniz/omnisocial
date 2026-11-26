@@ -1,6 +1,10 @@
 # $nombre
 
+Una línea: qué cuenta o qué activos se manejan con esta red.
+
 > PENDIENTE: esta página nació del esqueleto. Completar cada sección con lo que se aprendió de la API real.
+> Las secciones van en este orden; las que no aplican se borran. Una sección propia de la red va después
+> de "Publicar" y antes de "Avisos".
 
 ## Qué cubre
 
@@ -10,9 +14,23 @@
 
 Lo que la red **no** ofrece por API, y por qué, también va acá.
 
+## Antes de empezar
+
+Qué cuenta, aprobación o verificación hace falta antes de poder integrar.
+
+## Crear la app
+
+1. Dónde se registra la app.
+2. La URL de retorno: `https://api.ejemplo.com/oauth/$id/callback`.
+3. Qué producto o plan hay que activar, y qué se copia (id y secreto).
+
+Documentación oficial: [nombre de la página](https://...) (verificado AAAA-MM).
+
 ## Armado
 
 ```python
+import os
+
 from omnisocial.httpx import HttpxTransport, RetryingTransport
 from omnisocial.$id import ${clase}Config, ${id}_provider
 
@@ -22,28 +40,50 @@ $id = ${id}_provider(
 )
 ```
 
-## Crear la app
+## Conectar
 
-Dónde se registra, qué URL de retorno pide y qué producto o plan hay que activar.
+Si se conecta distinto que con el diálogo de OAuth (una credencial, un servidor): cómo, con un ejemplo.
 
-## Permisos y revisión
+## Permisos
 
-| Permiso | Para qué | Qué exige |
-|---------|----------|-----------|
-| `perfil` | Saber quién es la persona. | — |
+| Constante | Permisos | Para qué |
+|-----------|----------|----------|
+| `CONNECT_SCOPES` | `perfil` | Saber quién es la persona. |
 
-## Límites y cuotas
+Qué permisos necesitan revisión de la red.
 
-Cuántos pedidos permite, cómo avisa que se pasó el límite y qué cuesta cada llamada si hay cuota.
+## Tokens
+
+Cuánto duran, si se renuevan y si el token de renovación rota.
+
+## Publicar
+
+Un ejemplo con `Draft` y lo propio de esta red: cómo van los medios, si sale en etapas, las opciones.
+
+## Avisos
+
+Cómo se suscribe la URL de los avisos y cómo vienen firmados.
+
+## Límites
+
+| Qué | Límite |
+|-----|--------|
+| Pedidos | Cuántos por minuto o por día, y cómo avisa la red que se pasó. |
 
 ## Errores
 
-Qué códigos significan token muerto, permiso faltante, límite de uso o cuota agotada. Es lo que declara
-`ERRORS` en `spec.py`.
+Lo que declara `ERRORS` en `spec.py`:
+
+| Código | Resultado |
+|--------|-----------|
+| `invalid_token` | La conexión queda inválida |
 
 ## Lo que conviene saber
 
 Lo que no está en la documentación oficial y costó descubrir.
+
+!!! warning "A confirmar con la API real"
+    - Lo que salió de leer la documentación y nadie probó todavía.
 
 Qué tan probada está esta red lo dice la columna "Soporte" de la [matriz de redes](index.md); qué
 quiere decir cada nivel, [niveles de soporte](niveles-de-soporte.md).

@@ -88,14 +88,58 @@ def test_toda_pagina_esta_en_el_indice_del_sitio() -> None:
     assert listed - present == set(), "El índice nombra páginas que no existen."
 
 
+NETWORK_SECTIONS = (
+    "Qué cubre",
+    "Antes de empezar",
+    "Crear la app",
+    "Armado",
+    "Conectar",
+    "Permisos",
+    "Tokens",
+    "Publicar",
+    None,  # acá van las secciones propias de cada red
+    "Avisos",
+    "Límites",
+    "Errores",
+    "Lo que conviene saber",
+)
+"""El orden de las secciones de una página de red (`scripts/plantillas/docs.md.tmpl`). Las que no aplican se
+omiten; las propias de una red van entre "Publicar" y "Avisos"."""
+
+NETWORK_SECTION_ALIASES = (
+    "Webhooks",
+    "Permisos y tokens",
+    "Permisos y revisión",
+    "Permisos y revisión de la app",
+    "Antes de integrar",
+    "La sesión",
+    "Límites y cuotas",
+    "Crear la app y sus productos",
+)
+"""Nombres que se usaron para una sección canónica: se escribe el canónico."""
+
+
+def _rank(section: str) -> int:
+    return NETWORK_SECTIONS.index(section if section in NETWORK_SECTIONS else None)
+
+
 @pytest.mark.parametrize("page", NETWORK_PAGES)
 def test_cada_red_tiene_su_pagina_con_la_misma_estructura(page: str) -> None:
     text = (ROOT / page).read_text(encoding="utf-8")
     sections = re.findall(r"^## (.+)$", text, flags=re.MULTILINE)
     assert text.startswith("# "), f"{page} no empieza con su título."
+    assert ":" not in text.splitlines()[0], f"{page}: el título es el nombre de la red, sin subtítulo."
     assert sections[0] == "Qué cubre", f"{page}: la primera sección es qué cubre la red."
     assert sections[-1] == "Lo que conviene saber", f"{page}: la última sección es lo que conviene saber."
     assert re.search(r"^###? Armado$", text, flags=re.MULTILINE), f"{page}: falta cómo se arma."
+    aliases = [section for section in sections if section in NETWORK_SECTION_ALIASES]
+    assert aliases == [], f"{page}: {aliases} tienen un nombre canónico en NETWORK_SECTIONS."
+    ranks = [_rank(section) for section in sections]
+    assert ranks == sorted(ranks), f"{page}: las secciones no siguen el orden de NETWORK_SECTIONS: {sections}"
+    # Lo que falta probar va en un solo bloque, al final, con la misma forma en todas las redes.
+    assert "Sin verificar:" not in text, (
+        f'{page}: lo pendiente va en el bloque "A confirmar con la API real".'
+    )
     # Qué tan probada está no se repite en cada página: se enlaza, para que no quede vieja.
     assert "niveles-de-soporte.md" in text, f"{page} no enlaza a los niveles de soporte."
 
@@ -116,3 +160,10 @@ def test_cada_adr_tiene_su_encabezado_y_esta_en_el_indice(adr: Path) -> None:
     )
     index = (DOCS / "adr" / "index.md").read_text(encoding="utf-8")
     assert f"]({adr.name})" in index, f"{adr.name} no está en docs/adr/index.md."
+    assert "Nada se probó" not in text, f"{page}: qué tan probada está lo dicen los niveles de soporte."
+
+
+def test_la_plantilla_de_una_red_sigue_la_misma_estructura() -> None:
+    text = (ROOT / "scripts" / "plantillas" / "docs.md.tmpl").read_text(encoding="utf-8")
+    sections = re.findall(r"^## (.+)$", text, flags=re.MULTILINE)
+    assert tuple(sections) == tuple(section for section in NETWORK_SECTIONS if section is not None)

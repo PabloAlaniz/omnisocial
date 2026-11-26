@@ -81,6 +81,7 @@ pierde.
 | `PUBLISHED` | Salió | Nada |
 | `PENDING` | La red la está procesando | `check_publication` más tarde |
 | `PUBLISHED_WITH_ERROR` | Salió, pero un paso posterior falló (el primer comentario, una parte del hilo) | No repetirla: ya está publicada |
+| `FAILED` | La red aceptó el pedido, pero no pudo procesarla (un video que no pudo convertir, por ejemplo). No salió | Ver `publication.error`; corregir y publicar de nuevo |
 | `STARTED` | No se sabe si salió: la red no respondió | Revisar en la red antes de reintentar. La librería no la repite sola |
 
 ## No publicar dos veces
