@@ -1,5 +1,12 @@
 # 0012. Consultas auxiliares y ritmo por red
 
+- **Estado:** Aceptada. Actualizada por [0014](0014-operar-en-produccion.md), que reparte el ritmo entre procesos.
+- **Fecha:** 2026-11-24
+- **Relacionadas:** [0007](0007-descripcion-y-contrato-de-una-red.md), [0008](0008-publicar.md)
+
+**En resumen.** Dos decisiones: las consultas auxiliares para publicar (tableros, comunidades) y el ritmo
+que pide cada red. Suma una tercera, más chica: las reseñas se tratan como comentarios.
+
 ## Contexto
 
 Hasta acá un borrador alcanzaba para publicar: texto, medios y, a lo sumo, opciones con valores fijos
@@ -46,3 +53,8 @@ las mismas operaciones que un comentario. Lo único nuevo es `Comment.rating`.
   las opciones que el arnés de la red indique.
 - `PublishLimits.video_by_url` cubre a las redes que toman las imágenes de una URL pero piden el video
   como archivo.
+
+## Alternativas descartadas
+
+- **Una capacidad aparte para las consultas.** Agregaría una columna a la matriz y obligaría a
+  sincronizar los activos ya guardados, para algo que solo sirve al publicar.

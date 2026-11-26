@@ -80,6 +80,7 @@ nav:
       - Niveles de soporte: niveles-de-soporte.md
       - Changelog: https://github.com/PabloAlaniz/omnisocial/blob/main/CHANGELOG.md
   - Decisiones de diseño:
+      - Índice: adr/index.md
       - "0001. Arquitectura en capas": adr/0001-arquitectura-en-capas.md
       - "0002. Capacidades por red": adr/0002-capacidades-por-red.md
       - "0003. Webhooks con omniwebhook": adr/0003-webhooks-con-omniwebhook.md
@@ -94,8 +95,10 @@ nav:
       - "0012. Consultas auxiliares y ritmo por red": adr/0012-consultas-auxiliares-y-ritmo.md
       - "0013. Mensajes sin historial y bandeja unificada": adr/0013-mensajes-sin-historial-y-bandeja.md
       - "0014. Operar en producción": adr/0014-operar-en-produccion.md
+      - Plantilla: adr/plantilla.md
   - Contribuir:
       - Sumar una red: nueva-red.md
+      - Capacidades de una red: nueva-red-capacidades.md
       - Pruebas en vivo: pruebas-en-vivo.md
       - Cómo se publica una versión: versiones.md
       - Hoja de ruta: hoja-de-ruta.md

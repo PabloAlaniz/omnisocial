@@ -1,5 +1,9 @@
 # 0009. Cuota y subida por partes
 
+- **Estado:** Aceptada.
+- **Fecha:** 2026-11-24
+- **Relacionadas:** [0008](0008-publicar.md)
+
 ## Contexto
 
 YouTube trajo dos cosas que Meta y TikTok no tenían. La cuota es de toda la app y se agota: si un cliente
@@ -35,7 +39,8 @@ pierde es la respuesta a la última parte, no se puede afirmar, y la publicació
 - **Retomar una subida en otro proceso.** La sesión de subida no se guarda: si el proceso muere, la subida
   empieza de nuevo. Guardarla exigiría poder reabrir el archivo desde un registro.
 - **Un protocolo de subida común.** Cada red tiene el suyo. Cuando haya dos, se verá qué comparten.
-- **Devolver lo gastado si la llamada no llegó.** Ver arriba.
+- **Devolver lo gastado si la llamada no llegó.** El gasto se anota aunque la llamada falle (ver
+  "La cuota se cuenta del lado propio").
 
 ## Consecuencias
 

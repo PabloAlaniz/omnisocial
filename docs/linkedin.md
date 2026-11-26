@@ -1,4 +1,6 @@
-# LinkedIn: perfiles, páginas de empresa y lo que conviene saber
+# LinkedIn
+
+El perfil de quien autoriza y las páginas de empresa que administra.
 
 ## Qué cubre
 
@@ -21,9 +23,32 @@ mensajes privados ni forma de ocultar un comentario (solo cerrar los de toda una
 que publicó una persona pide un permiso restringido. Los avisos (webhooks) existen para páginas, pero solo
 para apps con un caso de uso aprobado, y todavía no se integran.
 
+## Crear la app
+
+1. En [linkedin.com/developers/apps](https://www.linkedin.com/developers/apps), crear una app asociada a una
+   página de empresa (la página tiene que verificar la app).
+2. En *Auth*, cargar la URL de retorno `https://api.ejemplo.com/oauth/linkedin/callback` y copiar el
+   **client id** y el **client secret**.
+3. En *Products*, activar los productos que hagan falta:
+
+| Producto | Permisos | Revisión | Constante |
+|----------|----------|----------|-----------|
+| Sign In with LinkedIn using OpenID Connect | `openid`, `profile`, `email` | No | `LOGIN_SCOPES`, `CONNECT_SCOPES` |
+| Share on LinkedIn | `w_member_social` | No | `PUBLISH_SCOPES` |
+| Community Management API | `rw_organization_admin`, `r_organization_social`, `w_organization_social`, `r_organization_social_feed`, `w_organization_social_feed` | Sí | `ORGANIZATION_SCOPES` |
+
+- **La Community Management API tiene dos niveles.** El de desarrollo se aprueba primero, con pocas
+  llamadas por día y por un tiempo limitado; el estándar llega después de otra revisión.
+- **Los permisos terminados en `_feed` son los de comentarios y reacciones.** Son más nuevos que los de
+  publicar: una app aprobada antes puede no tenerlos.
+
+Documentación oficial: [LinkedIn API](https://learn.microsoft.com/linkedin/) (verificado 2026-11).
+
 ## Armado
 
 ```python
+import os
+
 from omnisocial.httpx import HttpxTransport, RetryingTransport
 from omnisocial.linkedin import (
     CONNECT_SCOPES,
@@ -44,29 +69,26 @@ linkedin = linkedin_provider(
 )
 ```
 
-## La versión de la API
+### La versión de la API
 
 `api_version` es obligatoria y tiene la forma `AAAAMM`. LinkedIn saca una versión por mes y **retira cada
 una al año**: con una versión retirada todas las llamadas fallan con un 426 (`NONEXISTENT_VERSION`). No es
 un problema del token y la conexión no se invalida, pero nada anda hasta actualizarla. Conviene revisarla
 un par de veces al año.
 
-## Crear la app y sus productos
+## Permisos
 
-En el portal de desarrolladores, la app se asocia a una página de empresa y se le activan productos:
+Cada permiso viene con un producto de la app (ver [Crear la app](#crear-la-app)):
 
-| Producto | Permisos | Revisión | Constante |
-|----------|----------|----------|-----------|
-| Sign In with LinkedIn using OpenID Connect | `openid`, `profile`, `email` | No | `LOGIN_SCOPES`, `CONNECT_SCOPES` |
-| Share on LinkedIn | `w_member_social` | No | `PUBLISH_SCOPES` |
-| Community Management API | `rw_organization_admin`, `r_organization_social`, `w_organization_social`, `r_organization_social_feed`, `w_organization_social_feed` | Sí | `ORGANIZATION_SCOPES` |
+| Constante | Permisos | Para qué |
+|---|---|---|
+| `LOGIN_SCOPES` | `openid`, `profile`, `email` | Saber quién es la persona |
+| `CONNECT_SCOPES` | los de login | Conectar el perfil |
+| `PUBLISH_SCOPES` | `w_member_social` | Publicar en el perfil |
+| `ORGANIZATION_SCOPES` | `rw_organization_admin`, `r_organization_social`, `w_organization_social`, `r_organization_social_feed`, `w_organization_social_feed` | Las páginas: descubrirlas, publicar, leer, comentar y medir |
 
-- **La Community Management API tiene dos niveles.** El de desarrollo se aprueba primero, con pocas
-  llamadas por día y por un tiempo limitado; el estándar llega después de otra revisión.
-- **Los permisos terminados en `_feed` son los de comentarios y reacciones.** Son más nuevos que los de
-  publicar: una app aprobada antes puede no tenerlos.
-- Pedir un permiso que la app no tiene hace fallar la autorización entera. Por eso los de páginas no se
-  piden por defecto.
+Pedir un permiso que la app no tiene hace fallar la autorización entera. Por eso los de páginas no se
+piden por defecto.
 
 ## Tokens
 
@@ -75,9 +97,6 @@ En el portal de desarrolladores, la app se asocia a una página de empresa y se 
   volver a autorizar.
 - **No hay forma documentada de revocar un token por API**: `disconnect` marca la conexión como revocada,
   pero el token sigue sirviendo en LinkedIn hasta que vence o la persona quita el acceso.
-- **Un 401 siempre es el token** (falta, es inválido, venció o lo revocaron): la conexión queda inválida.
-- **Un 403 nunca es el token.** Con `ACCESS_DENIED` falta un permiso o un producto: vuelve
-  `Refused(MISSING_PERMISSION)`. Cualquier otro 403 es una excepción y la conexión sigue sana.
 - **El id de la persona (`sub`) es propio de cada app.** La misma persona tiene otro id en otra app.
 
 ## Publicar
@@ -91,7 +110,7 @@ draft = Draft(
     media=(Media(MediaKind.IMAGE, file=PathFile.open("equipo.jpg", "image/jpeg"), alt_text="El equipo"),),
     first_comment="Seguimos buscando: escribinos.",  # solo en páginas
 )
-result = await social.publish.execute(page.id, draft, idempotency_key="equipo-nuevo")
+result = await social.publish.execute(asset_id, draft, idempotency_key="equipo-nuevo")
 ```
 
 | | Perfil | Página de empresa |
@@ -110,7 +129,8 @@ result = await social.publish.execute(page.id, draft, idempotency_key="equipo-nu
 - **El texto se escapa solo.** LinkedIn usa un formato propio donde `( ) [ ] { } < > @ | * _ ~ \` son
   reservados: sin escapar, un paréntesis puede cortar el texto o hacer rechazar la publicación. Los `#`
   no se escapan, así los hashtags siguen andando.
-- **Para mencionar**, el texto va en el formato de LinkedIn y con `LinkedInOptions(little_text=True)`:
+- **Para mencionar**, el texto va ya escrito en el formato propio de LinkedIn (su *little text*, el mismo
+  que tiene los caracteres reservados) y con `LinkedInOptions(little_text=True)`:
   `"Gracias @[Mi Empresa](urn:li:organization:123)"`. Ahí no se escapa nada: es responsabilidad de quien
   llama.
 - **La tarjeta de un link no se arma sola.** LinkedIn no lee la página: el título y la descripción van en
@@ -120,8 +140,6 @@ result = await social.publish.execute(page.id, draft, idempotency_key="equipo-nu
 - **El primer comentario pide los permisos `_feed`.** Si falla, la publicación queda
   `PUBLISHED_WITH_ERROR`.
 - `LinkedInOptions(visibility="CONNECTIONS")` publica solo para los contactos (en un perfil).
-- El límite de 3.000 caracteres es el que se conoce de la interfaz; la documentación de la API no da el
-  número.
 
 ## Publicaciones, comentarios y métricas de una página
 
@@ -143,6 +161,17 @@ result = await social.publish.execute(page.id, draft, idempotency_key="equipo-nu
   ven en el portal (Analytics) recién después de la primera llamada del día. Vuelven a medianoche UTC.
 - Al llegar, responde 429: vuelve `Refused(RATE_LIMITED)`. Reintentar en el momento no sirve.
 
+## Errores
+
+| Respuesta | Resultado |
+|---|---|
+| 401 | Siempre es el token (falta, es inválido, venció o lo revocaron): la conexión queda inválida |
+| 403 con `ACCESS_DENIED`, o código 100 | Falta un permiso o un producto: `Refused(MISSING_PERMISSION)` |
+| Otro 403 | Nunca es el token: `ProviderError`, y la conexión sigue sana |
+| 429, `TOO_MANY_REQUESTS` | `Refused(RATE_LIMITED)` |
+| 400, 422, `FIELD_LENGTH_TOO_LONG`, `UNPROCESSABLE_ENTITY` | `ProviderError`; al publicar, `Refused(CONTENT_REJECTED)` |
+| 426, `NONEXISTENT_VERSION` | La versión de la API está retirada: hay que actualizar `api_version` ([ver arriba](#la-version-de-la-api)) |
+
 ## Lo que conviene saber
 
 - **Las URLs se arman a mano.** El protocolo de LinkedIn quiere los URN codificados pero los paréntesis y
@@ -150,7 +179,10 @@ result = await social.publish.execute(page.id, draft, idempotency_key="equipo-nu
 - **La subida de una imagen lleva el token y la de un video no.**
 - **Según la respuesta, la página administrada viene en `organization` o en `organizationTarget`.**
 - **Las respuestas de error viejas no traen `code`**, solo `serviceErrorCode`.
-- Los links de imágenes vencen. Si hace falta mostrarlas después, se copian en el momento.
+
+!!! warning "A confirmar con la API real"
+    - El límite de 3.000 caracteres: es el que se conoce de la interfaz; la documentación de la API no da
+      el número.
 
 Qué tan probada está esta red lo dice la columna "Soporte" de la [matriz de redes](index.md); qué
 quiere decir cada nivel, [niveles de soporte](niveles-de-soporte.md).
