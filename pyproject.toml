@@ -83,7 +83,7 @@ branch = true
 omit = ["*/omnisocial/adapters/stores/postgres.py", "*/omnisocial/postgres.py"]
 
 [tool.coverage.report]
-fail_under = 90
+fail_under = 98
 exclude_also = ["if TYPE_CHECKING:", "@overload", "raise NotImplementedError", "\\.\\.\\."]
 
 [tool.mypy]
@@ -114,7 +114,14 @@ select = [
     "TID",
     # Sin código comentado.
     "ERA",
+    # Preview, una por una (ver `explicit-preview-rules`): un método que no usa `self` no es un método;
+    # una clase con demasiados métodos públicos o una función con demasiadas variables hace demasiado;
+    # una condición con demasiadas partes merece un nombre.
+    "PLR6301", "PLR0904", "PLR0914", "PLR0916", "FURB118", "FURB140",
 ]
+# Las reglas en preview entran solo si se nombran arriba; el resto de preview queda afuera.
+preview = true
+explicit-preview-rules = true
 ignore = [
     # El texto es español: las tildes y la ñ en docstrings, mensajes y nombres son a propósito.
     "RUF001", "RUF002", "RUF003", "PLC2401", "PLC2403",
@@ -125,14 +132,14 @@ ignore = [
 ]
 
 [tool.ruff.lint.mccabe]
-max-complexity = 8
+max-complexity = 7
 
 [tool.ruff.lint.pylint]
 max-args = 6
 max-positional-args = 4
-max-branches = 8
+max-branches = 6
 max-returns = 5
-max-statements = 30
+max-statements = 25
 max-bool-expr = 3
 
 [tool.ruff.lint.flake8-bugbear]
@@ -165,12 +172,13 @@ ban-relative-imports = "all"
 # El puerto HTTP tiene las dimensiones de un pedido HTTP: método, URL, query, cuerpo, cabeceras y si se repite.
 "src/omnisocial/adapters/http/transport.py" = ["PLR0913"]
 # El contrato de las redes son pruebas que viajan en el paquete: afirman con `assert`.
-"src/omnisocial/testing/**" = ["S101"]
+# Sus métodos con valor por defecto son ganchos que cada red cambia: no usan `self` a propósito.
+"src/omnisocial/testing/**" = ["S101", "PLR6301"]
 "src/omnisocial/testing/transport.py" = ["PLR0913"]
 "tests/**" = [
     "S101", "S105", "S106", "S107",
-    # Los dobles implementan puertos y no usan todos los argumentos.
-    "ARG",
+    # Los dobles implementan puertos y no usan todos los argumentos, ni `self`.
+    "ARG", "PLR6301",
     # Valores esperados literales y tablas de casos.
     "PLR2004", "PLR0913", "PLR0917", "FBT",
     # Los tests miran adentro de los dobles.
@@ -220,3 +228,15 @@ name = "El núcleo no depende de paquetes opcionales"
 type = "forbidden"
 source_modules = ["omnisocial.domain", "omnisocial.application"]
 forbidden_modules = ["httpx", "starlette", "psycopg", "cryptography", "opentelemetry"]
+
+[[tool.importlinter.contracts]]
+name = "El dominio es Python puro"
+type = "forbidden"
+source_modules = ["omnisocial.domain"]
+forbidden_modules = ["omniwebhook", "httpx", "starlette", "psycopg", "cryptography", "opentelemetry"]
+
+[[tool.importlinter.contracts]]
+name = "La infraestructura compartida no conoce redes ni almacenes"
+type = "forbidden"
+source_modules = ["omnisocial.adapters.http", "omnisocial.adapters.crypto", "omnisocial.adapters.otel"]
+forbidden_modules = ["omnisocial.adapters.providers", "omnisocial.adapters.stores"]

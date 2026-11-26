@@ -7,6 +7,7 @@ byte a qué byte va (en UTF-8, no en caracteres) y qué es.
 from __future__ import annotations
 
 import re
+from operator import itemgetter
 
 _LINK = re.compile(r"https?://[^\s<>\"']+")
 _TAG = re.compile(r"(?<![\w#])#([^\W\d_]\w{0,63})")
@@ -33,4 +34,4 @@ def facets(text: str) -> list[dict[str, object]]:
             continue
         feature = {"$type": "app.bsky.richtext.facet#tag", "tag": match.group(1)}
         found.append((match.start(), _facet(text, match.start(), match.end(), feature)))
-    return [facet for _, facet in sorted(found, key=lambda item: item[0])]
+    return [facet for _, facet in sorted(found, key=itemgetter(0))]

@@ -168,6 +168,10 @@ class NetworkSpec:
     """La versión de la API que usa el adaptador. `None`: la elige quien configura, o la red no tiene."""
 
     def __post_init__(self) -> None:
+        self._check_assets()
+        self._check_lookups()
+
+    def _check_assets(self) -> None:
         for kind, capabilities in self.assets.items():
             extra = capabilities - self.capabilities
             if extra:
@@ -175,6 +179,8 @@ class NetworkSpec:
                 raise ValueError(f"El activo '{kind}' declara capacidades que la red no tiene: {names}.")
             if (Capability.PUBLISHING in capabilities) != (kind in self.publishing):
                 raise ValueError(f"El activo '{kind}' publica si y solo si declara sus límites.")
+
+    def _check_lookups(self) -> None:
         for kind, lookups in self.lookups.items():
             if kind not in self.assets:
                 raise ValueError(f"Hay consultas para '{kind}', que no es un tipo de activo de la red.")

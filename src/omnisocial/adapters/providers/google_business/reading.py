@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from collections.abc import Iterable, Sequence
 from datetime import UTC, datetime, timedelta
+from itertools import starmap
 from urllib.parse import urlencode
 
 from typing_extensions import override
@@ -286,9 +287,7 @@ class GoogleBusinessInsightsReader(InsightsReader):
         days[IMPRESSIONS] = _sum(days[part] for part in _IMPRESSION_PARTS if part in days)
         if period is Period.DAY:
             return [
-                MetricSeries(
-                    name, Period.DAY, tuple(MetricPoint(day, v) for day, v in sorted(days[name].items()))
-                )
+                MetricSeries(name, Period.DAY, tuple(starmap(MetricPoint, sorted(days[name].items()))))
                 for name in wanted
                 if days.get(name)
             ]

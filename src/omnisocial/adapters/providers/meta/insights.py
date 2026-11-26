@@ -2,8 +2,8 @@
 
 from __future__ import annotations
 
-from collections.abc import Sequence
-from datetime import timedelta
+from collections.abc import Mapping, Sequence
+from datetime import datetime, timedelta
 
 from typing_extensions import override
 
@@ -113,16 +113,19 @@ class MetaInsightsReader(InsightsReader):
         out: list[tuple[str, list[MetricPoint]]] = []
         for item in as_list(body.get("data")):
             name = as_str(item.get("name"))
-            if not name:
-                continue
-            if "total_value" in item:
-                value = _number(as_dict(item.get("total_value")).get("value"))
-                out.append((name, [MetricPoint(until, value)] if value is not None else []))
-                continue
-            values = []
-            for raw in as_list(item.get("values")):
-                value = _number(raw.get("value"))
-                if value is not None:
-                    values.append(MetricPoint(parse_time(raw.get("end_time")), value))
-            out.append((name, values))
+            if name:
+                out.append((name, _points(item, until)))
         return out
+
+
+def _points(item: Mapping[str, object], until: datetime) -> list[MetricPoint]:
+    """Los puntos de una métrica: un total de la ventana entera, o un valor por período."""
+    if "total_value" in item:
+        value = _number(as_dict(item.get("total_value")).get("value"))
+        return [MetricPoint(until, value)] if value is not None else []
+    points = []
+    for raw in as_list(item.get("values")):
+        value = _number(raw.get("value"))
+        if value is not None:
+            points.append(MetricPoint(parse_time(raw.get("end_time")), value))
+    return points

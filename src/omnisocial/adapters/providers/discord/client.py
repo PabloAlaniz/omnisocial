@@ -78,9 +78,7 @@ class Look:
     suppress_embeds: bool = False
 
 
-async def message(text: str, media: Sequence[Media], look: Look) -> tuple[dict[str, object], list[Upload]]:
-    """El cuerpo de un mensaje y los archivos que lo acompañan. Una imagen por URL va incrustada; lo
-    que es un archivo, adjunto."""
+def _base(text: str, look: Look) -> dict[str, object]:
     body: dict[str, object] = {}
     if text:
         body["content"] = text
@@ -90,6 +88,23 @@ async def message(text: str, media: Sequence[Media], look: Look) -> tuple[dict[s
     flags = (SUPPRESS_EMBEDS if look.suppress_embeds else 0) | (SUPPRESS_NOTIFICATIONS if look.silent else 0)
     if flags:
         body["flags"] = flags
+    return body
+
+
+async def _upload(item: Media, number: int) -> tuple[Upload, dict[str, object]]:
+    """El archivo de un adjunto y cómo se describe en el cuerpo."""
+    file = item.upload
+    default = "mp4" if item.kind is MediaKind.VIDEO else "jpg"
+    name = f"archivo{number}.{_EXTENSIONS.get(file.content_type, default)}"
+    described = {"description": item.alt_text} if item.alt_text else {}
+    upload = Upload(name, await file.read(0, file.size), file.content_type)
+    return upload, {"id": number, "filename": name, **described}
+
+
+async def message(text: str, media: Sequence[Media], look: Look) -> tuple[dict[str, object], list[Upload]]:
+    """El cuerpo de un mensaje y los archivos que lo acompañan. Una imagen por URL va incrustada; lo
+    que es un archivo, adjunto."""
+    body = _base(text, look)
     embeds: list[dict[str, object]] = []
     attachments: list[dict[str, object]] = []
     files: list[Upload] = []
@@ -97,13 +112,9 @@ async def message(text: str, media: Sequence[Media], look: Look) -> tuple[dict[s
         if item.url is not None:
             embeds.append({"image": {"url": item.url}})
             continue
-        file = item.upload
-        number = len(files)
-        default = "mp4" if item.kind is MediaKind.VIDEO else "jpg"
-        name = f"archivo{number}.{_EXTENSIONS.get(file.content_type, default)}"
-        files.append(Upload(name, await file.read(0, file.size), file.content_type))
-        described = {"description": item.alt_text} if item.alt_text else {}
-        attachments.append({"id": number, "filename": name, **described})
+        upload, attachment = await _upload(item, len(files))
+        files.append(upload)
+        attachments.append(attachment)
     if embeds:
         body["embeds"] = embeds
     if attachments:

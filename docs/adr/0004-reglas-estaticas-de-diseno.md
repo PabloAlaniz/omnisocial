@@ -12,12 +12,13 @@ hasta decidir cinco cosas, un adaptador que deja de coincidir con su puerto sin 
 
 ## Decisión
 
-Tres herramientas, cada una con su parte. Todas corren en CI y fallan el build.
+Cuatro herramientas, cada una con su parte. Todas corren en CI y fallan el build.
 
 ### import-linter: las dependencias entre capas
 
-Las capas dependen hacia adentro, las redes no se conocen entre sí, y el núcleo no importa paquetes
-opcionales. Ver `[tool.importlinter]`.
+Las capas dependen hacia adentro, las redes no se conocen entre sí, el núcleo no importa paquetes
+opcionales, el dominio es Python puro (ni siquiera `omniwebhook`) y la infraestructura compartida
+(`adapters.http`, `adapters.crypto`, `adapters.otel`) no conoce redes ni almacenes. Ver `[tool.importlinter]`.
 
 ### ruff: lo que se ve en el código
 
@@ -29,12 +30,18 @@ Las reglas que hacen cumplir el diseño, no el estilo:
 - **Funciones chicas.** Topes de complejidad, ramas, returns, sentencias y argumentos por función. Más
   dependencias que eso suele ser una clase que hace demasiado; la excepción es la
   [raíz de composición](../referencia/glosario.md) (`entrypoints/hub.py`).
+- **Clases y métodos con una sola tarea.** Una clase con demasiados métodos públicos, una función con
+  demasiadas variables o una condición con demasiadas partes hace o dice demasiado. Un método que no usa
+  `self` es una función o un `@staticmethod` (salvo en el kit de pruebas, donde son ganchos que cada red
+  cambia).
 - **Sin atajos que esconden errores**: argumentos sin usar, booleanos posicionales, privados ajenos,
   excepciones atrapadas de más, fechas sin zona, `Any` en las firmas, números mágicos, código comentado.
 
 Las reglas y sus umbrales exactos están en `[tool.ruff]` de
 [`pyproject.toml`](https://github.com/PabloAlaniz/omnisocial/blob/main/pyproject.toml): ese es el lugar que
 manda, y no se repite acá para que no quede viejo.
+
+Las reglas en preview de ruff entran una por una (`explicit-preview-rules`), nunca en bloque.
 
 En los tests se relajan solo las reglas que chocan con la forma de un test (literales esperados, dobles que
 no usan todos los argumentos).
@@ -48,6 +55,11 @@ no usan todos los argumentos).
   declara un método que el puerto ya no tiene, también falla.
 - `ignore-without-code`, `redundant-expr`, `truthy-bool`, `possibly-undefined`.
 
+### pytest: la cobertura
+
+La cobertura de ramas tiene un piso de 98%. Lo que se prueba contra PostgreSQL de verdad queda afuera de la
+cuenta y corre en su propio job.
+
 ## Consecuencias
 
 - `typing_extensions` pasa a ser dependencia, solo por `override`.
@@ -55,3 +67,7 @@ no usan todos los argumentos).
   lo marca mypy en el punto donde se usa.
 - Adoptarlas forzó a partir algunos casos de uso que decidían varias cosas a la vez (`GetValidToken`,
   `CompleteAuthorization`, `StartAuthorization`).
+- Al bajar los topes de complejidad, ramas y sentencias se partieron el publicador y el armado de mensajes
+  de Discord, la subida de YouTube, la lectura de métricas de Meta y la validación de `NetworkSpec`.
+- No se aplican docstrings obligatorios (`D`), imports solo de tipos (`TC`) ni mensajes de excepción en
+  variable (`EM`): el costo en ruido supera lo que protegen en una librería de este tamaño.
