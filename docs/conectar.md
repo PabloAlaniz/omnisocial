@@ -127,7 +127,7 @@ match result:
 
 Antes de guardar el token se comprueba que sirve y que administra al menos un activo.
 
-Para esto no hace falta una app propia: `MetaConfig(api_version="v24.0")` sin `app_id` ni `app_secret`
+Para esto no hace falta una app propia: `MetaConfig(api_version="v26.0")` sin `app_id` ni `app_secret`
 arma Meta en **modo token**, con todo menos OAuth y avisos. Ver [Meta](meta.md).
 
 ## Usar los activos
